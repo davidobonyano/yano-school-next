@@ -1,4 +1,3 @@
-// src/app/layout.tsx
 import './globals.css';
 import type { Metadata } from 'next';
 import ClientLayout from '@/components/ClientLayout';
@@ -7,11 +6,12 @@ export const metadata: Metadata = {
   title: 'Yano School',
   description: 'Official website for Yano School – Programs, Admissions, About, Contact, and more.',
   keywords: 'Yano School, Nigeria, Education, Programs, Admissions, Contact, Events',
-  authors: [{ name: 'David Efe', url: 'mailto:godsentryan@gmail.com' }],
+  authors: [{ name: 'David obonyano', url: 'mailto:godsentryan@gmail.com' }],
+  metadataBase: new URL('https://yanoschoolll.vercel.app'), // 👈 Add this
   openGraph: {
     title: 'Yano School',
     description: 'Empowering students through quality education and innovation.',
-    url: 'https://yano-school.vercel.app',
+    url: 'https://yanoschoolll.vercel.app/',
     siteName: 'Yano School',
     images: [
       {
@@ -26,9 +26,13 @@ export const metadata: Metadata = {
   },
 };
 
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="icon" href="/images/yano-logo.png" type="image/png" />
+      </head>
       <body>
         <ClientLayout>{children}</ClientLayout>
       </body>
