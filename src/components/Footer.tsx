@@ -37,7 +37,7 @@ const Footer = () => {
           <h4 className="text-red-400 font-semibold mb-4">Explore</h4>
           <ul className="space-y-2 text-sm">
             <li>
-              <Link href="/programs" className="hover:text-red-500 transition">
+              <Link href="/programs#clubs" className="hover:text-red-500 transition">
                 Clubs & Activities
               </Link>
             </li>
@@ -47,12 +47,12 @@ const Footer = () => {
               </Link>
             </li>
             <li>
-              <Link href="/about" className="hover:text-red-500 transition">
+              <Link href="/about#uniform" className="hover:text-red-500 transition">
                 Uniform Guidelines
               </Link>
             </li>
             <li>
-              <Link href="/programs#holiday-schedule" className="hover:text-red-500 transition">
+              <Link href="/programs#school-calendar" className="hover:text-red-500 transition">
                 Holiday Schedule
               </Link>
             </li>

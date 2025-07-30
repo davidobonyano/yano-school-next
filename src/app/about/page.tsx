@@ -1,14 +1,20 @@
-
+'use client';
 import Link from 'next/link';
 import SchoolHistory from '@/components/about/SchoolHistory';
 import Mission from '@/components/mission/Mission';
 import AchievementsTimeline from '@/components/about/AchievementsTimeline';
 import LeadershipTeam from '@/components/about/LeadershipTeam';
 import Uniform from '@/components/about/Uniform';
+import {  useEffect } from 'react';
 
 export default function AboutPage() {
+   useEffect(() => {
+      window.scrollTo(0, 0);
+    }, []);
+    
   return (
-    <div className="About">
+    <main className='About'>
+    
       <section id="history">
         <SchoolHistory />
       </section>
@@ -25,7 +31,7 @@ export default function AboutPage() {
         <LeadershipTeam />
       </section>
 
-      <section>
+      <section id="uniform">
         <Uniform />
       </section>
 
@@ -38,6 +44,8 @@ export default function AboutPage() {
           Visit Admissions Page →
         </Link>
       </div>
-    </div>
+    
+    </main>
+   
   );
 }

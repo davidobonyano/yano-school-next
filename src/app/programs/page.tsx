@@ -32,7 +32,7 @@ const programs = [
 ];
 
 export default function ProgramsPage() {
-  // Scroll to top when page mounts
+  
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
@@ -51,11 +51,9 @@ export default function ProgramsPage() {
 >
   {/* Overlay: dark gradient from bottom to top */}
   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent z-10"></div>
-
-  {/* Overlay: semi-transparent black blur */}
   <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] z-10"></div>
 
-  {/* Content: Centered vertically and horizontally */}
+  
   <div className="relative z-20 flex flex-col justify-center items-center text-center h-full px-6 text-white max-w-4xl mx-auto">
     <p className="text-red-400 uppercase tracking-widest font-bold text-sm">
       Yano Academic Tracks
@@ -109,7 +107,7 @@ export default function ProgramsPage() {
         </section>
 
         {/* Special Programs */}
-        <section>
+        <section id="clubs">
           <Clubs />
         </section>
 

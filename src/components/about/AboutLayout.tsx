@@ -14,7 +14,7 @@ function AboutLayout() {
       </p>
 
       <Link
-        href="/about/about" // adjust this based on your route structure
+        href="/about" 
         className="flex transition duration-300 items-center text-black w-fit justify-center border mt-4 border-red-400 hover:border-0 rounded-3xl px-6 py-3"
       >
         Learn More About Us <div className="inline-block ml-2">→</div>

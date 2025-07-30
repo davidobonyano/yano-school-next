@@ -7,10 +7,14 @@ import EventsHome from "@/components/events/EventsHome";
 import Programsslider from "@/components/programs/ProgramsSlider";
 import Programslayout from "@/components/programs/ProgramsLayout";
 import Testimonialslider from "@/components/testimonials/TestimonialSlider";
+import { useEffect } from 'react';
 
 export default function Home() {
+   useEffect(() => {
+        window.scrollTo(0, 0);
+      }, []);
   return (
-    <div className="Home">
+    <main className="Home">
       {/* Hero Section */}
       <section
         className="relative w-full h-screen overflow-hidden"
@@ -63,6 +67,6 @@ export default function Home() {
       <section>
         <Testimonialslider />
       </section>
-    </div>
+    </main>
   );
 }
