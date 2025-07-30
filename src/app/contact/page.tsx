@@ -1,4 +1,4 @@
- 'use client';
+'use client';
 
 import { useState } from 'react';
 import emailjs, { EmailJSResponseStatus } from 'emailjs-com';
@@ -10,7 +10,7 @@ interface FormData {
   from_email: string;
   subject: string;
   message: string;
-   [key: string]: string;
+  [key: string]: string;
 }
 
 export default function ContactPage() {
@@ -147,7 +147,7 @@ export default function ContactPage() {
             <ul className="space-y-3">
               <li className="flex items-center gap-3">
                 <FontAwesomeIcon icon={faMapMarkerAlt} className="text-red-400" />
-                123 Yano School Street, Ikorodu, Lagos
+                123 Yano Street, Lagos, Nigeria
               </li>
               <li className="flex items-center gap-3">
                 <FontAwesomeIcon icon={faPhone} className="text-red-400" />
@@ -183,22 +183,22 @@ export default function ContactPage() {
         <h2 className="text-2xl font-bold text-gray-700 mb-4">Find Us on the Map</h2>
         <div className="rounded-xl overflow-hidden shadow-lg h-64 border">
           <iframe
-            src="https://www.google.com/maps?q=6.689165,3.4672584&z=17&output=embed"
+            src="https://www.google.com/maps/embed?pb=!4v1722342125622!6m8!1m7!1s0zSgmJS1a5d5sNIXHIoEFQ!2m2!1d6.6906726!2d3.4684387!3f162.6016!4f0.2211!5f0.7820865974627469"
             width="100%"
             height="100%"
             allowFullScreen
             loading="lazy"
-            title="Yano School Map"
+            title="Yano School Location"
             className="border-none"
           ></iframe>
         </div>
         <a
-          href="https://www.google.com/maps?q=6.689165,3.4672584"
+          href="https://www.google.com/maps/@6.6906726,3.4684387,3a,77.7y,162.6h,89.78t/data=!3m7!1e1!3m5!1s0zSgmJS1a5d5sNIXHIoEFQ!2e0!6shttps:%2F%2Fstreetviewpixels-pa.googleapis.com%2Fv1%2Fthumbnail%3Fcb_client%3Dmaps_sv.tactile%26w%3D900%26h%3D600%26pitch%3D0.2211199999999991%26panoid%3D0zSgmJS1a5d5sNIXHIoEFQ%26yaw%3D162.6016!7i16384!8i8192?entry=ttu"
           target="_blank"
           rel="noopener noreferrer"
           className="text-red-500 hover:underline text-sm mt-2 inline-block"
         >
-          View on Google Maps
+          View in Google Street View
         </a>
       </div>
     </section>
