@@ -1,4 +1,6 @@
+'use client';
 
+import { useEffect } from 'react';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBaby, faChild, faBook, faBrain } from "@fortawesome/free-solid-svg-icons";
 import Link from "next/link";
@@ -30,37 +32,50 @@ const programs = [
 ];
 
 export default function ProgramsPage() {
-  return (
-    <div className="Programs">
-      {/* Hero Section */}
-      <section
-        className="relative w-full h-[80vh] md:h-[85vh] overflow-hidden"
-        style={{
-          backgroundImage: "url('/images/programsHero.webp')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
-        }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent z-10"></div>
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] z-10"></div>
+  // Scroll to top when page mounts
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
-        <div className="relative z-20 flex flex-col justify-center h-full px-6 text-white max-w-4xl mx-auto">
-          <p className="text-red-400 uppercase tracking-widest font-bold text-sm">
-            Yano Academic Tracks
-          </p>
-          <h1 className="text-4xl md:text-5xl font-bold leading-tight mt-2">
-            Explore Our Comprehensive Educational Programs
-          </h1>
-          <div className="flex justify-start my-4">
-            <div className="w-16 h-[2px] bg-red-400 rounded-full"></div>
-          </div>
-          <p className="text-gray-200 text-lg md:text-xl font-light max-w-3xl">
-            Our school offers well-rounded programs designed to nurture every
-            childs potential—from foundational skills to career preparation.
-          </p>
-        </div>
-      </section>
+  return (
+    <main className="Programs">
+      {/* Hero Section */}
+  <section
+  className="relative w-full h-[90dvh] overflow-hidden"
+  style={{
+    backgroundImage: "url('/images/programsHero.webp')",
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    backgroundRepeat: "no-repeat",
+  }}
+>
+  {/* Overlay: dark gradient from bottom to top */}
+  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent z-10"></div>
+
+  {/* Overlay: semi-transparent black blur */}
+  <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] z-10"></div>
+
+  {/* Content: Centered vertically and horizontally */}
+  <div className="relative z-20 flex flex-col justify-center items-center text-center h-full px-6 text-white max-w-4xl mx-auto">
+    <p className="text-red-400 uppercase tracking-widest font-bold text-sm">
+      Yano Academic Tracks
+    </p>
+
+    <h1 className="text-4xl md:text-5xl font-bold leading-tight mt-2">
+      Explore Our Comprehensive Educational Programs
+    </h1>
+
+    <div className="my-4">
+      <div className="w-16 h-[2px] bg-red-400 rounded-full mx-auto"></div>
+    </div>
+
+    <p className="text-gray-200 text-lg md:text-xl font-light max-w-3xl">
+      Our school offers well-rounded programs designed to nurture every
+      child&apos;s potential—from foundational skills to career preparation.
+    </p>
+  </div>
+</section>
+
 
       {/* Main Content */}
       <div className="duration-300">
@@ -114,6 +129,6 @@ export default function ProgramsPage() {
           </Link>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
