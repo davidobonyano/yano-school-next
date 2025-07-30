@@ -120,6 +120,12 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         </button>
       </div>
 
+      <div className={`transition-transform duration-500 ease-in-out ${
+        menuOpen ? "-translate-x-[70%] scale-[0.7] rounded-lg overflow-hidden" : ""
+      }`}>
+        
+    
+
       {/* Contact Info Header */}
       <header
         className={`text-sm py-2 px-4 flex justify-between items-center flex-wrap z-20 transition-all duration-300 ${
@@ -228,12 +234,11 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
       {/* Main Content */}
       <main
-        className={`transition-transform duration-500 ease-in-out ${
-        menuOpen ? "-translate-x-[70%] scale-[0.7] rounded-lg overflow-hidden" : ""
-      }`}>
+       >
         {children}
         <Footer />
       </main>
+     </div> 
     </>
   );
 }
