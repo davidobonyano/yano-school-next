@@ -7,6 +7,7 @@ import { useInView } from 'react-intersection-observer';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+
 type FeatureCardProps = {
   icon: IconDefinition;
   title: string;

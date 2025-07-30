@@ -11,9 +11,6 @@ import {
 import '../lib/fontawesome';
 import Footer from '@/components/Footer';
 import Image from 'next/image';
-import { Poppins } from 'next/font/google';
-
-const poppins = Poppins({ subsets: ['latin'], weight: ['400', '600', '700'] });
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -232,9 +229,8 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       {/* Main Content */}
       <main
         className={`transition-transform duration-500 ease-in-out ${
-          menuOpen ? '-translate-x-[70%] scale-[0.7] rounded-lg overflow-hidden' : ''
-        } ${poppins.className} min-h-screen font-sans text-gray-700`}
-      >
+        menuOpen ? "-translate-x-[70%] scale-[0.7] rounded-lg overflow-hidden" : ""
+      }`}>
         {children}
         <Footer />
       </main>

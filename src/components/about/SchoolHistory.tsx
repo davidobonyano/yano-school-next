@@ -1,9 +1,9 @@
 'use client';
 
 import { motion as Motion } from 'framer-motion';
-import React from 'react';
 
-// Props type for AnimatedText
+
+
 interface AnimatedTextProps {
   text: string;
 }
@@ -44,14 +44,14 @@ export default function SchoolHistory() {
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
         >
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white relative inline-block">
+         <h2 className="text-3xl font-bold text-gray-900 relative inline-block">
             Our Journey
-            <span className="block w-12 h-1 bg-red-500 mt-2 rounded-full" />
+              <span className="block w-12 h-1 bg-red-500 mt-2 rounded-full" />
           </h2>
         </Motion.div>
 
         {/* Animated Paragraphs */}
-        <div className="space-y-6 text-base sm:text-lg text-gray-900 dark:text-gray-200 leading-relaxed">
+        <div className="space-y-6 text-base sm:text-lg text-gray-900 leading-relaxed">
           <p>
             <AnimatedText text="Yano School opened its doors in January 2008, beginning with a single classroom and a powerful mission: to nurture young minds through excellence in education and character." />
           </p>

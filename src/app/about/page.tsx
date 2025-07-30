@@ -1,4 +1,4 @@
-// src/app/about/page.tsx
+
 import Link from 'next/link';
 import SchoolHistory from '@/components/about/SchoolHistory';
 import Mission from '@/components/mission/Mission';
