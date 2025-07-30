@@ -1,26 +1,69 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Base styles */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: 'Poppins', sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: #f9fafb; /* fallback light background */
+  color: #1f2937; /* default text color (gray-800) */
+}
+
+/* Dark Mode Styles via .dark-mode class */
+body.dark-mode {
+  background-color: #1F222A;
+  color: #D4D4D4;
+}
+
+/* Elements with light backgrounds that need to turn dark */
+body.dark-mode header,
+body.dark-mode nav,
+body.dark-mode footer,
+body.dark-mode .card,
+body.dark-mode .section,
+body.dark-mode .content,
+body.dark-mode .bg-white,
+body.dark-mode .bg-gray-100,
+body.dark-mode .bg-gray-200 {
+  background-color: #2D2D30 !important;
+  color: #D4D4D4 !important;
+  border: 1px solid #3a3a3d;
+}
+
+/* Text colors override */
+body.dark-mode .text-gray-700,
+body.dark-mode .text-gray-600,
+body.dark-mode .text-black {
+  color: #D4D4D4 !important;
+}
+
+/* Link hover color */
+body.dark-mode a:hover {
+  color: #90cdf4 !important; /* soft blue */
+}
+
+/* Shadow override */
+body.dark-mode .shadow-md {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Optional styling classes that may be reused */
+body.dark-mode .card,
+body.dark-mode .section {
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+/* Transparent overlays */
+body.dark-mode .transparent {
+  background-color: rgba(31, 34, 42, 0.6) !important;
+  backdrop-filter: blur(6px);
+  color: #D4D4D4 !important;
 }

@@ -1,0 +1,46 @@
+{
+  "events": [
+    {
+      "id": 1,
+      "title": "class of 2025 sign out",
+      "description": "after concluding their final exams, the class of 2025 will sign out of Yano School.",
+      "date": "2025-07-01T09:00:00",
+      "location": "Main Hall"
+    },
+    {
+      "id": 2,
+      "title": "Inter-house Sports",
+      "description": "A day filled with athletic challenges, team spirit, and fun.",
+      "date": "2025-07-10T10:00:00",
+      "location": "School Field"
+    },
+    {
+      "id": 3,
+      "title": "Class of 2009 Reunion",
+      "description": "A lovely gathering of the class of 2009 to reminisce and reconnect.",
+      "date": "2025-06-10T15:00:00",
+      "location": "School Field"
+    },
+    {
+      "id": 4,
+      "title": "Graduation Ceremony",
+      "description": "A grand send-off for our graduating students.",
+      "date": "2025-07-26T10:00:00",
+      "location": "Yano School Hall"
+    },
+    {
+      "id": 5,
+      "title": "Parent-Teacher Conference",
+      "description": "Discuss student progress and curriculum insights.",
+      "date": "2025-08-05T13:00:00",
+      "location": "Staff Room"
+    },
+    {
+      "id": 6,
+      "title": "Literacy Day Celebration",
+      "description": "Celebrating the importance of reading and writing with competitions and exhibitions.",
+      "date": "2025-09-08T11:00:00",
+      "location": "Library"
+    }
+  ]
+}
