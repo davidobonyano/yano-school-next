@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEnvelope, faArrowLeft } from '@fortawesome/free-solid-svg-icons';
-import '../lib/fontawesome';
+import '../../lib/fontawesome';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -20,7 +20,7 @@ export default function ForgotPasswordPage() {
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           <h2 className="text-3xl font-bold text-gray-900 mb-2">Reset Password</h2>
-          <p className="text-gray-600">Enter your email address and we'll send you a link to reset your password.</p>
+          <p className="text-gray-600">Enter your email address and we&apos;ll send you a link to reset your password.</p>
         </div>
 
         <div className="bg-white rounded-lg shadow-lg p-8">
@@ -55,7 +55,7 @@ export default function ForgotPasswordPage() {
                 </svg>
               </div>
               <h3 className="text-lg font-medium text-gray-900">Check your email</h3>
-              <p className="text-gray-600">We've sent a password reset link to <strong>{email}</strong></p>
+              <p className="text-gray-600">We&apos;ve sent a password reset link to <strong>{email}</strong></p>
             </div>
           )}
 
