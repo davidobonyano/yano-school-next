@@ -1,0 +1,103 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  role      UserRole @default(STUDENT)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Profile information
+  firstName String?
+  lastName  String?
+  phone     String?
+  
+  // Student specific fields
+  studentId    String? @unique
+  grade        String?
+  section      String?
+  dateOfBirth  DateTime?
+  parentName   String?
+  parentPhone  String?
+  address      String?
+  
+  // Teacher specific fields
+  teacherId    String? @unique
+  department   String?
+  subjects     String[] // Array of subjects taught
+  qualification String?
+  experience   Int? // Years of experience
+  
+  // Admin specific fields
+  isAdmin      Boolean @default(false)
+  
+  // Relationships
+  exams        Exam[]
+  examResults  ExamResult[]
+  
+  @@map("users")
+}
+
+model Exam {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  subject     String
+  duration    Int // in minutes
+  totalMarks  Int
+  startTime   DateTime
+  endTime     DateTime
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relationships
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  createdById String
+  results     ExamResult[]
+  
+  @@map("exams")
+}
+
+model ExamResult {
+  id        String   @id @default(cuid())
+  score     Float
+  maxScore  Int
+  timeTaken Int // in minutes
+  submittedAt DateTime @default(now())
+  
+  // Relationships
+  exam      Exam     @relation(fields: [examId], references: [id])
+  examId    String
+  student   User     @relation(fields: [studentId], references: [id])
+  studentId String
+  
+  @@map("exam_results")
+}
+
+model PasswordReset {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  
+  @@map("password_resets")
+}
+
+enum UserRole {
+  STUDENT
+  TEACHER
+  ADMIN
+}
