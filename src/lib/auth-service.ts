@@ -1,9 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Create Supabase client only if environment variables are properly set
+export const supabase = supabaseUrl && supabaseAnonKey && !supabaseUrl.includes('your_supabase_url_here') 
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
 
 export interface AuthUser {
   id: string;
@@ -32,6 +35,34 @@ export class AuthService {
   // Login function for all user types
   static async login(credentials: LoginCredentials): Promise<AuthResponse> {
     try {
+      // If Supabase is not configured, use mock authentication for development
+      if (!supabase) {
+        // Mock authentication for development
+        const mockUsers = {
+          'student123': { role: 'student', name: 'John Student', id: '1' },
+          'teacher123': { role: 'teacher', name: 'Jane Teacher', id: '2' },
+          'admin123': { role: 'admin', name: 'Admin User', id: '3' }
+        };
+
+        const user = mockUsers[credentials.id as keyof typeof mockUsers];
+        if (user && user.role === credentials.role) {
+          return {
+            success: true,
+            user: {
+              id: user.id,
+              user_id: user.id,
+              role: user.role,
+              name: user.name,
+              email: `${credentials.id}@yano.school`
+            }
+          };
+        }
+        return {
+          success: false,
+          error: 'Invalid credentials'
+        };
+      }
+
       const { id, password, role } = credentials;
       
       // First, authenticate with Supabase Auth
@@ -118,6 +149,13 @@ export class AuthService {
   // Forgot password function
   static async forgotPassword(id: string, role: 'student' | 'teacher' | 'admin'): Promise<AuthResponse> {
     try {
+      if (!supabase) {
+        // Mock response for development
+        return {
+          success: true
+        };
+      }
+
       const email = `${id}@yano.school`;
       
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -147,7 +185,9 @@ export class AuthService {
   // Logout function
   static async logout(): Promise<void> {
     try {
-      await supabase.auth.signOut();
+      if (supabase) {
+        await supabase.auth.signOut();
+      }
     } catch (error) {
       console.error('Logout error:', error);
     }
@@ -156,6 +196,11 @@ export class AuthService {
   // Get current user
   static async getCurrentUser(): Promise<AuthUser | null> {
     try {
+      if (!supabase) {
+        // Return null for development when Supabase is not configured
+        return null;
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) return null;
@@ -169,7 +214,7 @@ export class AuthService {
 
       let userData;
       let role: 'student' | 'teacher' | 'admin';
-
+      
       if (studentResult.data) {
         userData = studentResult.data;
         role = 'student';

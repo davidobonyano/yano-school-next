@@ -7,12 +7,12 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faHome, faInfoCircle, faGraduationCap, faUserPlus, faEnvelope,
   faPhone, faMapMarkerAlt, faBars, faTimes, faSun, faMoon, faArrowUp,
-  faUser, faSignInAlt, faKey, faSignOutAlt
+  faUser, faSignOutAlt
 } from '@fortawesome/free-solid-svg-icons';
 import '../lib/fontawesome';
 import Footer from '@/components/Footer';
 import Image from 'next/image';
-import { AuthService, type AuthUser } from '@/lib/auth-service';
+import { AuthService } from '@/lib/auth-service';
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -23,7 +23,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [userType, setUserType] = useState('Student');
   const [selectedRole, setSelectedRole] = useState('student');
-  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+
   const [loginId, setLoginId] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const sidebarRef = useRef(null);
@@ -67,7 +67,6 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         const user = await AuthService.getCurrentUser();
         if (user) {
           setIsLoggedIn(true);
-          setCurrentUser(user);
           setUserType(user.role.charAt(0).toUpperCase() + user.role.slice(1));
         }
       } catch (error) {
@@ -81,7 +80,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   // Close auth modal when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (authModalRef.current && !(authModalRef.current as any).contains(event.target)) {
+      if (authModalRef.current && !(authModalRef.current as HTMLElement).contains(event.target as Node)) {
         setShowAuthModal(false);
         setShowForgotPassword(false);
       }
@@ -112,7 +111,6 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
       if (result.success && result.user) {
         setIsLoggedIn(true);
-        setCurrentUser(result.user);
         setUserType(result.user.role.charAt(0).toUpperCase() + result.user.role.slice(1));
         setShowAuthModal(false);
         setLoginId('');
@@ -152,7 +150,6 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     try {
       await AuthService.logout();
       setIsLoggedIn(false);
-      setCurrentUser(null);
       setUserType('Student');
       setShowAuthModal(false);
     } catch (error) {
@@ -289,7 +286,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
                    </button>
                  </div>
                  <div className="text-center text-sm text-gray-600 dark:text-gray-400">
-                   Don't have an account?{' '}
+                   Don&apos;t have an account?{' '}
                    <Link
                      href="/auth/signup"
                      className="text-blue-600 hover:text-blue-500 dark:text-blue-400"
