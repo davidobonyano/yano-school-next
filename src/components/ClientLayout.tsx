@@ -6,17 +6,28 @@ import { usePathname } from 'next/navigation';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faHome, faInfoCircle, faGraduationCap, faUserPlus, faEnvelope,
-  faPhone, faMapMarkerAlt, faBars, faTimes, faSun, faMoon, faArrowUp
+  faPhone, faMapMarkerAlt, faBars, faTimes, faSun, faMoon, faArrowUp,
+  faUser, faSignInAlt, faKey, faSignOutAlt
 } from '@fortawesome/free-solid-svg-icons';
 import '../lib/fontawesome';
 import Footer from '@/components/Footer';
 import Image from 'next/image';
+import { AuthService, type AuthUser } from '@/lib/auth-service';
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [userType, setUserType] = useState('Student');
+  const [selectedRole, setSelectedRole] = useState('student');
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [loginId, setLoginId] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
   const sidebarRef = useRef(null);
+  const authModalRef = useRef(null);
   const pathname = usePathname();
   const isHomePage = pathname === '/';
 
@@ -49,8 +60,104 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     document.body.style.overflow = menuOpen ? 'hidden' : 'auto';
   }, [menuOpen]);
 
+  // Check for existing user session
+  useEffect(() => {
+    const checkUserSession = async () => {
+      try {
+        const user = await AuthService.getCurrentUser();
+        if (user) {
+          setIsLoggedIn(true);
+          setCurrentUser(user);
+          setUserType(user.role.charAt(0).toUpperCase() + user.role.slice(1));
+        }
+      } catch (error) {
+        console.error('Error checking user session:', error);
+      }
+    };
+
+    checkUserSession();
+  }, []);
+
+  // Close auth modal when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (authModalRef.current && !(authModalRef.current as any).contains(event.target)) {
+        setShowAuthModal(false);
+        setShowForgotPassword(false);
+      }
+    };
+
+    if (showAuthModal) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showAuthModal]);
+
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      const result = await AuthService.login({
+        id: loginId,
+        password: loginPassword,
+        role: selectedRole as 'student' | 'teacher' | 'admin'
+      });
+
+      if (result.success && result.user) {
+        setIsLoggedIn(true);
+        setCurrentUser(result.user);
+        setUserType(result.user.role.charAt(0).toUpperCase() + result.user.role.slice(1));
+        setShowAuthModal(false);
+        setLoginId('');
+        setLoginPassword('');
+        
+        // Redirect to appropriate dashboard
+        window.location.href = AuthService.getDashboardUrl(result.user);
+      } else {
+        alert(result.error || 'Login failed');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      alert('An error occurred during login');
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      const result = await AuthService.forgotPassword(loginId, selectedRole as 'student' | 'teacher' | 'admin');
+      
+      if (result.success) {
+        alert('Password reset link sent to your email!');
+        setShowForgotPassword(false);
+        setLoginId('');
+      } else {
+        alert(result.error || 'Failed to send reset email');
+      }
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      alert('An error occurred while processing your request');
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await AuthService.logout();
+      setIsLoggedIn(false);
+      setCurrentUser(null);
+      setUserType('Student');
+      setShowAuthModal(false);
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   return (
@@ -72,6 +179,160 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           className="fixed inset-0 bg-black/30 z-40 lg:hidden"
           onClick={() => setMenuOpen(false)}
         />
+      )}
+
+      {/* Auth Modal */}
+      {showAuthModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div
+            ref={authModalRef}
+            className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6"
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                {showForgotPassword ? 'Forgot Password' : 'Sign In'}
+              </h2>
+              <button
+                onClick={() => {
+                  setShowAuthModal(false);
+                  setShowForgotPassword(false);
+                }}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <FontAwesomeIcon icon={faTimes} />
+              </button>
+            </div>
+
+                         {!showForgotPassword ? (
+               <form onSubmit={handleLogin} className="space-y-4">
+                 {/* Role Selection */}
+                 <div>
+                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                     Login as
+                   </label>
+                   <div className="grid grid-cols-3 gap-2">
+                     <button
+                       type="button"
+                       onClick={() => setSelectedRole('student')}
+                       className={`py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                         selectedRole === 'student'
+                           ? 'bg-blue-600 text-white'
+                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300'
+                       }`}
+                     >
+                       Student
+                     </button>
+                     <button
+                       type="button"
+                       onClick={() => setSelectedRole('teacher')}
+                       className={`py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                         selectedRole === 'teacher'
+                           ? 'bg-blue-600 text-white'
+                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300'
+                       }`}
+                     >
+                       Teacher
+                     </button>
+                     <button
+                       type="button"
+                       onClick={() => setSelectedRole('admin')}
+                       className={`py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                         selectedRole === 'admin'
+                           ? 'bg-blue-600 text-white'
+                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300'
+                       }`}
+                     >
+                       Admin
+                     </button>
+                   </div>
+                 </div>
+                 
+                                   <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      {selectedRole === 'student' ? 'Student ID' : selectedRole === 'teacher' ? 'Teacher ID' : 'Admin ID'}
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={loginId}
+                      onChange={(e) => setLoginId(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                      placeholder={`Enter your ${selectedRole} ID`}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                      placeholder="Enter your password"
+                    />
+                  </div>
+                 <button
+                   type="submit"
+                   className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
+                 >
+                   Sign In
+                 </button>
+                 <div className="text-center">
+                   <button
+                     type="button"
+                     onClick={() => setShowForgotPassword(true)}
+                     className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400"
+                   >
+                     Forgot Password?
+                   </button>
+                 </div>
+                 <div className="text-center text-sm text-gray-600 dark:text-gray-400">
+                   Don't have an account?{' '}
+                   <Link
+                     href="/auth/signup"
+                     className="text-blue-600 hover:text-blue-500 dark:text-blue-400"
+                     onClick={() => setShowAuthModal(false)}
+                   >
+                     Sign up
+                   </Link>
+                 </div>
+               </form>
+                         ) : (
+               <form onSubmit={handleForgotPassword} className="space-y-4">
+                                   <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      {selectedRole === 'student' ? 'Student ID' : selectedRole === 'teacher' ? 'Teacher ID' : 'Admin ID'}
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={loginId}
+                      onChange={(e) => setLoginId(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                      placeholder={`Enter your ${selectedRole} ID`}
+                    />
+                  </div>
+                <button
+                  type="submit"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
+                >
+                  Send Reset Link
+                </button>
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotPassword(false)}
+                    className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400"
+                  >
+                    Back to Sign In
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Sidebar - Mobile */}
@@ -103,6 +364,39 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
               <span>{label}</span>
             </Link>
           ))}
+          
+                     {/* User Authentication in Sidebar */}
+           <div className="border-t pt-4">
+             {isLoggedIn ? (
+               <div className="space-y-2">
+                 <div className="flex items-center gap-3 px-3 py-2 text-blue-900">
+                   <FontAwesomeIcon icon={faUser} />
+                   <span>Welcome, {userType}</span>
+                 </div>
+                 <button
+                   onClick={() => {
+                     handleLogout();
+                     setMenuOpen(false);
+                   }}
+                   className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-red-50 text-red-600 w-full"
+                 >
+                   <FontAwesomeIcon icon={faSignOutAlt} />
+                   <span>Sign Out</span>
+                 </button>
+               </div>
+             ) : (
+               <button
+                 onClick={() => {
+                   setShowAuthModal(true);
+                   setMenuOpen(false);
+                 }}
+                 className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-blue-50 text-blue-900 w-full"
+               >
+                 <FontAwesomeIcon icon={faUser} />
+                 <span>Login</span>
+               </button>
+             )}
+           </div>
         </nav>
         <button
           onClick={() => {
@@ -189,17 +483,46 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
               ></span>
             </Link>
           ))}
-          <button
-            onClick={() => setDarkMode(!darkMode)}
-            className={`ml-4 transition-colors duration-300 w-10 h-10 flex items-center justify-center ${
-              darkMode
-                ? 'bg-white text-black border border-gray-400 rounded-full'
-                : 'bg-gray-200 text-blue-900 rounded-full border border-transparent'
-            }`}
-            aria-label="Toggle Dark Mode"
-          >
-            <FontAwesomeIcon icon={darkMode ? faSun : faMoon} />
-          </button>
+          
+          {/* User Authentication in Desktop Nav */}
+          <div className="flex items-center space-x-4">
+            {isLoggedIn ? (
+              <div className="flex items-center space-x-2">
+                <div className="flex items-center gap-2 text-blue-900">
+                  <FontAwesomeIcon icon={faUser} />
+                  <span className="text-sm">Student</span>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-2 text-red-600 hover:text-red-700 text-sm"
+                  title="Sign Out"
+                >
+                  <FontAwesomeIcon icon={faSignOutAlt} />
+                </button>
+              </div>
+                         ) : (
+               <button
+                 onClick={() => setShowAuthModal(true)}
+                 className="flex items-center gap-2 text-blue-900 hover:text-blue-700 transition-colors"
+                 title="Login"
+               >
+                 <FontAwesomeIcon icon={faUser} />
+                 <span className="text-sm">Login</span>
+               </button>
+             )}
+            
+            <button
+              onClick={() => setDarkMode(!darkMode)}
+              className={`transition-colors duration-300 w-10 h-10 flex items-center justify-center ${
+                darkMode
+                  ? 'bg-white text-black border border-gray-400 rounded-full'
+                  : 'bg-gray-200 text-blue-900 rounded-full border border-transparent'
+              }`}
+              aria-label="Toggle Dark Mode"
+            >
+              <FontAwesomeIcon icon={darkMode ? faSun : faMoon} />
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -221,15 +544,32 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
             priority
           />
         </Link>
-        <button
-          onClick={() => setMenuOpen(!menuOpen)}
-          aria-label="Toggle Menu"
-          className={`text-xl ${
-            isHomePage ? 'text-blue-900' : darkMode ? 'text-white' : 'text-gray-700'
-          }`}
-        >
-          <FontAwesomeIcon icon={faBars} />
-        </button>
+        <div className="flex items-center space-x-4">
+          {/* User Icon for Mobile */}
+          {isLoggedIn ? (
+            <div className="flex items-center gap-2 text-blue-900">
+              <FontAwesomeIcon icon={faUser} />
+            </div>
+                     ) : (
+             <button
+               onClick={() => setShowAuthModal(true)}
+               className="text-blue-900 hover:text-blue-700"
+               title="Login"
+             >
+               <FontAwesomeIcon icon={faUser} />
+             </button>
+           )}
+          
+          <button
+            onClick={() => setMenuOpen(!menuOpen)}
+            aria-label="Toggle Menu"
+            className={`text-xl ${
+              isHomePage ? 'text-blue-900' : darkMode ? 'text-white' : 'text-gray-700'
+            }`}
+          >
+            <FontAwesomeIcon icon={faBars} />
+          </button>
+        </div>
       </div>
 
       {/* Main Content */}
