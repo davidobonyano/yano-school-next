@@ -1,10 +1,11 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { ReactNode } from 'react';
+import { ReactNode, useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { mockUsers } from '@/lib/enhanced-mock-data';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { IconDefinition } from '@fortawesome/fontawesome-svg-core';
+
 import { 
   faHome, 
   faUserGraduate,
@@ -17,13 +18,65 @@ import {
   faUserShield,
   faBookOpen,
   faClipboardList,
-  faFileExport
+  faFileExport,
+  faTimes
 } from '@fortawesome/free-solid-svg-icons';
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const admin = mockUsers.admins[0]; // Replace with real auth data
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  const touchStartX = useRef<number>(0);
+  const touchCurrentX = useRef<number>(0);
+
+  // Handle swipe gestures
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchCurrentX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    const deltaX = touchCurrentX.current - touchStartX.current;
+    const threshold = 50;
+
+    if (deltaX > threshold && touchStartX.current < 50 && !sidebarOpen) {
+      setSidebarOpen(true);
+    } else if (deltaX < -threshold && sidebarOpen) {
+      setSidebarOpen(false);
+    }
+  };
+
+  // Close sidebar when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
+        setSidebarOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setSidebarOpen(false);
+      }
+    };
+
+    if (sidebarOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'hidden';
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'unset';
+    };
+  }, [sidebarOpen]);
 
   const handleLogout = () => {
     // In a real app, you would clear auth state here
@@ -31,103 +84,278 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   };
 
   const navItems = [
-    { href: '/dashboard/admin', icon: faHome, label: 'Dashboard' },
     { 
-      label: 'Student Management',
-      items: [
-        { href: '/dashboard/admin/students', icon: faUserGraduate, label: 'All Students' },
-        { href: '/dashboard/admin/students/create', icon: faUserPlus, label: 'Add Student' },
-        { href: '/dashboard/admin/students/promotion', icon: faArrowUp, label: 'Promote Students' },
-      ]
+      href: '/dashboard/admin', 
+      icon: faHome, 
+      label: 'Dashboard',
+      bgColor: 'bg-gradient-to-r from-green-600 to-green-700',
+      hoverColor: 'hover:from-green-700 hover:to-green-800',
+      iconColor: 'text-green-100'
     },
     { 
-      label: 'Teacher Management',
-      items: [
-        { href: '/dashboard/admin/teachers', icon: faChalkboardTeacher, label: 'All Teachers' },
-        { href: '/dashboard/admin/teachers/create', icon: faUserPlus, label: 'Add Teacher' },
-      ]
+      href: '/dashboard/admin/students', 
+      icon: faUserGraduate, 
+      label: 'Students',
+      bgColor: 'bg-gradient-to-r from-blue-600 to-blue-700',
+      hoverColor: 'hover:from-blue-700 hover:to-blue-800',
+      iconColor: 'text-blue-100'
     },
     { 
-      label: 'Academic',
-      items: [
-        { href: '/dashboard/admin/courses', icon: faBookOpen, label: 'Courses' },
-        { href: '/dashboard/admin/exams', icon: faClipboardList, label: 'Exam Management' },
-      ]
+      href: '/dashboard/admin/teachers', 
+      icon: faChalkboardTeacher, 
+      label: 'Teachers',
+      bgColor: 'bg-gradient-to-r from-purple-600 to-purple-700',
+      hoverColor: 'hover:from-purple-700 hover:to-purple-800',
+      iconColor: 'text-purple-100'
     },
-    { href: '/dashboard/admin/payments', icon: faCreditCard, label: 'Payment Records' },
-    { href: '/dashboard/admin/announcements', icon: faBullhorn, label: 'Announcements' },
-    { href: '/dashboard/admin/passwords', icon: faUserShield, label: 'Password Management' },
-    { href: '/dashboard/admin/reports', icon: faFileExport, label: 'Reports & Export' },
+    { 
+      href: '/dashboard/admin/payments', 
+      icon: faCreditCard, 
+      label: 'Payments',
+      bgColor: 'bg-gradient-to-r from-orange-600 to-orange-700',
+      hoverColor: 'hover:from-orange-700 hover:to-orange-800',
+      iconColor: 'text-orange-100'
+    },
+    { 
+      href: '/dashboard/admin/announcements', 
+      icon: faBullhorn, 
+      label: 'Announcements',
+      bgColor: 'bg-gradient-to-r from-red-600 to-red-700',
+      hoverColor: 'hover:from-red-700 hover:to-red-800',
+      iconColor: 'text-red-100'
+    },
+    { 
+      href: '/dashboard/admin/courses', 
+      icon: faBookOpen, 
+      label: 'Courses',
+      bgColor: 'bg-gradient-to-r from-indigo-600 to-indigo-700',
+      hoverColor: 'hover:from-indigo-700 hover:to-indigo-800',
+      iconColor: 'text-indigo-100'
+    },
+    { 
+      href: '/dashboard/admin/passwords', 
+      icon: faUserShield, 
+      label: 'Passwords',
+      bgColor: 'bg-gradient-to-r from-gray-600 to-gray-700',
+      hoverColor: 'hover:from-gray-700 hover:to-gray-800',
+      iconColor: 'text-gray-100'
+    },
+    { 
+      href: '/dashboard/admin/reports', 
+      icon: faFileExport, 
+      label: 'Reports',
+      bgColor: 'bg-gradient-to-r from-teal-600 to-teal-700',
+      hoverColor: 'hover:from-teal-700 hover:to-teal-800',
+      iconColor: 'text-teal-100'
+    },
   ];
 
-  interface NavItem {
-    href?: string;
-    icon?: IconDefinition;
-    label: string;
-    items?: NavItem[];
-  }
-
-  const renderNavItem = (item: NavItem, level = 0) => {
-    if (item.items) {
-      return (
-        <div key={item.label} className="mb-2">
-          <div className="text-xs font-semibold text-green-300 uppercase tracking-wider px-3 py-2">
-            {item.label}
-          </div>
-          {item.items.map((subItem: NavItem) => renderNavItem(subItem, 1))}
-        </div>
-      );
-    }
-
-    return (
-      <a
-        key={item.href}
-        href={item.href}
-        className={`flex items-center gap-3 p-3 rounded transition-colors ${
-          level === 1 ? 'ml-2' : ''
-        } ${
-          pathname === item.href ? 'bg-green-800' : 'hover:bg-green-800'
-        }`}
-      >
-        {item.icon && <FontAwesomeIcon icon={item.icon as IconDefinition} className="w-5 h-5" />}
-        <span>{item.label}</span>
-      </a>
-    );
-  };
-
   return (
-    <div className="flex h-screen bg-gray-100">
-      {/* Sidebar */}
-      <aside className="w-64 bg-green-900 text-white p-4 flex flex-col">
-        <div className="flex items-center gap-3 mb-8 p-2">
-          <FontAwesomeIcon 
-            icon={faUserShield} 
-            className="h-12 w-12 text-green-200"
-          />
-          <div>
-            <h2 className="font-bold">{admin.name}</h2>
-            <p className="text-xs text-green-200">Administrator</p>
-            <p className="text-xs text-green-200">ID: {admin.id}</p>
+    <div 
+      className="flex h-screen bg-gray-100 relative"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Mobile/Tablet Icon Sidebar - Always visible */}
+      <aside className="lg:hidden fixed left-0 top-0 bottom-0 w-16 bg-gray-900 z-40 flex flex-col py-4">
+        <div className="flex flex-col space-y-4 flex-1">
+          {navItems.map((item) => (
+            <motion.button
+              key={item.href}
+              onClick={() => setSidebarOpen(true)}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              className={`
+                p-3 mx-2 rounded-xl transition-all duration-300
+                ${pathname === item.href ? item.bgColor : 'bg-gray-800 hover:bg-gray-700'}
+                group relative
+              `}
+            >
+              <FontAwesomeIcon 
+                icon={item.icon} 
+                className={`w-5 h-5 ${pathname === item.href ? 'text-white' : 'text-gray-300'}`} 
+              />
+              
+              {/* Tooltip */}
+              <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 bg-gray-900 text-white px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                {item.label}
+              </div>
+            </motion.button>
+          ))}
+        </div>
+        
+        <button 
+          onClick={handleLogout}
+          className="p-3 mx-2 bg-red-600 hover:bg-red-700 rounded-xl transition-colors group relative"
+        >
+          <FontAwesomeIcon icon={faSignOutAlt} className="w-5 h-5 text-white" />
+          <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 bg-gray-900 text-white px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+            Logout
+          </div>
+        </button>
+      </aside>
+
+      {/* Desktop Sidebar - Full width with colors */}
+      <aside className="hidden lg:flex lg:flex-col lg:w-80 bg-white shadow-xl border-r">
+        {/* Profile Section */}
+        <div className="p-6 bg-gradient-to-r from-green-900 to-green-800 text-white">
+          <div className="flex items-center gap-4">
+            <div className="h-16 w-16 rounded-full bg-white/20 border-2 border-white/30 overflow-hidden backdrop-blur-sm">
+              <div className="h-full w-full bg-white/10 flex items-center justify-center text-white text-2xl font-bold">
+                <FontAwesomeIcon icon={faUserShield} />
+              </div>
+            </div>
+            <div>
+              <h2 className="text-xl font-bold">{admin.name}</h2>
+              <p className="text-sm text-green-300">Administrator</p>
+              <p className="text-sm text-green-300">ID: {admin.id}</p>
+            </div>
           </div>
         </div>
         
-        <nav className="flex-1 space-y-1 overflow-y-auto">
-          {navItems.map((item) => renderNavItem(item))}
+        {/* Navigation */}
+        <nav className="flex-1 p-4 space-y-3">
+          {navItems.map((item, index) => (
+            <motion.a
+              key={item.href}
+              href={item.href}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.3, delay: index * 0.1 }}
+              className={`
+                flex items-center gap-4 p-4 rounded-xl transition-all duration-300 group
+                ${pathname === item.href 
+                  ? `${item.bgColor} text-white shadow-lg transform scale-105` 
+                  : `bg-gray-50 hover:bg-gray-100 text-gray-700 ${item.hoverColor}`
+                }
+              `}
+            >
+              <div className={`
+                p-2 rounded-lg 
+                ${pathname === item.href 
+                  ? 'bg-white/20' 
+                  : `${item.bgColor.replace('bg-gradient-to-r from-', 'bg-').replace(' to-' + item.bgColor.split('to-')[1], '')}/10`
+                }
+              `}>
+                <FontAwesomeIcon 
+                  icon={item.icon} 
+                  className={`w-5 h-5 ${pathname === item.href ? 'text-white' : item.iconColor.replace('text-', 'text-').replace('-100', '-600')}`} 
+                />
+              </div>
+              <span className="font-medium">{item.label}</span>
+              {pathname === item.href && (
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="ml-auto w-2 h-2 bg-white rounded-full"
+                />
+              )}
+            </motion.a>
+          ))}
         </nav>
 
-        <div className="p-3 border-t border-green-800">
+        {/* Logout Section */}
+        <div className="p-4 border-t border-gray-200">
           <button 
             onClick={handleLogout}
-            className="flex items-center gap-3 text-red-200 hover:text-white w-full"
+            className="flex items-center gap-4 w-full p-4 text-red-600 hover:bg-red-50 rounded-xl transition-all duration-300 group"
           >
-            <FontAwesomeIcon icon={faSignOutAlt} className="w-5 h-5" />
-            <span>Logout</span>
+            <div className="p-2 rounded-lg bg-red-100 group-hover:bg-red-200">
+              <FontAwesomeIcon icon={faSignOutAlt} className="w-5 h-5" />
+            </div>
+            <span className="font-medium">Logout</span>
           </button>
         </div>
       </aside>
 
+      {/* Mobile Expanded Sidebar */}
+      <AnimatePresence>
+        {sidebarOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="lg:hidden fixed inset-0 bg-black/50 z-45"
+              onClick={() => setSidebarOpen(false)}
+            />
+            <motion.aside
+              ref={sidebarRef}
+              initial={{ x: -320 }}
+              animate={{ x: 0 }}
+              exit={{ x: -320 }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="lg:hidden fixed left-16 top-0 bottom-0 w-80 bg-white shadow-2xl z-50 flex flex-col"
+            >
+              {/* Close Button */}
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="absolute top-4 right-4 p-2 rounded-lg hover:bg-gray-100 transition-colors z-10"
+              >
+                <FontAwesomeIcon icon={faTimes} className="h-5 w-5 text-gray-600" />
+              </button>
+
+              {/* Profile Section */}
+              <div className="p-6 bg-gradient-to-r from-green-900 to-green-800 text-white">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-full bg-white/20 border-2 border-white/30 overflow-hidden backdrop-blur-sm">
+                    <div className="h-full w-full bg-white/10 flex items-center justify-center text-white text-lg font-bold">
+                      <FontAwesomeIcon icon={faUserShield} />
+                    </div>
+                  </div>
+                  <div>
+                    <h2 className="font-bold">{admin.name}</h2>
+                    <p className="text-xs text-green-300">Administrator</p>
+                    <p className="text-xs text-green-300">ID: {admin.id}</p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Navigation */}
+              <nav className="flex-1 p-4 space-y-2">
+                {navItems.map((item, index) => (
+                  <motion.a
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setSidebarOpen(false)}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: index * 0.1 }}
+                    className={`
+                      flex items-center gap-3 p-3 rounded-lg transition-all duration-300
+                      ${pathname === item.href 
+                        ? `${item.bgColor} text-white shadow-md` 
+                        : 'hover:bg-gray-100 text-gray-700'
+                      }
+                    `}
+                  >
+                    <FontAwesomeIcon 
+                      icon={item.icon} 
+                      className={`w-5 h-5 ${pathname === item.href ? 'text-white' : item.iconColor.replace('text-', 'text-').replace('-100', '-600')}`} 
+                    />
+                    <span className="font-medium">{item.label}</span>
+                  </motion.a>
+                ))}
+              </nav>
+
+              {/* Logout Section */}
+              <div className="p-4 border-t border-gray-200">
+                <button 
+                  onClick={handleLogout}
+                  className="flex items-center gap-3 w-full p-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  <FontAwesomeIcon icon={faSignOutAlt} className="w-5 h-5" />
+                  <span className="font-medium">Logout</span>
+                </button>
+              </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* Main Content Area */}
-      <main className="flex-1 overflow-auto bg-white">
+      <main className="flex-1 overflow-auto bg-gray-50 lg:ml-0 pl-16 lg:pl-0">
         {children}
       </main>
     </div>

@@ -18,7 +18,7 @@ export const mockUsers = {
   ] as User[],
 
   teachers: [
-    { id: 'yanzy', email: 'teacher1@example.com', password: 'teach123', name: 'Teacher One' },
+    { id: 'teach123', email: 'teacher1@example.com', password: 'teach123', name: 'Teacher One' },
     { id: 'teach456', email: 'teacher2@example.com', password: 'teach456', name: 'Teacher Two' },
   ] as User[],
 

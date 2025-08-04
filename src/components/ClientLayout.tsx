@@ -17,8 +17,10 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const [darkMode, setDarkMode] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
+  const [mobileAccountDropdownOpen, setMobileAccountDropdownOpen] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const accountDropdownRef = useRef<HTMLDivElement>(null);
+  const mobileAccountDropdownRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const isHomePage = pathname === '/';
 
@@ -42,6 +44,10 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       if (accountDropdownRef.current && event.target instanceof Node && 
           !accountDropdownRef.current.contains(event.target)) {
         setAccountDropdownOpen(false);
+      }
+      if (mobileAccountDropdownRef.current && event.target instanceof Node && 
+          !mobileAccountDropdownRef.current.contains(event.target)) {
+        setMobileAccountDropdownOpen(false);
       }
     };
 
@@ -69,6 +75,10 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
   const toggleAccountDropdown = () => {
     setAccountDropdownOpen(!accountDropdownOpen);
+  };
+
+  const toggleMobileAccountDropdown = () => {
+    setMobileAccountDropdownOpen(!mobileAccountDropdownOpen);
   };
 
   return (
@@ -122,43 +132,8 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
             </Link>
           ))}
 
-          {/* Mobile Auth Dropdown */}
-          <div className="border-t pt-4">
-            <div className="relative" ref={accountDropdownRef}>
-              <button
-                className="flex items-center gap-3 px-3 py-2 text-blue-900 w-full"
-                title="Account"
-                onClick={toggleAccountDropdown}
-              >
-                <FontAwesomeIcon icon={faUser} />
-                <span>Account</span>
-              </button>
-              {accountDropdownOpen && (
-                <div className="mt-2 w-full bg-white shadow-lg rounded-md z-50">
-                  <Link
-                    href="/auth/login"
-                    className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      setAccountDropdownOpen(false);
-                    }}
-                  >
-                    Login
-                  </Link>
-                  <Link
-                    href="/auth/signup"
-                    className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      setAccountDropdownOpen(false);
-                    }}
-                  >
-                    Register
-                  </Link>
-                </div>
-              )}
-            </div>
-          </div>
+          
+             
         </nav>
 
         <button
@@ -247,7 +222,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
             {/* Auth Dropdown - Desktop */}
             <div className="relative" ref={accountDropdownRef}>
               <button
-                className="flex items-center gap-2 text-blue-900 hover:text-blue-700 transition-colors"
+                className="flex items-center gap-2 text-blue-900 hover:text-blue-700 transition-colors px-3 py-2 rounded-md hover:bg-blue-50"
                 title="Account"
                 onClick={toggleAccountDropdown}
               >
@@ -255,17 +230,18 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
                 <span className="text-sm">Account</span>
               </button>
               {accountDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-40 bg-white shadow-lg rounded-md z-50">
+                <div className="absolute right-0 mt-2 w-48 bg-white shadow-lg rounded-md z-50 border">
                   <Link
-                    href="/auth/login"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    href="/login"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-t-md"
                     onClick={() => setAccountDropdownOpen(false)}
                   >
-                    Login
+                   Login
                   </Link>
+                 
                   <Link
-                    href="/auth/signup"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    href="/register"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-b-md border-t"
                     onClick={() => setAccountDropdownOpen(false)}
                   >
                     Register
@@ -307,28 +283,31 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
             />
           </Link>
           <div className="flex items-center space-x-4">
-            {/* Mobile Account Dropdown */}
-            <div className="relative" ref={accountDropdownRef}>
+            {/* Mobile Header Account Dropdown */}
+            <div className="relative" ref={mobileAccountDropdownRef}>
               <button
-                className="text-blue-900 hover:text-blue-700"
+                className="text-blue-900 hover:text-blue-700 p-2 rounded-md hover:bg-blue-50 transition-colors"
                 title="Account"
-                onClick={toggleAccountDropdown}
+                onClick={toggleMobileAccountDropdown}
               >
                 <FontAwesomeIcon icon={faUser} />
               </button>
-              {accountDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-32 bg-white shadow-lg rounded-md z-50">
+              {mobileAccountDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-40 bg-white shadow-lg rounded-md z-50 border">
                   <Link
                     href="/login"
-                    className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    onClick={() => setAccountDropdownOpen(false)}
+                    className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-t-md"
+                    onClick={() => {
+                      setMobileAccountDropdownOpen(false);
+                    }}
                   >
-                    Login
+                   Login
                   </Link>
+                  
                   <Link
                     href="/register"
-                    className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    onClick={() => setAccountDropdownOpen(false)}
+                    className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-b-md border-t"
+                    onClick={() => setMobileAccountDropdownOpen(false)}
                   >
                     Register
                   </Link>
