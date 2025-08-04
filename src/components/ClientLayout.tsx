@@ -16,7 +16,9 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const [menuOpen, setMenuOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
-  const sidebarRef = useRef(null);
+  const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  const accountDropdownRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const isHomePage = pathname === '/';
 
@@ -36,8 +38,20 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       setShowScrollTop(window.scrollY > 300);
     };
 
+    const handleClickOutside = (event: MouseEvent) => {
+      if (accountDropdownRef.current && event.target instanceof Node && 
+          !accountDropdownRef.current.contains(event.target)) {
+        setAccountDropdownOpen(false);
+      }
+    };
+
     window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    document.addEventListener('mousedown', handleClickOutside);
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
 
   useEffect(() => {
@@ -51,6 +65,10 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const toggleAccountDropdown = () => {
+    setAccountDropdownOpen(!accountDropdownOpen);
   };
 
   return (
@@ -106,28 +124,39 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
           {/* Mobile Auth Dropdown */}
           <div className="border-t pt-4">
-            <div className="relative group">
+            <div className="relative" ref={accountDropdownRef}>
               <button
                 className="flex items-center gap-3 px-3 py-2 text-blue-900 w-full"
                 title="Account"
+                onClick={toggleAccountDropdown}
               >
                 <FontAwesomeIcon icon={faUser} />
                 <span>Account</span>
               </button>
-              <div className="absolute right-0 mt-2 w-32 bg-white shadow-lg rounded-md opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity z-50">
-                <Link
-                  href="/auth/login"
-                  className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  Login
-                </Link>
-                <Link
-                  href="/auth/signup"
-                  className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  Register
-                </Link>
-              </div>
+              {accountDropdownOpen && (
+                <div className="mt-2 w-full bg-white shadow-lg rounded-md z-50">
+                  <Link
+                    href="/auth/login"
+                    className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setAccountDropdownOpen(false);
+                    }}
+                  >
+                    Login
+                  </Link>
+                  <Link
+                    href="/auth/signup"
+                    className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setAccountDropdownOpen(false);
+                    }}
+                  >
+                    Register
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         </nav>
@@ -216,28 +245,33 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
             ))}
 
             {/* Auth Dropdown - Desktop */}
-            <div className="relative group">
+            <div className="relative" ref={accountDropdownRef}>
               <button
                 className="flex items-center gap-2 text-blue-900 hover:text-blue-700 transition-colors"
                 title="Account"
+                onClick={toggleAccountDropdown}
               >
                 <FontAwesomeIcon icon={faUser} />
                 <span className="text-sm">Account</span>
               </button>
-              <div className="absolute right-0 mt-2 w-40 bg-white shadow-lg rounded-md opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity z-50">
-                <Link
-                  href="/auth/login"
-                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  Login
-                </Link>
-                <Link
-                  href="/auth/signup"
-                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  Register
-                </Link>
-              </div>
+              {accountDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-40 bg-white shadow-lg rounded-md z-50">
+                  <Link
+                    href="/auth/login"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => setAccountDropdownOpen(false)}
+                  >
+                    Login
+                  </Link>
+                  <Link
+                    href="/auth/signup"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => setAccountDropdownOpen(false)}
+                  >
+                    Register
+                  </Link>
+                </div>
+              )}
             </div>
 
             <button
@@ -274,27 +308,32 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           </Link>
           <div className="flex items-center space-x-4">
             {/* Mobile Account Dropdown */}
-            <div className="relative group">
+            <div className="relative" ref={accountDropdownRef}>
               <button
                 className="text-blue-900 hover:text-blue-700"
                 title="Account"
+                onClick={toggleAccountDropdown}
               >
                 <FontAwesomeIcon icon={faUser} />
               </button>
-              <div className="absolute right-0 mt-2 w-32 bg-white shadow-lg rounded-md opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity z-50">
-                <Link
-                  href="/auth/login"
-                  className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  Login
-                </Link>
-                <Link
-                  href="/auth/signup"
-                  className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  Register
-                </Link>
-              </div>
+              {accountDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-32 bg-white shadow-lg rounded-md z-50">
+                  <Link
+                    href="/login"
+                    className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => setAccountDropdownOpen(false)}
+                  >
+                    Login
+                  </Link>
+                  <Link
+                    href="/register"
+                    className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => setAccountDropdownOpen(false)}
+                  >
+                    Register
+                  </Link>
+                </div>
+              )}
             </div>
 
             <button

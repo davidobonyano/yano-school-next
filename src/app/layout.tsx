@@ -1,6 +1,6 @@
 import './globals.css';
 import type { Metadata } from 'next';
-import ClientLayout from '@/components/ClientLayout';
+import ConditionalLayout from '@/components/ConditionalLayout';
 
 export const metadata: Metadata = {
   title: 'Yano School',
@@ -34,7 +34,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="icon" href="/images/yano-logo.png" type="image/png" />
       </head>
       <body>
-        <ClientLayout>{children}</ClientLayout>
+        <ConditionalLayout>{children}</ConditionalLayout>
       </body>
     </html>
   );
