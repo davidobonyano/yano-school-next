@@ -3,7 +3,6 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { mockUsers } from '@/lib/mock-data';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUser, faLock, faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 import Link from 'next/link';
@@ -19,22 +18,24 @@ export default function StudentLogin() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-
-    const user = mockUsers.students.find(
-      (u) => (u.id === studentIdOrEmail.trim() || u.email === studentIdOrEmail.trim()) &&
-        u.password === password
-    );
-
-    if (user) {
-      setMessage(`Welcome back, ${user.name}!`);
-      setTimeout(() => {
-        router.push('/dashboard/student');
-      }, 1000);
-    } else {
-      setMessage('Invalid Student ID/Email or password.');
+    setMessage('');
+    try {
+      const res = await fetch('/api/students/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId: studentIdOrEmail.trim(), password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMessage(data.error || 'Login failed');
+      } else {
+        setMessage(`Welcome back, ${data.student.full_name}!`);
+        setTimeout(() => {
+          router.push('/dashboard/student');
+        }, 800);
+      }
+    } catch (err: any) {
+      setMessage(err?.message || 'Login error');
     }
     setIsLoading(false);
   };
@@ -67,7 +68,7 @@ export default function StudentLogin() {
             {/* Student ID/Email Input */}
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Student ID or Email
+                Student ID
               </label>
               <div className="relative">
                 <FontAwesomeIcon 
@@ -76,7 +77,7 @@ export default function StudentLogin() {
                 />
                 <input
                   type="text"
-                  placeholder="Enter your Student ID or Email"
+                  placeholder="Enter your Student ID"
                   value={studentIdOrEmail}
                   onChange={(e) => setStudentIdOrEmail(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-900 focus:border-transparent transition-all duration-200"

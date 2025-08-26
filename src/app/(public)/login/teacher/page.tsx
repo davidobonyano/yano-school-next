@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { mockUsers } from '@/lib/mock-data';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEnvelope, faLock, faEye, faEyeSlash, faChalkboardTeacher } from '@fortawesome/free-solid-svg-icons';
 import Link from 'next/link';
@@ -19,21 +18,24 @@ export default function TeacherLogin() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-
-    const user = mockUsers.teachers.find(
-      (u) => u.email === email.trim() && u.password === password
-    );
-
-    if (user) {
-      setMessage(`Welcome back, ${user.name}!`);
-      setTimeout(() => {
-        router.push('/dashboard/teacher');
-      }, 1000);
-    } else {
-      setMessage('Invalid email or password.');
+    setMessage('');
+    try {
+      const res = await fetch('/api/teachers/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMessage(data.error || 'Login failed');
+      } else {
+        setMessage(`Welcome back, ${data.teacher.full_name}!`);
+        setTimeout(() => {
+          router.push('/dashboard/teacher');
+        }, 800);
+      }
+    } catch (err: any) {
+      setMessage(err?.message || 'Login error');
     }
     setIsLoading(false);
   };
