@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { mockUsers } from '@/lib/mock-data';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEnvelope, faLock, faEye, faEyeSlash, faUserShield } from '@fortawesome/free-solid-svg-icons';
 import Link from 'next/link';
@@ -19,23 +18,28 @@ export default function AdminLogin() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setMessage('');
 
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-
-    const user = mockUsers.admins.find(
-      (u) => u.email === email.trim() && u.password === password
-    );
-
-    if (user) {
-      setMessage(`Welcome back, ${user.name}!`);
-      setTimeout(() => {
-        router.push('/dashboard/admin');
-      }, 1000);
-    } else {
-      setMessage('Invalid email or password.');
+    try {
+      const res = await fetch('/api/admins/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setMessage(`Welcome back, ${data.admin.name}!`);
+        setTimeout(() => {
+          router.push('/dashboard/admin');
+        }, 600);
+      } else {
+        setMessage(data.error || 'Invalid email or password.');
+      }
+    } catch (err: any) {
+      setMessage(err?.message || 'Unable to sign in. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   return (

@@ -78,9 +78,11 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     };
   }, [sidebarOpen]);
 
-  const handleLogout = () => {
-    // In a real app, you would clear auth state here
-    router.push('/login'); // Redirect to login page
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/admins/logout', { method: 'POST' });
+    } catch {}
+    router.push('/login/admin');
   };
 
   const navItems = [
