@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import bcrypt from 'bcryptjs';
-import { createClient } from '@supabase/supabase-js';
 
 export async function POST(request: Request) {
   try {
@@ -10,45 +9,77 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'email and password required' }, { status: 400 });
     }
 
-    // Prefer authenticating against Exam portal Supabase Auth if configured
-    const examUrl = process.env.EXAM_SUPABASE_URL as string | undefined;
-    const examAnon = process.env.EXAM_SUPABASE_ANON_KEY as string | undefined;
+    console.log('Attempting authentication for:', email);
 
+    // Try to authenticate using the existing Supabase configuration
+    // This will use the same Supabase instance that your exam portal uses
     let authOk = false;
-    if (examUrl && examAnon) {
-      try {
-        const examClient = createClient(examUrl, examAnon);
-        const { data: authData, error: authErr } = await examClient.auth.signInWithPassword({ email, password });
-        if (!authErr && authData?.user) {
-          authOk = true;
-        }
-      } catch {
-        authOk = false;
+    let authError = null;
+
+    try {
+      console.log('Attempting Supabase auth for:', email);
+      const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({ email, password });
+      console.log('Supabase auth result:', { 
+        success: !authErr, 
+        error: authErr?.message,
+        userId: authData?.user?.id 
+      });
+      if (!authErr && authData?.user) {
+        authOk = true;
+        console.log('Supabase authentication successful for:', email);
+      } else {
+        authError = authErr?.message || 'Supabase authentication failed';
       }
+    } catch (err: any) {
+      console.log('Supabase auth exception:', err?.message);
+      authError = err?.message || 'Supabase connection error';
+      authOk = false;
     }
+    
+    console.log('Auth result:', { authOk, email, authError });
 
     // Fallback: local teacher_credentials verification
     if (!authOk) {
+      console.log('Falling back to local credentials for:', email);
       const { data: teacherForCred, error: teacherErr2 } = await supabase
         .from('teachers')
         .select('id')
         .eq('email', email)
         .maybeSingle();
       if (teacherErr2 || !teacherForCred) {
-        return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+        console.log('Local teacher not found:', email);
+        return NextResponse.json({ 
+          error: 'Invalid credentials',
+          details: 'Teacher not found in database. Please ensure you have an account.',
+          suggestion: 'Contact your administrator to create an account.'
+        }, { status: 401 });
       }
+      
       const { data: cred, error: credErr } = await supabase
         .from('teacher_credentials')
         .select('password_hash')
         .eq('teacher_id', teacherForCred.id)
         .maybeSingle();
       if (credErr || !cred) {
-        return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+        console.log('No local credentials found for:', email);
+        return NextResponse.json({ 
+          error: 'Invalid credentials',
+          details: 'No password set for this teacher account.',
+          suggestion: 'Use the set-password endpoint to set a password.',
+          endpoint: '/api/teachers/set-password'
+        }, { status: 401 });
       }
+      
       const ok = await bcrypt.compare(password, cred.password_hash);
       if (!ok) {
-        return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+        console.log('Local password mismatch for:', email);
+        return NextResponse.json({ 
+          error: 'Invalid credentials',
+          details: 'Password does not match.',
+          suggestion: 'Check your password or use the set-password endpoint to reset it.'
+        }, { status: 401 });
       }
+      console.log('Local auth successful for:', email);
     }
 
     // Ensure a teacher profile exists locally; create minimal one if missing
@@ -61,6 +92,7 @@ export async function POST(request: Request) {
         .maybeSingle();
       teacher = data;
       if (!data) {
+        console.log('Creating new teacher profile for:', email);
         const { data: inserted, error: insertErr } = await supabase
           .from('teachers')
           .insert({
@@ -78,8 +110,13 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({ success: true, teacher: { id: teacher.id, full_name: teacher.full_name, email: teacher.email } });
+    return NextResponse.json({ 
+      success: true, 
+      teacher: { id: teacher.id, full_name: teacher.full_name, email: teacher.email },
+      authMethod: authOk ? 'supabase' : 'local'
+    });
   } catch (err: any) {
+    console.error('Teacher login error:', err);
     return NextResponse.json({ error: err?.message || 'Unexpected error' }, { status: 500 });
   }
 }
