@@ -3,8 +3,10 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { ReactNode, useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { mockUsers } from '@/lib/enhanced-mock-data';
+// useState and useEffect are already imported above
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { AcademicContextProvider } from '@/lib/academic-context';
+import { GlobalAcademicSync } from '@/lib/global-academic-sync';
 
 import { 
   faHome, 
@@ -12,12 +14,9 @@ import {
   faChalkboardTeacher,
   faCreditCard,
   faBullhorn,
-  faUserPlus,
-  faArrowUp,
   faSignOutAlt,
   faUserShield,
   faBookOpen,
-  faClipboardList,
   faFileExport,
   faTimes
 } from '@fortawesome/free-solid-svg-icons';
@@ -25,7 +24,24 @@ import {
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const admin = mockUsers.admins[0]; // Replace with real auth data
+  const [admin, setAdmin] = useState<{ id: string; name: string; email: string } | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch('/api/admins/me', { cache: 'no-store' });
+        if (!res.ok) {
+          router.push('/login/admin');
+          return;
+        }
+        const data = await res.json();
+        setAdmin({ id: data.admin.id, name: data.admin.name || 'Admin', email: data.admin.email });
+      } catch {
+        router.push('/login/admin');
+      }
+    };
+    load();
+  }, [router]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number>(0);
@@ -153,12 +169,14 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   ];
 
   return (
-    <div 
-      className="flex h-screen bg-gray-100 relative"
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-    >
+    <AcademicContextProvider>
+      <GlobalAcademicSync />
+      <div 
+        className="flex h-screen bg-gray-100 relative"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
       {/* Mobile/Tablet Icon Sidebar - Always visible */}
       <aside className="lg:hidden fixed left-0 top-0 bottom-0 w-16 bg-gray-900 z-40 flex flex-col py-4">
         <div className="flex flex-col space-y-4 flex-1">
@@ -198,7 +216,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         </button>
       </aside>
 
-      {/* Desktop Sidebar - Full width with colors */}
+      {/* Guard: show nothing until admin loads */}
+      {admin && (
+      /* Desktop Sidebar - Full width with colors */
       <aside className="hidden lg:flex lg:flex-col lg:w-80 bg-white shadow-xl border-r">
         {/* Profile Section */}
         <div className="p-6 bg-gradient-to-r from-green-900 to-green-800 text-white">
@@ -270,10 +290,11 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           </button>
         </div>
       </aside>
+      )}
 
       {/* Mobile Expanded Sidebar */}
       <AnimatePresence>
-        {sidebarOpen && (
+        {sidebarOpen && admin && (
           <>
             <motion.div
               initial={{ opacity: 0 }}
@@ -360,6 +381,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       <main className="flex-1 overflow-auto bg-gray-50 lg:ml-0 pl-16 lg:pl-0">
         {children}
       </main>
-    </div>
+      </div>
+    </AcademicContextProvider>
   );
 }

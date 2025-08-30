@@ -10,9 +10,20 @@ import {
   faExclamationTriangle
 } from '@fortawesome/free-solid-svg-icons';
 import { mockUsers, mockCourses, mockExams, mockGrades } from '@/lib/enhanced-mock-data';
+import { useEffect, useState } from 'react';
 
 export default function TeacherDashboardPage() {
   const teacher = mockUsers.teachers[0]; // Replace with real auth data
+  type Announcement = {
+    id: string;
+    title: string;
+    body: string;
+    audience: 'students'|'teachers'|'admins'|'all'|'class'|'role';
+    created_at: string;
+    expires_at: string | null;
+    audience_role?: 'student'|'teacher'|'admin' | null;
+  };
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   
   // Mock assigned courses for this teacher
   const assignedCourses = mockCourses.filter(course => 
@@ -64,6 +75,25 @@ export default function TeacherDashboardPage() {
     { time: '10:30-11:15', subject: 'Mathematics', class: 'JSS2B', room: 'Room 101' },
     { time: '2:00-2:45', subject: 'Mathematics', class: 'JSS3A', room: 'Room 101' },
   ];
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/announcements', { cache: 'no-store' });
+        const data = await res.json();
+        if (!res.ok) return;
+        const now = Date.now();
+        const list: Announcement[] = (data.announcements || [])
+          .filter((a: Announcement) => {
+            const notExpired = !a.expires_at || new Date(a.expires_at).getTime() > now;
+            const forTeachers = a.audience === 'all' || a.audience === 'teachers' || (a.audience === 'role' && a.audience_role === 'teacher');
+            return notExpired && forTeachers;
+          })
+          .slice(0, 3);
+        setAnnouncements(list);
+      } catch {}
+    })();
+  }, []);
 
   return (
     <div className="p-6">
@@ -154,7 +184,7 @@ export default function TeacherDashboardPage() {
       </div>
 
       {/* Pending Tasks & Upcoming Exams */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Pending Tasks</h2>
           <div className="space-y-3">
@@ -206,6 +236,24 @@ export default function TeacherDashboardPage() {
             >
               Manage All Exams
             </a>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Announcements</h2>
+          <div className="space-y-3">
+            {announcements.map(a => (
+              <div key={a.id} className="p-3 bg-gray-50 rounded-lg">
+                <div className="flex justify-between items-start">
+                  <div className="font-medium text-gray-900">{a.title}</div>
+                  <div className="text-xs text-gray-500">{new Date(a.created_at).toLocaleDateString()}</div>
+                </div>
+                <div className="text-sm text-gray-600 line-clamp-2">{a.body}</div>
+              </div>
+            ))}
+            {announcements.length === 0 && (
+              <div className="text-sm text-gray-500">No announcements</div>
+            )}
           </div>
         </div>
       </div>

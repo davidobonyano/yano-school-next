@@ -24,7 +24,21 @@ import {
 
 export default function StudentDashboard() {
   const [isClient, setIsClient] = useState(false);
+  type Announcement = {
+    id: string;
+    title: string;
+    body: string;
+    audience: 'students'|'teachers'|'admins'|'all'|'class'|'role';
+    created_at: string;
+    expires_at: string | null;
+    audience_class_level?: string | null;
+    audience_stream?: string | null;
+    audience_role?: 'student'|'teacher'|'admin' | null;
+  };
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const student = mockUsers.students[0]; // Replace with real auth data
+  const isSenior = (student.class || '').toUpperCase().startsWith('SS');
+  const stream = (student as any).stream || (isSenior ? 'Science' : '');
   const courses = getStudentCourses();
   const grades = getStudentGrades(student.id, "First Term", "2023/2024");
   const payments = getStudentPayments(student.id);
@@ -32,6 +46,30 @@ export default function StudentDashboard() {
 
   useEffect(() => {
     setIsClient(true);
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/announcements', { cache: 'no-store' });
+        const data = await res.json();
+        if (!res.ok) return;
+        const now = Date.now();
+        const classMatch = (a: Announcement): boolean => {
+          const cls = (student.class || '').toUpperCase().replace(/\s+/g, '');
+          const target = (a.audience_class_level || '').toUpperCase();
+          return !!target && cls.includes(target);
+        };
+        const list: Announcement[] = (data.announcements || [])
+          .filter((a: Announcement) => {
+            const notExpired = !a.expires_at || new Date(a.expires_at).getTime() > now;
+            const forStudents = a.audience === 'all' || a.audience === 'students' || (a.audience === 'role' && a.audience_role === 'student') || (a.audience === 'class' && classMatch(a));
+            return notExpired && forStudents;
+          })
+          .slice(0, 5);
+        setAnnouncements(list);
+      } catch {}
+    })();
   }, []);
 
   const calculateGPA = () => {
@@ -108,10 +146,12 @@ export default function StudentDashboard() {
                   {student.class || "Form 4 Science"}
                 </div>
               </div>
-              <div>
-                <span className="font-medium text-blue-200">Stream:</span>
-                <div className="text-white font-semibold">Science</div>
-              </div>
+              {isSenior && (
+                <div>
+                  <span className="font-medium text-blue-200">Stream:</span>
+                  <div className="text-white font-semibold">{stream || '-'}</div>
+                </div>
+              )}
               <div>
                 <span className="font-medium text-blue-200">Session:</span>
                 <div className="text-white font-semibold">2023/2024</div>
@@ -286,42 +326,30 @@ export default function StudentDashboard() {
             Recent Announcements
           </h2>
           <div className="space-y-6">
-            {[
-              {
-                title: "Midterm Exams Schedule Released",
-                date: "2024-01-05",
-                content:
-                  "The midterm examination schedule has been released. Please check your dashboard for exam dates and venues. All students are advised to prepare accordingly.",
-                type: "important",
-              },
-              {
-                title: "Science Laboratory Equipment Update",
-                date: "2023-12-28",
-                content:
-                  "New laboratory equipment has been installed in the chemistry and physics labs. Students will be oriented on the new equipment during their next lab sessions.",
-                type: "info",
-              },
-            ].map((announcement, index) => (
+            {announcements.map((a, index) => (
               <motion.div
-                key={index}
+                key={a.id}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.5, delay: 0.8 + index * 0.1 }}
-                className="border-l-4 border-red-400 pl-4 py-3 bg-gradient-to-r from-red-50 to-transparent rounded-r-lg hover:from-red-100 transition-all duration-300"
+                className="border-l-4 border-blue-400 pl-4 py-3 bg-gradient-to-r from-blue-50 to-transparent rounded-r-lg hover:from-blue-100 transition-all duration-300"
               >
                 <div className="flex justify-between items-start mb-2">
                   <h3 className="font-semibold text-gray-800">
-                    {announcement.title}
+                    {a.title}
                   </h3>
                   <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                    {announcement.date}
+                    {formatDate(a.created_at)}
                   </span>
                 </div>
                 <p className="text-sm text-gray-600 leading-relaxed">
-                  {announcement.content}
+                  {a.body}
                 </p>
               </motion.div>
             ))}
+            {announcements.length === 0 && (
+              <div className="text-gray-500">No announcements yet.</div>
+            )}
           </div>
         </motion.div>
       </div>

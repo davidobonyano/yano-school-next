@@ -1,326 +1,176 @@
 "use client";
 
-import React, { useState } from "react";
-import {
-  mockUsers,
-  getStudentPayments,
-  type Payment,
-} from "@/lib/enhanced-mock-data";
+import { useEffect, useMemo, useState } from "react";
+import { usePeriod } from "@/lib/period-context";
+import { mockUsers } from "@/lib/enhanced-mock-data";
+import Link from "next/link";
+
+type LedgerRow = {
+  id: string;
+  entry_type: "Bill" | "Payment" | "Adjustment" | "CarryForward";
+  amount: number;
+  method?: string | null;
+  description?: string | null;
+  balance_after: number;
+  created_at: string;
+};
+
+type ReceiptRow = {
+  id: string;
+  receipt_no: string;
+  amount: number;
+  method: string;
+  issued_at: string;
+};
 
 export default function PaymentsPage() {
-  const student = mockUsers.students[0]; // Replace with real auth data
-  const allPayments = getStudentPayments(student.id);
+  const { period } = usePeriod();
+  const student = mockUsers.students[0]; // Replace with real auth session
+  const studentId = student.id;
 
-  const [selectedTerm, setSelectedTerm] = useState("All Terms");
-  const [selectedSession, setSelectedSession] = useState("All Sessions");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [ledger, setLedger] = useState<LedgerRow[]>([]);
+  const [balance, setBalance] = useState<number>(0);
+  const [receipts, setReceipts] = useState<ReceiptRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Filter payments based on selected filters and search
-  const filteredPayments = allPayments.filter((payment) => {
-    const matchesTerm =
-      selectedTerm === "All Terms" || payment.term === selectedTerm;
-    const matchesSession =
-      selectedSession === "All Sessions" || payment.session === selectedSession;
-    const matchesSearch =
-      payment.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      payment.id.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesTerm && matchesSession && matchesSearch;
-  });
+  useEffect(() => {
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
 
-  // Get unique terms and sessions for filters
-  const uniqueTerms = [...new Set(allPayments.map((p) => p.term))];
-  const uniqueSessions = [...new Set(allPayments.map((p) => p.session))];
+        const params = new URLSearchParams({
+          studentId,
+          term: period.term,
+          session: period.session,
+        });
+        const [ledgerRes, receiptsRes] = await Promise.all([
+          fetch(`/api/students/ledger?${params.toString()}`, { cache: "no-store" }),
+          fetch(`/api/receipts?studentId=${encodeURIComponent(studentId)}`, { cache: "no-store" }),
+        ]);
+        const ledgerJson = await ledgerRes.json();
+        const receiptsJson = await receiptsRes.json();
+        if (!ledgerRes.ok) throw new Error(ledgerJson.error || "Failed to load ledger");
+        if (!receiptsRes.ok) throw new Error(receiptsJson.error || "Failed to load receipts");
+        setLedger(ledgerJson.ledger || []);
+        setBalance(Number(ledgerJson.balance || 0));
+        setReceipts(receiptsJson.receipts || []);
+      } catch (e: any) {
+        setError(e?.message || "Unexpected error");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [studentId, period.term, period.session]);
 
-  // Calculate payment statistics
-  const totalPaid = allPayments
-    .filter((p) => p.status === "Paid")
-    .reduce((sum, p) => sum + p.amount, 0);
+  const totals = useMemo(() => {
+    const billed = ledger.filter(r => r.entry_type === "Bill" || r.entry_type === "CarryForward").reduce((s, r) => s + Number(r.amount || 0), 0);
+    const paid = ledger.filter(r => r.entry_type === "Payment").reduce((s, r) => s + Number(r.amount || 0), 0);
+    return { billed, paid, outstanding: Math.max(balance, 0) };
+  }, [ledger, balance]);
 
-  const totalPending = allPayments
-    .filter((p) => p.status === "Pending")
-    .reduce((sum, p) => sum + p.amount, 0);
-
-  const totalOverdue = allPayments
-    .filter((p) => p.status === "Overdue")
-    .reduce((sum, p) => sum + p.amount, 0);
-
-  const totalAmount = totalPaid + totalPending + totalOverdue;
-
-  // Status color helper
-  const getStatusColor = (status: Payment["status"]) => {
-    switch (status) {
-      case "Paid":
-        return "bg-green-100 text-green-800";
-      case "Pending":
-        return "bg-orange-100 text-orange-800";
-      case "Overdue":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
-  // Toggle expanded row
-  const toggleExpandedRow = (paymentId: string) => {
-    const newExpanded = new Set(expandedRows);
-    if (newExpanded.has(paymentId)) {
-      newExpanded.delete(paymentId);
-    } else {
-      newExpanded.add(paymentId);
-    }
-    setExpandedRows(newExpanded);
-  };
-
-  // Format currency
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: "NGN",
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  // Format date
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
+  const status = totals.outstanding > 0 ? "Outstanding" : "Paid";
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Payment History</h1>
-        <span className="text-sm text-gray-500">Student: {student.name}</span>
+    <div className="p-6 bg-gray-50 min-h-screen">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold">My Payments</h1>
+        <p className="text-gray-600">Term: {period.term} • Session: {period.session}</p>
       </div>
 
-      {/* Summary Cards */}
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 text-red-700 rounded border border-red-200">{error}</div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
         <div className="bg-white p-4 rounded-lg shadow border">
-          <h3 className="text-sm font-medium text-gray-700">Total Paid</h3>
-          <p className="text-2xl font-bold text-green-600">
-            {formatCurrency(totalPaid)}
-          </p>
+          <h3 className="text-sm font-medium text-gray-700">Current Fee</h3>
+          <p className="text-2xl font-bold">₦{Number(totals.billed).toLocaleString()}</p>
         </div>
         <div className="bg-white p-4 rounded-lg shadow border">
-          <h3 className="text-sm font-medium text-gray-700">Pending Amount</h3>
-          <p className="text-2xl font-bold text-orange-600">
-            {formatCurrency(totalPending)}
-          </p>
+          <h3 className="text-sm font-medium text-gray-700">Amount Paid</h3>
+          <p className="text-2xl font-bold">₦{Number(totals.paid).toLocaleString()}</p>
         </div>
         <div className="bg-white p-4 rounded-lg shadow border">
-          <h3 className="text-sm font-medium text-gray-700">Overdue Amount</h3>
-          <p className="text-2xl font-bold text-red-600">
-            {formatCurrency(totalOverdue)}
-          </p>
+          <h3 className="text-sm font-medium text-gray-700">Outstanding</h3>
+          <p className={`text-2xl font-bold ${status === 'Paid' ? 'text-green-700' : 'text-yellow-700'}`}>₦{Number(totals.outstanding).toLocaleString()}</p>
         </div>
         <div className="bg-white p-4 rounded-lg shadow border">
-          <h3 className="text-sm font-medium text-gray-700">Total Amount</h3>
-          <p className="text-2xl font-bold text-blue-600">
-            {formatCurrency(totalAmount)}
-          </p>
+          <h3 className="text-sm font-medium text-gray-700">Status</h3>
+          <span className={`px-2 py-1 text-sm font-semibold rounded ${status === 'Paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>{status}</span>
         </div>
       </div>
 
-      {/* Filters and Search */}
-      <div className="bg-white p-4 rounded-lg shadow border mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Term
-            </label>
-            <select
-              value={selectedTerm}
-              onChange={(e) => setSelectedTerm(e.target.value)}
-              className="w-full p-2 border rounded-md"
-            >
-              <option value="All Terms">All Terms</option>
-              {uniqueTerms.map((term) => (
-                <option key={term} value={term}>
-                  {term}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Session
-            </label>
-            <select
-              value={selectedSession}
-              onChange={(e) => setSelectedSession(e.target.value)}
-              className="w-full p-2 border rounded-md"
-            >
-              <option value="All Sessions">All Sessions</option>
-              {uniqueSessions.map((session) => (
-                <option key={session} value={session}>
-                  {session}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Search
-            </label>
-            <input
-              type="text"
-              placeholder="Search by description or ID..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full p-2 border rounded-md"
-            />
-          </div>
-          <div className="flex flex-col justify-end">
-            <button className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
-              Download Receipt
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Payment History Table */}
-      <div className="bg-white p-6 rounded-lg shadow border">
-        <h2 className="text-lg font-semibold mb-4">Payment Records</h2>
-        <div className="overflow-x-auto">
-          <table className="min-w-full">
-            <thead>
-              <tr className="border-b-2 border-gray-200">
-                <th className="text-left py-3 px-4 font-semibold">Date</th>
-                <th className="text-left py-3 px-4 font-semibold">
-                  Description
-                </th>
-                <th className="text-center py-3 px-4 font-semibold">Amount</th>
-                <th className="text-center py-3 px-4 font-semibold">Status</th>
-                <th className="text-center py-3 px-4 font-semibold">
-                  Term/Session
-                </th>
-                <th className="text-center py-3 px-4 font-semibold">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredPayments.map((payment) => (
-                <React.Fragment key={payment.id}>
-                  <tr className="border-b hover:bg-gray-50">
-                    <td className="py-3 px-4">{formatDate(payment.date)}</td>
-                    <td className="py-3 px-4 font-medium">
-                      {payment.description}
-                    </td>
-                    <td className="py-3 px-4 text-center font-semibold">
-                      {formatCurrency(payment.amount)}
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      <span
-                        className={`px-2 py-1 rounded-full text-sm font-medium ${getStatusColor(
-                          payment.status
-                        )}`}
-                      >
-                        {payment.status}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-center text-sm">
-                      <div>{payment.term}</div>
-                      <div className="text-gray-500">{payment.session}</div>
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      <button
-                        onClick={() => toggleExpandedRow(payment.id)}
-                        className="text-blue-600 hover:text-blue-800 text-sm font-medium mr-2"
-                      >
-                        {expandedRows.has(payment.id) ? "Hide" : "Details"}
-                      </button>
-                      {payment.status === "Paid" && (
-                        <button className="text-green-600 hover:text-green-800 text-sm font-medium">
-                          Receipt
-                        </button>
-                      )}
-                      {payment.status === "Pending" && (
-                        <button className="text-orange-600 hover:text-orange-800 text-sm font-medium">
-                          Pay Now
-                        </button>
-                      )}
-                    </td>
+      <div className="mb-6">
+        <h2 className="text-lg font-semibold text-gray-800 mb-2">Transaction History</h2>
+        {loading ? (
+          <div className="text-gray-600">Loading...</div>
+        ) : (
+          <div className="overflow-hidden rounded-lg shadow">
+            <table className="min-w-full divide-y divide-gray-200 bg-white">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Balance After</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {ledger.map((row) => (
+                  <tr key={row.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(row.created_at).toLocaleString()}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.entry_type}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.description || '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.method || '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{row.entry_type === 'Payment' ? `-₦${Number(row.amount).toLocaleString()}` : `₦${Number(row.amount).toLocaleString()}`}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₦{Number(row.balance_after).toLocaleString()}</td>
                   </tr>
-                  {expandedRows.has(payment.id) && (
-                    <tr className="bg-gray-50 border-b">
-                      <td colSpan={6} className="py-4 px-4">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                          <div>
-                            <strong>Payment ID:</strong> {payment.id}
-                          </div>
-                          <div>
-                            <strong>Student ID:</strong> {payment.studentId}
-                          </div>
-                          <div>
-                            <strong>Payment Date:</strong>{" "}
-                            {formatDate(payment.date)}
-                          </div>
-                          <div className="md:col-span-3">
-                            <strong>Description:</strong> {payment.description}
-                          </div>
-                          {payment.status === "Pending" && (
-                            <div className="md:col-span-3 mt-2">
-                              <button className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors">
-                                Make Payment ({formatCurrency(payment.amount)})
-                              </button>
-                            </div>
-                          )}
-                          {payment.status === "Overdue" && (
-                            <div className="md:col-span-3 mt-2">
-                              <div className="text-red-600 font-medium mb-2">
-                                This payment is overdue. Please pay immediately
-                                to avoid late fees.
-                              </div>
-                              <button className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors">
-                                Pay Now ({formatCurrency(payment.amount)})
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {filteredPayments.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-500">
-              No payments found matching your filters.
-            </p>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
 
-      {/* Outstanding Balance Summary */}
-      {totalPending + totalOverdue > 0 && (
-        <div className="mt-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
-          <h3 className="font-semibold text-orange-800 mb-2">
-            Outstanding Balance: {formatCurrency(totalPending + totalOverdue)}
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            {totalPending > 0 && (
-              <div className="text-sm text-orange-700">
-                Pending: {formatCurrency(totalPending)}
-              </div>
-            )}
-            {totalOverdue > 0 && (
-              <div className="text-sm text-red-700">
-                Overdue: {formatCurrency(totalOverdue)}
-              </div>
-            )}
+      <div>
+        <h2 className="text-lg font-semibold text-gray-800 mb-2">Receipts</h2>
+        {receipts.length === 0 ? (
+          <div className="text-gray-600">No receipts yet.</div>
+        ) : (
+          <div className="overflow-hidden rounded-lg shadow">
+            <table className="min-w-full divide-y divide-gray-200 bg-white">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Receipt No</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Issued</th>
+                  <th className="px-6 py-3"></th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {receipts.map((r) => (
+                  <tr key={r.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{r.receipt_no}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">₦{Number(r.amount).toLocaleString()}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{r.method}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(r.issued_at).toLocaleString()}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                      <Link className="text-blue-600 hover:underline" href={`/api/receipts/${encodeURIComponent(r.receipt_no)}/pdf`} target="_blank">
+                        Download PDF
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-          <button className="mt-3 bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700 transition-colors">
-            Pay Outstanding Balance
-          </button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

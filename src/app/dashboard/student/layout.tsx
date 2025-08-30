@@ -5,6 +5,8 @@ import { ReactNode, useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { mockUsers } from '@/lib/mock-data';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { AcademicContextProvider } from '@/lib/academic-context';
+import { GlobalAcademicSync } from '@/lib/global-academic-sync';
 import { 
   faHome, 
   faBook, 
@@ -124,12 +126,14 @@ export default function StudentLayout({ children }: { children: ReactNode }) {
   ];
 
   return (
-    <div 
-      className="flex h-screen bg-gray-100 relative"
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-    >
+    <AcademicContextProvider>
+      <GlobalAcademicSync />
+      <div 
+        className="flex h-screen bg-gray-100 relative"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
 
 
       {/* Mobile/Tablet Icon Sidebar - Always visible */}
@@ -333,6 +337,7 @@ export default function StudentLayout({ children }: { children: ReactNode }) {
       <main className="flex-1 overflow-auto bg-gray-50 lg:ml-0 pl-16 lg:pl-0">
         {children}
       </main>
-    </div>
+      </div>
+    </AcademicContextProvider>
   );
 }

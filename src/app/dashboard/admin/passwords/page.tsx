@@ -25,42 +25,62 @@ interface Teacher {
   is_active: boolean;
 }
 
+interface Student {
+  id: string;
+  student_id: string;
+  full_name: string;
+  email: string | null;
+  class_level: string | null;
+  school_name: string | null;
+  is_active: boolean;
+}
+
 export default function PasswordManagementPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
   const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [showPasswordForm, setShowPasswordForm] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState('');
 
-  // Fetch teachers from the database
+  // Fetch teachers and students from the database
   useEffect(() => {
     fetchTeachers();
+    fetchStudents();
   }, []);
 
   const fetchTeachers = async () => {
     try {
-      setLoading(true);
-      // This would need to be implemented in your API
-      // For now, we'll use a placeholder
       const response = await fetch('/api/teachers');
       if (response.ok) {
         const data = await response.json();
         setTeachers(data.teachers || []);
       } else {
-        // Fallback to showing available teachers from the schema
-        setTeachers([
-          { id: '1fbd54f5-2d78-45ab-aa09-f0709056d67b', full_name: 'Test Teacher', email: 'teacher@test.com', school_name: 'Demo Secondary School', is_active: true },
-          { id: '33675fac-70f7-4883-bbd7-d4a4d02cf1a6', full_name: 'dave', email: 'godsentryan@gmail.com', school_name: 'yano', is_active: true },
-          { id: '5073f7c0-1150-4778-9158-96ffaea26e62', full_name: 'dave', email: 'davidobonyanoefe@gmail.com', school_name: 'yano', is_active: true },
-          { id: 'dd5aab0c-6bca-467c-8bb1-2b17f6ec67bc', full_name: 'Jerry', email: 'oyedelejeremiah.ng@gmail.com', school_name: 'yano', is_active: true }
-        ]);
+        console.error('Error fetching teachers:', response.statusText);
+        setMessage('Error fetching teachers');
       }
     } catch (error) {
       console.error('Error fetching teachers:', error);
       setMessage('Error fetching teachers');
+    }
+  };
+
+  const fetchStudents = async () => {
+    try {
+      const response = await fetch('/api/students');
+      if (response.ok) {
+        const data = await response.json();
+        setStudents(data.students || []);
+      } else {
+        console.error('Error fetching students:', response.statusText);
+        setMessage('Error fetching students');
+      }
+    } catch (error) {
+      console.error('Error fetching students:', error);
+      setMessage('Error fetching students');
     } finally {
       setLoading(false);
     }
@@ -87,10 +107,40 @@ export default function PasswordManagementPage() {
     }
   };
 
+  const setStudentPassword = async (studentId: string, password: string) => {
+    try {
+      const response = await fetch('/api/students/set-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId, password }),
+      });
+
+      if (response.ok) {
+        setMessage(`Password set successfully for student ID: ${studentId}`);
+        setShowPasswordForm(null);
+        setNewPassword('');
+      } else {
+        const error = await response.json();
+        setMessage(`Error: ${error.error}`);
+      }
+    } catch (error) {
+      setMessage('Error setting password');
+    }
+  };
+
   const filteredTeachers = teachers.filter(teacher => {
     const matchesSearch = teacher.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          teacher.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = !roleFilter || roleFilter === 'teacher';
+    const matchesRole = !roleFilter || roleFilter === 'teachers';
+    
+    return matchesSearch && matchesRole;
+  });
+
+  const filteredStudents = students.filter(student => {
+    const matchesSearch = student.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (student.email && student.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                         student.student_id.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRole = !roleFilter || roleFilter === 'students';
     
     return matchesSearch && matchesRole;
   });
@@ -112,9 +162,13 @@ export default function PasswordManagementPage() {
     });
   };
 
-  const handlePasswordSubmit = (email: string) => {
+  const handlePasswordSubmit = (identifier: string, userType: 'teacher' | 'student') => {
     if (newPassword.trim()) {
-      setTeacherPassword(email, newPassword);
+      if (userType === 'teacher') {
+        setTeacherPassword(identifier, newPassword);
+      } else {
+        setStudentPassword(identifier, newPassword);
+      }
     }
   };
 
@@ -126,7 +180,7 @@ export default function PasswordManagementPage() {
           <FontAwesomeIcon icon={faKey} className="w-6 h-6 text-red-600" />
           Password Management
         </h1>
-        <p className="text-gray-600">Manage teacher passwords and authentication settings</p>
+        <p className="text-gray-600">Manage teacher and student passwords and authentication settings</p>
       </div>
 
       {/* Message Display */}
@@ -177,7 +231,7 @@ export default function PasswordManagementPage() {
             <FontAwesomeIcon icon={faSearch} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="Search teachers..."
+              placeholder="Search teachers and students..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -191,21 +245,26 @@ export default function PasswordManagementPage() {
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="">All Roles</option>
-            <option value="teacher">Teachers</option>
+            <option value="teachers">Teachers</option>
+            <option value="students">Students</option>
           </select>
         </div>
       </div>
 
-      {/* Teachers Table */}
+      {/* Users Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">Teacher Accounts</h3>
+          <h3 className="text-lg font-medium text-gray-900">
+            {roleFilter === 'teachers' ? 'Teacher Accounts' : 
+             roleFilter === 'students' ? 'Student Accounts' : 
+             'Teacher & Student Accounts'}
+          </h3>
         </div>
         
         {loading ? (
           <div className="p-6 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-2 text-gray-600">Loading teachers...</p>
+            <p className="mt-2 text-gray-600">Loading users...</p>
           </div>
         ) : (
           <div className="overflow-x-auto">

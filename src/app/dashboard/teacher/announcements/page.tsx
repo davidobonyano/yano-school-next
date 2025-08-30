@@ -10,132 +10,54 @@ import {
   faEye
 } from '@fortawesome/free-solid-svg-icons';
 
-interface Announcement {
+type Announcement = {
   id: string;
   title: string;
-  content: string;
-  type: 'general' | 'urgent' | 'academic' | 'event';
-  targetAudience: 'all' | 'students' | 'teachers' | 'parents';
-  author: string;
-  createdAt: string;
-  isActive: boolean;
-  priority: 'low' | 'medium' | 'high';
-}
+  body: string;
+  audience: 'students'|'teachers'|'admins'|'all'|'class'|'role';
+  created_at: string;
+  expires_at: string | null;
+  audience_class_level?: string | null;
+  audience_stream?: string | null;
+  audience_role?: 'student'|'teacher'|'admin' | null;
+  attachments?: { name: string; url: string; type?: string; size?: number }[];
+};
 
 export default function TeacherAnnouncementsPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [filterType, setFilterType] = useState<string>('');
-  const [filterPriority, setFilterPriority] = useState<string>('');
-
-  // Mock announcements - role-based for teachers
-  const mockAnnouncements: Announcement[] = [
-    {
-      id: 'ann1',
-      title: 'Mid-Term Examination Schedule',
-      content: 'The mid-term examinations will commence on January 15th, 2024. All teachers are required to submit question papers by January 10th. Invigilation schedules will be shared by January 12th.',
-      type: 'academic',
-      targetAudience: 'teachers',
-      author: 'Academic Office',
-      createdAt: '2024-01-08',
-      isActive: true,
-      priority: 'high'
-    },
-    {
-      id: 'ann2',
-      title: 'Staff Meeting - January 20th',
-      content: 'All teaching and non-teaching staff are required to attend the monthly staff meeting on January 20th at 10:00 AM in the conference hall. Agenda includes curriculum updates and new policies.',
-      type: 'general',
-      targetAudience: 'teachers',
-      author: 'Principal',
-      createdAt: '2024-01-07',
-      isActive: true,
-      priority: 'medium'
-    },
-    {
-      id: 'ann3',
-      title: 'Grade Submission Deadline',
-      content: 'All first-term grades must be submitted through the teacher portal by January 25th, 2024. Late submissions will require written justification.',
-      type: 'urgent',
-      targetAudience: 'teachers',
-      author: 'Academic Office',
-      createdAt: '2024-01-05',
-      isActive: true,
-      priority: 'high'
-    },
-    {
-      id: 'ann4',
-      title: 'Professional Development Workshop',
-      content: 'A workshop on "Modern Teaching Methodologies" will be held on February 3rd, 2024. All teachers are encouraged to attend. Registration is optional but recommended.',
-      type: 'event',
-      targetAudience: 'teachers',
-      author: 'HR Department',
-      createdAt: '2024-01-03',
-      isActive: true,
-      priority: 'medium'
-    },
-    {
-      id: 'ann5',
-      title: 'New Digital Resources Available',
-      content: 'The school has subscribed to additional digital learning resources. Access credentials and training materials are available in the staff resource center.',
-      type: 'general',
-      targetAudience: 'teachers',
-      author: 'IT Department',
-      createdAt: '2024-01-02',
-      isActive: true,
-      priority: 'low'
-    },
-    {
-      id: 'ann6',
-      title: 'Student Progress Review Guidelines',
-      content: 'New guidelines for student progress reviews have been implemented. Please review the updated assessment criteria and reporting formats.',
-      type: 'academic',
-      targetAudience: 'teachers',
-      author: 'Academic Office',
-      createdAt: '2024-01-01',
-      isActive: true,
-      priority: 'medium'
-    }
-  ];
+  const [filterAudience, setFilterAudience] = useState<string>('');
 
   useEffect(() => {
-    // Filter announcements relevant to teachers
-    const teacherAnnouncements = mockAnnouncements.filter(
-      announcement => 
-        announcement.targetAudience === 'teachers' || 
-        announcement.targetAudience === 'all'
-    );
-    setAnnouncements(teacherAnnouncements);
+    (async () => {
+      try {
+        const res = await fetch('/api/announcements', { cache: 'no-store' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed');
+        const now = Date.now();
+        const list: Announcement[] = (data.announcements || [])
+          .filter((a: Announcement) => {
+            const notExpired = !a.expires_at || new Date(a.expires_at).getTime() > now;
+            const forTeachers = a.audience === 'all' || a.audience === 'teachers' || (a.audience === 'role' && a.audience_role === 'teacher');
+            return notExpired && forTeachers;
+          });
+        setAnnouncements(list);
+      } catch {}
+    })();
   }, []);
 
-  const filteredAnnouncements = announcements.filter(announcement => {
-    const matchesType = !filterType || announcement.type === filterType;
-    const matchesPriority = !filterPriority || announcement.priority === filterPriority;
-    return matchesType && matchesPriority && announcement.isActive;
+  const filteredAnnouncements = announcements.filter((a) => {
+    const matchesAudience = !filterAudience || a.audience === filterAudience;
+    return matchesAudience;
   });
 
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case 'urgent': return 'bg-red-100 text-red-800 border-red-200';
-      case 'academic': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'event': return 'bg-purple-100 text-purple-800 border-purple-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+  const getAudienceBadge = (a: Announcement) => {
+    if (a.audience === 'class') {
+      const cls = a.audience_class_level || '?';
+      const stream = a.audience_stream ? ` ${a.audience_stream}` : '';
+      return `${cls}${stream ? ' -' + stream : ''}`;
     }
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'bg-red-100 text-red-800';
-      case 'medium': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-green-100 text-green-800';
-    }
-  };
-
-  const getPriorityIcon = (priority: string) => {
-    switch (priority) {
-      case 'high': return '🔴';
-      case 'medium': return '🟡';
-      default: return '🟢';
-    }
+    if (a.audience === 'role') return `Role: ${a.audience_role}`;
+    return a.audience;
   };
 
   return (
@@ -150,7 +72,7 @@ export default function TeacherAnnouncementsPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center">
             <div className="bg-blue-100 rounded-lg p-3 mr-4">
@@ -164,13 +86,18 @@ export default function TeacherAnnouncementsPage() {
         </div>
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center">
-            <div className="bg-red-100 rounded-lg p-3 mr-4">
-              <FontAwesomeIcon icon={faBullhorn} className="h-6 w-6 text-red-600" />
+            <div className="bg-green-100 rounded-lg p-3 mr-4">
+              <FontAwesomeIcon icon={faEye} className="h-6 w-6 text-green-600" />
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-500">High Priority</p>
+              <p className="text-sm font-medium text-gray-500">This Week</p>
               <p className="text-2xl font-bold text-gray-900">
-                {announcements.filter(a => a.priority === 'high').length}
+                {announcements.filter(a => {
+                  const d = new Date(a.created_at);
+                  const weekAgo = new Date();
+                  weekAgo.setDate(weekAgo.getDate() - 7);
+                  return d >= weekAgo;
+                }).length}
               </p>
             </div>
           </div>
@@ -181,28 +108,8 @@ export default function TeacherAnnouncementsPage() {
               <FontAwesomeIcon icon={faCalendarAlt} className="h-6 w-6 text-purple-600" />
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-500">Academic</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {announcements.filter(a => a.type === 'academic').length}
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="bg-green-100 rounded-lg p-3 mr-4">
-              <FontAwesomeIcon icon={faEye} className="h-6 w-6 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">This Week</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {announcements.filter(a => {
-                  const announcementDate = new Date(a.createdAt);
-                  const weekAgo = new Date();
-                  weekAgo.setDate(weekAgo.getDate() - 7);
-                  return announcementDate >= weekAgo;
-                }).length}
-              </p>
+              <p className="text-sm font-medium text-gray-500">With Expiry</p>
+              <p className="text-2xl font-bold text-gray-900">{announcements.filter(a => !!a.expires_at).length}</p>
             </div>
           </div>
         </div>
@@ -212,25 +119,15 @@ export default function TeacherAnnouncementsPage() {
       <div className="bg-white rounded-lg shadow p-4 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <select
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
+            value={filterAudience}
+            onChange={(e) => setFilterAudience(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
           >
-            <option value="">All Types</option>
-            <option value="general">General</option>
-            <option value="urgent">Urgent</option>
-            <option value="academic">Academic</option>
-            <option value="event">Event</option>
-          </select>
-          <select
-            value={filterPriority}
-            onChange={(e) => setFilterPriority(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-          >
-            <option value="">All Priorities</option>
-            <option value="high">High Priority</option>
-            <option value="medium">Medium Priority</option>
-            <option value="low">Low Priority</option>
+            <option value="">All Audiences</option>
+            <option value="all">All</option>
+            <option value="teachers">Teachers</option>
+            <option value="role">Role-targeted</option>
+            <option value="class">Class-targeted</option>
           </select>
           <div className="flex items-center text-sm text-gray-600">
             <FontAwesomeIcon icon={faFilter} className="w-4 h-4 mr-2" />
@@ -242,32 +139,22 @@ export default function TeacherAnnouncementsPage() {
       {/* Announcements List */}
       <div className="space-y-4">
         {filteredAnnouncements.map((announcement) => (
-          <div key={announcement.id} className={`bg-white rounded-lg shadow-md border-l-4 overflow-hidden ${
-            announcement.priority === 'high' ? 'border-red-500' : 
-            announcement.priority === 'medium' ? 'border-yellow-500' : 'border-green-500'
-          }`}>
+          <div key={announcement.id} className="bg-white rounded-lg shadow-md border-l-4 overflow-hidden border-gray-300">
             <div className="p-6">
               <div className="flex justify-between items-start mb-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <h3 className="text-lg font-semibold text-gray-900">{announcement.title}</h3>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getTypeColor(announcement.type)}`}>
-                      {announcement.type.charAt(0).toUpperCase() + announcement.type.slice(1)}
-                    </span>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(announcement.priority)}`}>
-                      {getPriorityIcon(announcement.priority)} {announcement.priority.charAt(0).toUpperCase() + announcement.priority.slice(1)}
+                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                      {getAudienceBadge(announcement)}
                     </span>
                   </div>
-                  <p className="text-gray-600 mb-4 leading-relaxed">{announcement.content}</p>
+                  <p className="text-gray-600 mb-4 leading-relaxed">{announcement.body}</p>
                   
                   <div className="flex items-center gap-4 text-sm text-gray-500">
                     <div className="flex items-center gap-1">
-                      <FontAwesomeIcon icon={faUser} className="w-4 h-4" />
-                      <span>By {announcement.author}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
                       <FontAwesomeIcon icon={faCalendarAlt} className="w-4 h-4" />
-                      <span>{new Date(announcement.createdAt).toLocaleDateString('en-US', { 
+                      <span>{new Date(announcement.created_at).toLocaleDateString('en-US', { 
                         year: 'numeric', 
                         month: 'long', 
                         day: 'numeric' 
@@ -280,26 +167,6 @@ export default function TeacherAnnouncementsPage() {
                   </div>
                 </div>
               </div>
-
-              {/* Action Buttons for urgent announcements */}
-              {announcement.priority === 'high' && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 mt-4">
-                  <div className="flex items-center gap-2 text-red-800">
-                    <span className="font-medium">⚠️ Action Required:</span>
-                    <span className="text-sm">Please acknowledge this urgent announcement</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Academic announcements with additional info */}
-              {announcement.type === 'academic' && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
-                  <div className="flex items-center gap-2 text-blue-800">
-                    <span className="font-medium">📚 Academic Notice:</span>
-                    <span className="text-sm">This affects your teaching responsibilities</span>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         ))}

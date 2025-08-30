@@ -11,50 +11,56 @@ import {
   faChartLine,
   faUserShield
 } from '@fortawesome/free-solid-svg-icons';
-import { mockUsers, mockCourses, mockPayments } from '@/lib/enhanced-mock-data';
+import { useEffect, useState } from 'react';
+import { useGlobalAcademicContext } from '@/contexts/GlobalAcademicContext';
+import { GlobalAcademicSwitcher } from '@/components/academic-context/GlobalAcademicSwitcher';
 
 export default function AdminDashboardPage() {
-  const totalStudents = mockUsers.students.length;
-  const totalTeachers = mockUsers.teachers.length;
-  const totalCourses = mockCourses.length;
-  const totalRevenue = mockPayments.reduce((sum, payment) => 
-    payment.status === 'Paid' ? sum + payment.amount : sum, 0
-  );
+  const { academicContext } = useGlobalAcademicContext();
+  const [summary, setSummary] = useState<{ totalStudents: number; activeStudents: number; totalTeachers: number; totalCourses: number; totalRevenue: number; completedPaymentsCount: number; activeCoursesCount: number; pendingPayments: any[]; currentTerm?: string; currentSession?: string } | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/admins/summary', { cache: 'no-store' });
+        const data = await res.json();
+        if (res.ok) setSummary(data.summary);
+      } catch {}
+    })();
+  }, [academicContext]);
 
   const stats = [
     {
       title: 'Total Students',
-      value: totalStudents,
+      value: summary?.totalStudents ?? 0,
       icon: faUserGraduate,
       color: 'bg-blue-500',
       href: '/dashboard/admin/students'
     },
     {
       title: 'Total Teachers',
-      value: totalTeachers,
+      value: summary?.totalTeachers ?? 0,
       icon: faChalkboardTeacher,
       color: 'bg-green-500',
       href: '/dashboard/admin/teachers'
     },
     {
       title: 'Active Courses',
-      value: totalCourses,
+      value: summary?.activeCoursesCount ?? 0,
       icon: faBookOpen,
       color: 'bg-purple-500',
       href: '/dashboard/admin/courses'
     },
     {
       title: 'Revenue (₦)',
-      value: totalRevenue.toLocaleString(),
+      value: (summary?.totalRevenue ?? 0).toLocaleString(),
       icon: faCreditCard,
       color: 'bg-yellow-500',
       href: '/dashboard/admin/payments'
     }
   ];
 
-  const recentPayments = mockPayments
-    .filter(payment => payment.status === 'Pending')
-    .slice(0, 5);
+  const recentPayments = (summary?.pendingPayments ?? []).slice(0, 5);
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
@@ -73,8 +79,23 @@ export default function AdminDashboardPage() {
             <h1 className="text-3xl font-bold">Admin Dashboard</h1>
             <p className="text-red-100">Manage your school&apos;s operations</p>
           </div>
+          <div className="ml-auto flex items-center gap-2 z-10">
+            <div className="text-right">
+              <div className="text-sm text-red-100">Current Session</div>
+              <div className="font-semibold">{academicContext.session}</div>
+            </div>
+            <div className="text-right">
+              <div className="text-sm text-red-100">Current Term</div>
+              <div className="font-semibold">{academicContext.term}</div>
+            </div>
+          </div>
         </div>
       </motion.div>
+
+      {/* Global Academic Context Switcher */}
+      <div className="mb-8">
+        <GlobalAcademicSwitcher />
+      </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -158,17 +179,17 @@ export default function AdminDashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="text-center p-4 bg-gray-50 rounded-lg">
             <FontAwesomeIcon icon={faChartLine} className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-            <p className="text-lg font-bold text-gray-900">{mockPayments.filter(p => p.status === 'Paid').length}</p>
+            <p className="text-lg font-bold text-gray-900">{summary?.completedPaymentsCount ?? 0}</p>
             <p className="text-sm text-gray-500">Completed Payments</p>
           </div>
           <div className="text-center p-4 bg-gray-50 rounded-lg">
             <FontAwesomeIcon icon={faUserGraduate} className="h-8 w-8 text-green-600 mx-auto mb-2" />
-            <p className="text-lg font-bold text-gray-900">{mockUsers.students.filter(s => s.status === 'active').length}</p>
+            <p className="text-lg font-bold text-gray-900">{summary?.activeStudents ?? 0}</p>
             <p className="text-sm text-gray-500">Active Students</p>
           </div>
           <div className="text-center p-4 bg-gray-50 rounded-lg">
             <FontAwesomeIcon icon={faBookOpen} className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-            <p className="text-lg font-bold text-gray-900">{mockCourses.filter(c => c.status === 'Active').length}</p>
+            <p className="text-lg font-bold text-gray-900">{summary?.activeCoursesCount ?? 0}</p>
             <p className="text-sm text-gray-500">Active Courses</p>
           </div>
         </div>

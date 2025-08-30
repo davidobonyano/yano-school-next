@@ -1,0 +1,288 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+// GET /api/courses - Get all courses with filtering
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const classLevel = searchParams.get('class_level');
+    const term = searchParams.get('term');
+    const sessionId = searchParams.get('session_id');
+    const termId = searchParams.get('term_id');
+    const category = searchParams.get('category');
+    const stream = searchParams.get('stream');
+    const subjectType = searchParams.get('subject_type');
+    const search = searchParams.get('search');
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '50');
+    const offset = (page - 1) * limit;
+
+    let query = supabase
+      .from('courses')
+      .select('*', { count: 'exact' });
+
+    // Apply filters
+    if (classLevel) {
+      query = query.eq('class_level', classLevel);
+    }
+    if (term) {
+      query = query.eq('term', term);
+    }
+    if (sessionId) {
+      query = query.eq('session_id', sessionId);
+    }
+    if (termId) {
+      query = query.eq('term_id', termId);
+    }
+    if (category) {
+      query = query.eq('category', category);
+    }
+    if (stream) {
+      query = query.eq('stream', stream);
+    }
+    if (subjectType) {
+      query = query.eq('subject_type', subjectType);
+    }
+    if (search) {
+      query = query.or(`name.ilike.%${search}%,code.ilike.%${search}%,description.ilike.%${search}%`);
+    }
+
+    // Apply pagination
+    query = query.range(offset, offset + limit - 1);
+    query = query.order('class_level', { ascending: true });
+    query = query.order('term', { ascending: true });
+    query = query.order('name', { ascending: true });
+
+    const { data: courses, error, count } = await query;
+
+    if (error) {
+      console.error('Error fetching courses:', error);
+      return NextResponse.json(
+        { error: 'Failed to fetch courses' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      courses,
+      pagination: {
+        page,
+        limit,
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / limit)
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in courses GET:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+// POST /api/courses - Create new course
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { name, code, description, class_level, term, category, stream, subject_type } = body;
+
+    // Validation
+    if (!name || !code || !class_level || !term || !category) {
+      return NextResponse.json(
+        { error: 'Missing required fields: name, code, class_level, term, category' },
+        { status: 400 }
+      );
+    }
+
+    // Check if course code already exists
+    const { data: existingCourse } = await supabase
+      .from('courses')
+      .select('id')
+      .eq('code', code)
+      .single();
+
+    if (existingCourse) {
+      return NextResponse.json(
+        { error: 'Course code already exists' },
+        { status: 409 }
+      );
+    }
+
+    // Create new course
+    const { data: course, error } = await supabase
+      .from('courses')
+      .insert({
+        name,
+        code,
+        description,
+        class_level,
+        term,
+        category,
+        stream,
+        subject_type
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating course:', error);
+      return NextResponse.json(
+        { error: 'Failed to create course' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(course, { status: 201 });
+
+  } catch (error) {
+    console.error('Error in courses POST:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+// PUT /api/courses - Update course
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { id, name, code, description, class_level, term, category, stream, subject_type } = body;
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Course ID is required' },
+        { status: 400 }
+      );
+    }
+
+    // Check if course exists
+    const { data: existingCourse } = await supabase
+      .from('courses')
+      .select('id')
+      .eq('id', id)
+      .single();
+
+    if (!existingCourse) {
+      return NextResponse.json(
+        { error: 'Course not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check if new code conflicts with existing course (excluding current course)
+    if (code) {
+      const { data: codeConflict } = await supabase
+        .from('courses')
+        .select('id')
+        .eq('code', code)
+        .neq('id', id)
+        .single();
+
+      if (codeConflict) {
+        return NextResponse.json(
+          { error: 'Course code already exists' },
+          { status: 409 }
+        );
+      }
+    }
+
+    // Update course
+    const { data: course, error } = await supabase
+      .from('courses')
+      .update({
+        name,
+        code,
+        description,
+        class_level,
+        term,
+        category,
+        stream,
+        subject_type,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating course:', error);
+      return NextResponse.json(
+        { error: 'Failed to update course' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(course);
+
+  } catch (error) {
+    console.error('Error in courses PUT:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE /api/courses - Delete course
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Course ID is required' },
+        { status: 400 }
+      );
+    }
+
+    // Check if course exists
+    const { data: existingCourse } = await supabase
+      .from('courses')
+      .select('id')
+      .eq('id', id)
+      .single();
+
+    if (!existingCourse) {
+      return NextResponse.json(
+        { error: 'Course not found' },
+        { status: 404 }
+      );
+    }
+
+    // Delete course
+    const { error } = await supabase
+      .from('courses')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error deleting course:', error);
+      return NextResponse.json(
+        { error: 'Failed to delete course' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ message: 'Course deleted successfully' });
+
+  } catch (error) {
+    console.error('Error in courses DELETE:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+
+
+

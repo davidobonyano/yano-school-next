@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 
 export async function POST(request: Request) {
   try {
-    const { studentId, password, stream, classLevel } = await request.json();
+    const { studentId, password, stream, classLevel, email } = await request.json();
     if (!studentId || !password) {
       return NextResponse.json({ error: 'studentId and password required' }, { status: 400 });
     }
@@ -25,16 +25,28 @@ export async function POST(request: Request) {
 
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Optionally persist stream/classLevel updates if provided
-    if ((stream && typeof stream === 'string') || (classLevel && typeof classLevel === 'string')) {
-      await supabase
+    // Optionally persist stream/classLevel/email updates if provided
+    const updates: Record<string, unknown> = {};
+    if (stream && typeof stream === 'string') {
+      updates.stream = stream;
+    }
+    if (classLevel && typeof classLevel === 'string') {
+      updates.class_level = classLevel;
+    }
+    // Set/overwrite email if provided
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : undefined;
+    if (normalizedEmail) {
+      updates.email = normalizedEmail;
+    }
+    if (Object.keys(updates).length > 0) {
+      updates.updated_at = new Date().toISOString();
+      const { error: updStudentErr } = await supabase
         .from('school_students')
-        .update({
-          stream: stream ?? null,
-          class_level: classLevel ?? student.class_level ?? null,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updates)
         .eq('student_id', studentId);
+      if (updStudentErr) {
+        return NextResponse.json({ error: updStudentErr.message }, { status: 500 });
+      }
     }
 
     // Upsert into student_credentials table

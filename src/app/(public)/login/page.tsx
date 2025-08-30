@@ -23,7 +23,7 @@ export default function StudentLogin() {
       const res = await fetch('/api/students/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ studentId: studentIdOrEmail.trim(), password }),
+        body: JSON.stringify({ studentId: studentIdOrEmail.trim().toUpperCase(), password }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -79,8 +79,8 @@ export default function StudentLogin() {
                   type="text"
                   placeholder="Enter your Student ID"
                   value={studentIdOrEmail}
-                  onChange={(e) => setStudentIdOrEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-900 focus:border-transparent transition-all duration-200"
+                  onChange={(e) => setStudentIdOrEmail(e.target.value.toUpperCase())}
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-900 focus:border-transparent transition-all duration-200 uppercase"
                   required
                 />
               </div>

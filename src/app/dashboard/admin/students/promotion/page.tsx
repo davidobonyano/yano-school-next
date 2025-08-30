@@ -10,7 +10,14 @@ import {
   faGraduationCap,
   faSave
 } from '@fortawesome/free-solid-svg-icons';
-import { mockUsers, User } from '@/lib/enhanced-mock-data';
+import { supabase } from '@/lib/supabase';
+
+type Student = {
+  id: string;
+  name: string;
+  email?: string | null;
+  class?: string;
+};
 
 interface PromotionRecord {
   studentId: string;
@@ -21,7 +28,7 @@ interface PromotionRecord {
 }
 
 export default function StudentPromotionPage() {
-  const [students, setStudents] = useState<User[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
   const [promotions, setPromotions] = useState<PromotionRecord[]>([]);
   const [selectedClass, setSelectedClass] = useState('');
   const [targetClass, setTargetClass] = useState('');
@@ -36,18 +43,20 @@ export default function StudentPromotionPage() {
     'SS3A', 'SS3B', 'SS3C'
   ];
 
-  // Enhanced mock data with more students
-  const enhancedStudents = [
-    ...mockUsers.students,
-    { id: 'stu789', email: 'john.doe@example.com', password: 'pass789', name: 'John Doe', class: 'JSS1A', status: 'active' as const },
-    { id: 'stu101', email: 'jane.smith@example.com', password: 'pass101', name: 'Jane Smith', class: 'JSS1A', status: 'active' as const },
-    { id: 'stu112', email: 'mike.johnson@example.com', password: 'pass112', name: 'Mike Johnson', class: 'JSS2A', status: 'active' as const },
-    { id: 'stu113', email: 'sarah.wilson@example.com', password: 'pass113', name: 'Sarah Wilson', class: 'JSS2B', status: 'active' as const },
-    { id: 'stu114', email: 'david.brown@example.com', password: 'pass114', name: 'David Brown', class: 'JSS3A', status: 'active' as const },
-  ];
-
   useEffect(() => {
-    setStudents(enhancedStudents);
+    (async () => {
+      const { data, error } = await supabase
+        .from('school_students')
+        .select('id, full_name, email, class_level, stream');
+      if (!error) {
+        setStudents((data || []).map((s: any) => ({
+          id: s.id,
+          name: s.full_name,
+          email: s.email,
+          class: s.stream ? `${s.class_level}${s.stream?.slice(0,1)}` : s.class_level,
+        })));
+      }
+    })();
   }, []);
 
   const studentsInSelectedClass = students.filter(s => s.class === selectedClass);
@@ -70,7 +79,7 @@ export default function StudentPromotionPage() {
     return 'lateral';
   };
 
-  const handleAddPromotion = (student: User) => {
+  const handleAddPromotion = (student: Student) => {
     if (!targetClass || student.class === targetClass) return;
 
     const existingIndex = promotions.findIndex(p => p.studentId === student.id);

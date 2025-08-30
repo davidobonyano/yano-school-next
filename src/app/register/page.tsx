@@ -8,6 +8,7 @@ export default function StudentRegister() {
   const [studentId, setStudentId] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [hadEmailFromLookup, setHadEmailFromLookup] = useState(false);
   const [classLevel, setClassLevel] = useState('');
   const [stream, setStream] = useState('');
   const [password, setPassword] = useState('');
@@ -24,6 +25,7 @@ export default function StudentRegister() {
       if (!studentId.trim()) {
         setName('');
         setEmail('');
+        setHadEmailFromLookup(false);
         setIsExistingStudent(false);
         return;
       }
@@ -38,12 +40,14 @@ export default function StudentRegister() {
         if (data.found) {
           setName(data.student.full_name || '');
           setEmail(data.student.email || '');
+          setHadEmailFromLookup(Boolean(data.student.email));
           setClassLevel(data.student.class_level || '');
           setIsExistingStudent(true);
           setAlreadyRegistered(Boolean(data.registered));
         } else {
           setName('');
           setEmail('');
+          setHadEmailFromLookup(false);
           setClassLevel('');
           setIsExistingStudent(false);
           setAlreadyRegistered(false);
@@ -69,7 +73,7 @@ export default function StudentRegister() {
       const res = await fetch('/api/students/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ studentId: studentId.trim().toUpperCase(), password, stream: stream || null, classLevel: classLevel || null }),
+        body: JSON.stringify({ studentId: studentId.trim().toUpperCase(), password, stream: stream || null, classLevel: classLevel || null, email: email || null }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -141,7 +145,8 @@ export default function StudentRegister() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className="w-full p-2 border rounded"
-          readOnly
+          readOnly={hadEmailFromLookup}
+          required={Boolean(isExistingStudent && !hadEmailFromLookup)}
         />
         <div className="relative">
           <input

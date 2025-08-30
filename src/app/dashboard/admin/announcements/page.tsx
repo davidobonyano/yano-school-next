@@ -1,601 +1,210 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { 
-  faBullhorn,
-  faPlus,
-  faEdit,
-  faTrash,
-  faEye,
-  faUsers,
-  faCalendarPlus
-} from '@fortawesome/free-solid-svg-icons';
+import { useEffect, useMemo, useState } from 'react';
 
-interface Announcement {
+type Announcement = {
   id: string;
   title: string;
-  content: string;
-  type: 'general' | 'urgent' | 'academic' | 'event';
-  targetAudience: 'all' | 'students' | 'teachers' | 'parents';
-  author: string;
-  createdAt: string;
-  isActive: boolean;
-  priority: 'low' | 'medium' | 'high';
-}
+  body: string;
+  audience: 'students'|'teachers'|'admins'|'all'|'class'|'role';
+  created_at: string;
+  expires_at: string | null;
+  audience_class_level?: string | null;
+  audience_stream?: string | null;
+  audience_role?: 'student'|'teacher'|'admin' | null;
+  attachments?: { name: string; url: string; type?: string; size?: number }[];
+};
 
-export default function AnnouncementsPage() {
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
-  const [filterType, setFilterType] = useState<string>('');
-  const [filterAudience, setFilterAudience] = useState<string>('');
+const CLASS_LEVELS = ['KG1','KG2','PRI1','PRI2','PRI3','PRI4','PRI5','PRI6','JSS1','JSS2','JSS3','SS1','SS2','SS3'];
 
-  const mockAnnouncements: Announcement[] = [
-    {
-      id: 'ann1',
-      title: 'Mid-Term Examination Schedule',
-      content: 'The mid-term examinations will commence on January 15th, 2024. Students are advised to prepare adequately and report to their respective examination halls 30 minutes before the scheduled time.',
-      type: 'academic',
-      targetAudience: 'students',
-      author: 'Admin User',
-      createdAt: '2024-01-08',
-      isActive: true,
-      priority: 'high'
-    },
-    {
-      id: 'ann2',
-      title: 'Staff Meeting - January 20th',
-      content: 'All teaching and non-teaching staff are required to attend the monthly staff meeting on January 20th at 10:00 AM in the conference hall.',
-      type: 'general',
-      targetAudience: 'teachers',
-      author: 'Admin User',
-      createdAt: '2024-01-07',
-      isActive: true,
-      priority: 'medium'
-    },
-    {
-      id: 'ann3',
-      title: 'School Fees Payment Reminder',
-      content: 'Parents are reminded that the deadline for second term school fees payment is January 31st, 2024. Late payments will attract a penalty fee.',
-      type: 'urgent',
-      targetAudience: 'parents',
-      author: 'Admin User',
-      createdAt: '2024-01-05',
-      isActive: true,
-      priority: 'high'
-    },
-    {
-      id: 'ann4',
-      title: 'Inter-House Sports Competition',
-      content: 'The annual inter-house sports competition will take place on February 14th, 2024. All students are encouraged to participate and support their respective houses.',
-      type: 'event',
-      targetAudience: 'all',
-      author: 'Admin User',
-      createdAt: '2024-01-03',
-      isActive: true,
-      priority: 'medium'
-    }
-  ];
+export default function AdminAnnouncementsPage() {
+  const [items, setItems] = useState<Announcement[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState<Announcement | null>(null);
 
-  useEffect(() => {
-    setAnnouncements(mockAnnouncements);
-  }, []);
+  const emptyForm: Announcement = useMemo(() => ({
+    id: '',
+    title: '',
+    body: '',
+    audience: 'all',
+    created_at: new Date().toISOString(),
+    expires_at: null,
+    audience_class_level: null,
+    audience_stream: null,
+    audience_role: null,
+    attachments: []
+  }), []);
 
-  const filteredAnnouncements = announcements.filter(announcement => {
-    const matchesType = !filterType || announcement.type === filterType;
-    const matchesAudience = !filterAudience || announcement.targetAudience === filterAudience;
-    return matchesType && matchesAudience;
-  });
+  const [form, setForm] = useState<Announcement>(emptyForm);
 
-  const handleCreateAnnouncement = (newAnnouncement: Omit<Announcement, 'id' | 'createdAt' | 'author'>) => {
-    const announcement: Announcement = {
-      ...newAnnouncement,
-      id: `ann${Date.now()}`,
-      createdAt: new Date().toISOString().split('T')[0],
-      author: 'Admin User'
-    };
-    setAnnouncements([announcement, ...announcements]);
-    setShowCreateForm(false);
-  };
-
-  const handleEditAnnouncement = (updatedAnnouncement: Announcement) => {
-    setAnnouncements(announcements.map(a => 
-      a.id === updatedAnnouncement.id ? updatedAnnouncement : a
-    ));
-    setEditingAnnouncement(null);
-  };
-
-  const handleDeleteAnnouncement = (id: string) => {
-    if (confirm('Are you sure you want to delete this announcement?')) {
-      setAnnouncements(announcements.filter(a => a.id !== id));
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/announcements', { cache: 'no-store' });
+      const data = await res.json();
+      if (res.ok) setItems(data.announcements || []);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleToggleActive = (id: string) => {
-    setAnnouncements(announcements.map(a => 
-      a.id === id ? { ...a, isActive: !a.isActive } : a
-    ));
-  };
+  useEffect(() => { load(); }, []);
 
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case 'urgent': return 'bg-red-100 text-red-800';
-      case 'academic': return 'bg-blue-100 text-blue-800';
-      case 'event': return 'bg-purple-100 text-purple-800';
-      default: return 'bg-gray-100 text-gray-800';
+  const resetForm = () => { setForm(emptyForm); setEditing(null); };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const payload: any = {
+        title: form.title.trim(),
+        body: form.body.trim(),
+        audience: form.audience,
+        expires_at: form.expires_at,
+        audience_class_level: form.audience === 'class' ? form.audience_class_level : null,
+        audience_stream: form.audience === 'class' ? (form.audience_stream || null) : null,
+        audience_role: form.audience === 'role' ? form.audience_role : null,
+        attachments: form.attachments || []
+      };
+      const method = editing ? 'PUT' : 'POST';
+      const body = editing ? { id: editing.id, ...payload } : payload;
+      const res = await fetch('/api/announcements', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      await load();
+      resetForm();
+    } catch (e) {
+      // eslint-disable-next-line no-alert
+      alert((e as Error).message);
+    } finally {
+      setSaving(false);
     }
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'bg-red-100 text-red-800';
-      case 'medium': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-green-100 text-green-800';
-    }
+  const remove = async (id: string) => {
+    if (!confirm('Delete this announcement?')) return;
+    const res = await fetch(`/api/announcements?id=${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error || 'Failed'); return; }
+    await load();
   };
 
-  const getAudienceIcon = (audience: string) => {
-    switch (audience) {
-      case 'students': return faUsers;
-      case 'teachers': return faUsers;
-      case 'parents': return faUsers;
-      default: return faUsers;
+  const startEdit = (a: Announcement) => {
+    setEditing(a);
+    setForm({
+      ...a,
+      audience: (a.audience as any) || 'all',
+      audience_class_level: a.audience_class_level || null,
+      audience_stream: a.audience_stream || null,
+      audience_role: a.audience_role || null,
+      // never allow null select values
+    });
+  };
+
+  const renderAudienceBadge = (a: Announcement) => {
+    if (a.audience === 'class') {
+      const cls = a.audience_class_level || '?';
+      const stream = a.audience_stream ? ` ${a.audience_stream}` : '';
+      return `${cls}${stream ? ' -' + stream : ''}`;
     }
+    if (a.audience === 'role') return `Role: ${a.audience_role}`;
+    return a.audience;
   };
 
   return (
     <div className="p-6">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <FontAwesomeIcon icon={faBullhorn} className="w-6 h-6 text-orange-600" />
-            Announcements Management
-          </h1>
-          <p className="text-gray-600">Create and manage school announcements</p>
-        </div>
-        <button
-          onClick={() => setShowCreateForm(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-        >
-          <FontAwesomeIcon icon={faPlus} className="w-4 h-4" />
-          New Announcement
-        </button>
-      </div>
+      <h1 className="text-2xl font-semibold mb-4">Announcements</h1>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="bg-blue-100 rounded-lg p-3 mr-4">
-              <FontAwesomeIcon icon={faBullhorn} className="h-6 w-6 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">Total</p>
-              <p className="text-2xl font-bold text-gray-900">{announcements.length}</p>
-            </div>
+      <div className="bg-white rounded shadow p-4 mb-6">
+        <h2 className="text-lg font-medium mb-3">{editing ? 'Edit' : 'Create'} Announcement</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Title</label>
+            <input className="w-full border rounded px-3 py-2" value={form.title} onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))} />
           </div>
-        </div>
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="bg-green-100 rounded-lg p-3 mr-4">
-              <FontAwesomeIcon icon={faEye} className="h-6 w-6 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">Active</p>
-              <p className="text-2xl font-bold text-gray-900">{announcements.filter(a => a.isActive).length}</p>
-            </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Audience</label>
+            <select className="w-full border rounded px-3 py-2" value={form.audience || 'all'} onChange={(e) => setForm(f => ({ ...f, audience: (e.target.value || 'all') as any }))}>
+              <option value="all">All</option>
+              <option value="students">Students</option>
+              <option value="teachers">Teachers</option>
+              <option value="admins">Admins</option>
+              <option value="class">Specific class</option>
+              <option value="role">Specific role</option>
+            </select>
           </div>
-        </div>
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="bg-red-100 rounded-lg p-3 mr-4">
-              <FontAwesomeIcon icon={faBullhorn} className="h-6 w-6 text-red-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">Urgent</p>
-              <p className="text-2xl font-bold text-gray-900">{announcements.filter(a => a.type === 'urgent').length}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="bg-purple-100 rounded-lg p-3 mr-4">
-              <FontAwesomeIcon icon={faCalendarPlus} className="h-6 w-6 text-purple-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">This Week</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {announcements.filter(a => {
-                  const announcementDate = new Date(a.createdAt);
-                  const weekAgo = new Date();
-                  weekAgo.setDate(weekAgo.getDate() - 7);
-                  return announcementDate >= weekAgo;
-                }).length}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <select
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">All Types</option>
-            <option value="general">General</option>
-            <option value="urgent">Urgent</option>
-            <option value="academic">Academic</option>
-            <option value="event">Event</option>
-          </select>
-          <select
-            value={filterAudience}
-            onChange={(e) => setFilterAudience(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">All Audiences</option>
-            <option value="all">Everyone</option>
-            <option value="students">Students</option>
-            <option value="teachers">Teachers</option>
-            <option value="parents">Parents</option>
-          </select>
-          <div className="flex items-center text-sm text-gray-600">
-            Showing {filteredAnnouncements.length} of {announcements.length} announcements
-          </div>
-        </div>
-      </div>
-
-      {/* Announcements List */}
-      <div className="space-y-4">
-        {filteredAnnouncements.map((announcement) => (
-          <div key={announcement.id} className="bg-white rounded-lg shadow p-6">
-            <div className="flex justify-between items-start mb-4">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <h3 className="text-lg font-semibold text-gray-900">{announcement.title}</h3>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTypeColor(announcement.type)}`}>
-                    {announcement.type.charAt(0).toUpperCase() + announcement.type.slice(1)}
-                  </span>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(announcement.priority)}`}>
-                    {announcement.priority.charAt(0).toUpperCase() + announcement.priority.slice(1)} Priority
-                  </span>
-                  {!announcement.isActive && (
-                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                      Inactive
-                    </span>
-                  )}
-                </div>
-                <p className="text-gray-600 mb-3">{announcement.content}</p>
-                <div className="flex items-center gap-4 text-sm text-gray-500">
-                  <div className="flex items-center gap-1">
-                    <FontAwesomeIcon icon={getAudienceIcon(announcement.targetAudience)} className="w-4 h-4" />
-                    <span>Target: {announcement.targetAudience.charAt(0).toUpperCase() + announcement.targetAudience.slice(1)}</span>
-                  </div>
-                  <span>By {announcement.author}</span>
-                  <span>{new Date(announcement.createdAt).toLocaleDateString()}</span>
-                </div>
+          {form.audience === 'class' && (
+            <>
+              <div>
+                <label className="block text-sm font-medium mb-1">Class Level</label>
+                <select className="w-full border rounded px-3 py-2" value={form.audience_class_level ?? ''} onChange={(e) => setForm(f => ({ ...f, audience_class_level: (e.target.value || null) as any }))}>
+                  <option value="">Select...</option>
+                  {CLASS_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+                </select>
               </div>
-              <div className="flex items-center gap-2 ml-4">
-                <button
-                  onClick={() => handleToggleActive(announcement.id)}
-                  className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                    announcement.isActive 
-                      ? 'bg-green-100 text-green-800 hover:bg-green-200' 
-                      : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-                  }`}
-                >
-                  {announcement.isActive ? 'Active' : 'Inactive'}
-                </button>
-                <button
-                  onClick={() => setEditingAnnouncement(announcement)}
-                  className="text-blue-600 hover:text-blue-900 p-2"
-                  title="Edit"
-                >
-                  <FontAwesomeIcon icon={faEdit} className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => handleDeleteAnnouncement(announcement.id)}
-                  className="text-red-600 hover:text-red-900 p-2"
-                  title="Delete"
-                >
-                  <FontAwesomeIcon icon={faTrash} className="w-4 h-4" />
-                </button>
+              <div>
+                <label className="block text-sm font-medium mb-1">Stream (optional)</label>
+                <input className="w-full border rounded px-3 py-2" value={form.audience_stream || ''} onChange={(e) => setForm(f => ({ ...f, audience_stream: e.target.value || null }))} placeholder="Science/Commercial/Art" />
               </div>
+            </>
+          )}
+          {form.audience === 'role' && (
+            <div>
+              <label className="block text-sm font-medium mb-1">Role</label>
+              <select className="w-full border rounded px-3 py-2" value={form.audience_role ?? ''} onChange={(e) => setForm(f => ({ ...f, audience_role: (e.target.value || null) as any }))}>
+                <option value="">Select...</option>
+                <option value="student">Student</option>
+                <option value="teacher">Teacher</option>
+                <option value="admin">Admin</option>
+              </select>
             </div>
+          )}
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium mb-1">Message</label>
+            <textarea className="w-full border rounded px-3 py-2 min-h-[120px]" value={form.body} onChange={(e) => setForm(f => ({ ...f, body: e.target.value }))} />
           </div>
-        ))}
-
-        {filteredAnnouncements.length === 0 && (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
-            <FontAwesomeIcon icon={faBullhorn} className="w-12 h-12 text-gray-300 mb-4" />
-            <p className="text-gray-500">No announcements found.</p>
-            <button
-              onClick={() => setShowCreateForm(true)}
-              className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Create Your First Announcement
-            </button>
+          <div>
+            <label className="block text-sm font-medium mb-1">Expiry (optional)</label>
+            <input type="datetime-local" className="w-full border rounded px-3 py-2" value={form.expires_at ? form.expires_at.substring(0,16) : ''} onChange={(e) => setForm(f => ({ ...f, expires_at: e.target.value ? new Date(e.target.value).toISOString() : null }))} />
           </div>
-        )}
+        </div>
+        <div className="mt-4 flex gap-2">
+          <button className="px-4 py-2 rounded bg-blue-600 text-white disabled:opacity-50" onClick={save} disabled={saving || !form.title || !form.body}>
+            {saving ? 'Saving...' : (editing ? 'Update' : 'Create')}
+          </button>
+          {editing && (
+            <button className="px-4 py-2 rounded border" onClick={resetForm}>Cancel</button>
+          )}
+        </div>
       </div>
 
-      {/* Create/Edit Modals */}
-      {showCreateForm && (
-        <CreateAnnouncementModal
-          onSave={handleCreateAnnouncement}
-          onClose={() => setShowCreateForm(false)}
-        />
-      )}
-      
-      {editingAnnouncement && (
-        <EditAnnouncementModal
-          announcement={editingAnnouncement}
-          onSave={handleEditAnnouncement}
-          onClose={() => setEditingAnnouncement(null)}
-        />
-      )}
-    </div>
-  );
-}
-
-// Create Announcement Modal Component  
-function CreateAnnouncementModal({ 
-  onSave, 
-  onClose 
-}: { 
-  onSave: (announcement: Omit<Announcement, 'id' | 'createdAt' | 'author'>) => void;
-  onClose: () => void;
-}) {
-  const [formData, setFormData] = useState({
-    title: '',
-    content: '',
-    type: 'general' as 'general' | 'urgent' | 'academic' | 'event',
-    targetAudience: 'all' as 'all' | 'students' | 'teachers' | 'parents',
-    priority: 'medium' as 'low' | 'medium' | 'high',
-    isActive: true
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSave(formData);
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <h2 className="text-lg font-bold mb-4">Create New Announcement</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
-            <input
-              type="text"
-              required
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter announcement title"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Content *</label>
-            <textarea
-              required
-              rows={6}
-              value={formData.content}
-              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter announcement content"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-              <select
-                value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value as 'general' | 'urgent' | 'academic' | 'event' })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="general">General</option>
-                <option value="urgent">Urgent</option>
-                <option value="academic">Academic</option>
-                <option value="event">Event</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Target Audience</label>
-              <select
-                value={formData.targetAudience}
-                onChange={(e) => setFormData({ ...formData, targetAudience: e.target.value as 'all' | 'students' | 'teachers' | 'parents' })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">Everyone</option>
-                <option value="students">Students</option>
-                <option value="teachers">Teachers</option>
-                <option value="parents">Parents</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
-              <select
-                value={formData.priority}
-                onChange={(e) => setFormData({ ...formData, priority: e.target.value as 'low' | 'medium' | 'high' })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="isActive"
-              checked={formData.isActive}
-              onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-              className="mr-2"
-            />
-            <label htmlFor="isActive" className="text-sm font-medium text-gray-700">
-              Make announcement active immediately
-            </label>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-4 border-t">
-            <button 
-              type="button" 
-              onClick={onClose} 
-              className="px-4 py-2 text-gray-600 hover:text-gray-800"
-            >
-              Cancel
-            </button>
-            <button 
-              type="submit" 
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              Create Announcement
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-// Edit Announcement Modal Component
-function EditAnnouncementModal({ 
-  announcement, 
-  onSave, 
-  onClose 
-}: { 
-  announcement: Announcement;
-  onSave: (announcement: Announcement) => void;
-  onClose: () => void;
-}) {
-  const [formData, setFormData] = useState({
-    title: announcement.title,
-    content: announcement.content,
-    type: announcement.type,
-    targetAudience: announcement.targetAudience,
-    priority: announcement.priority,
-    isActive: announcement.isActive
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSave({ ...announcement, ...formData });
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <h2 className="text-lg font-bold mb-4">Edit Announcement</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
-            <input
-              type="text"
-              required
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter announcement title"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Content *</label>
-            <textarea
-              required
-              rows={6}
-              value={formData.content}
-              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter announcement content"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-              <select
-                value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value as 'general' | 'urgent' | 'academic' | 'event' })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="general">General</option>
-                <option value="urgent">Urgent</option>
-                <option value="academic">Academic</option>
-                <option value="event">Event</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Target Audience</label>
-              <select
-                value={formData.targetAudience}
-                onChange={(e) => setFormData({ ...formData, targetAudience: e.target.value as 'all' | 'students' | 'teachers' | 'parents' })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">Everyone</option>
-                <option value="students">Students</option>
-                <option value="teachers">Teachers</option>
-                <option value="parents">Parents</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
-              <select
-                value={formData.priority}
-                onChange={(e) => setFormData({ ...formData, priority: e.target.value as 'low' | 'medium' | 'high' })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="isActiveEdit"
-              checked={formData.isActive}
-              onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-              className="mr-2"
-            />
-            <label htmlFor="isActiveEdit" className="text-sm font-medium text-gray-700">
-              Make announcement active
-            </label>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-4 border-t">
-            <button 
-              type="button" 
-              onClick={onClose} 
-              className="px-4 py-2 text-gray-600 hover:text-gray-800"
-            >
-              Cancel
-            </button>
-            <button 
-              type="submit" 
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              Update Announcement
-            </button>
-          </div>
-        </form>
+      <div className="bg-white rounded shadow">
+        <div className="px-4 py-3 border-b flex items-center justify-between">
+          <h2 className="text-lg font-medium">All Announcements</h2>
+          <button className="text-sm underline" onClick={load} disabled={loading}>{loading ? 'Refreshing...' : 'Refresh'}</button>
+        </div>
+        <ul>
+          {items.map(a => (
+            <li key={a.id} className="px-4 py-3 border-b grid grid-cols-1 md:grid-cols-12 gap-2">
+              <div className="md:col-span-5">
+                <div className="font-semibold">{a.title}</div>
+                <div className="text-sm text-gray-600 line-clamp-2">{a.body}</div>
+              </div>
+              <div className="md:col-span-3 text-sm">
+                <div><span className="font-medium">Audience:</span> {renderAudienceBadge(a)}</div>
+                {a.expires_at && <div className="text-orange-700">Expires: {new Date(a.expires_at).toLocaleString()}</div>}
+              </div>
+              <div className="md:col-span-2 text-sm text-gray-600">{new Date(a.created_at).toLocaleString()}</div>
+              <div className="md:col-span-2 flex gap-2 justify-start md:justify-end">
+                <button className="px-3 py-1 border rounded" onClick={() => startEdit(a)}>Edit</button>
+                <button className="px-3 py-1 border rounded text-red-600" onClick={() => remove(a.id)}>Delete</button>
+              </div>
+            </li>
+          ))}
+          {items.length === 0 && !loading && (
+            <li className="px-4 py-6 text-center text-gray-500">No announcements yet</li>
+          )}
+        </ul>
       </div>
     </div>
   );

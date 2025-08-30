@@ -11,23 +11,36 @@ import {
   faEye,
   faChalkboardTeacher
 } from '@fortawesome/free-solid-svg-icons';
-import { mockUsers, User } from '@/lib/enhanced-mock-data';
+import { supabase } from '@/lib/supabase';
+
+type Teacher = {
+  id: string;
+  name: string;
+  email: string | null;
+  status?: 'active' | 'processing';
+};
 
 export default function TeachersPage() {
-  const [teachers, setTeachers] = useState<User[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
-  // Enhanced mock data with more teachers
-  const enhancedTeachers = [
-    ...mockUsers.teachers,
-    { id: 'teach789', email: 'physics.teacher@example.com', password: 'teachpass', name: 'Dr. Physics Teacher', status: 'active' as const },
-    { id: 'teach101', email: 'math.teacher@example.com', password: 'teachpass', name: 'Prof. Math Teacher', status: 'active' as const },
-    { id: 'teach112', email: 'english.teacher@example.com', password: 'teachpass', name: 'Mrs. English Teacher', status: 'processing' as const },
-  ];
-
   useEffect(() => {
-    setTeachers(enhancedTeachers);
+    (async () => {
+      const { data, error } = await supabase
+        .from('teachers')
+        .select('id, full_name, email, is_active');
+      if (!error) {
+        setTeachers(
+          (data || []).map(t => ({
+            id: t.id as string,
+            name: (t as any).full_name as string,
+            email: (t as any).email as string | null,
+            status: (t as any).is_active ? 'active' : 'processing',
+          }))
+        );
+      }
+    })();
   }, []);
 
   const filteredTeachers = teachers.filter(teacher => {
@@ -39,7 +52,7 @@ export default function TeachersPage() {
     return matchesSearch && matchesStatus;
   });
 
-  const statuses = [...new Set(teachers.map(s => s.status).filter(Boolean))];
+  const statuses = [...new Set(teachers.map(s => s.status).filter(Boolean))] as Array<'active'|'processing'>;
 
   const handleDelete = (teacherId: string) => {
     if (confirm('Are you sure you want to delete this teacher?')) {
@@ -47,10 +60,12 @@ export default function TeachersPage() {
     }
   };
 
-  const handleStatusChange = (teacherId: string, newStatus: 'active' | 'processing') => {
-    setTeachers(teachers.map(t => 
-      t.id === teacherId ? { ...t, status: newStatus } : t
-    ));
+  const handleStatusChange = async (teacherId: string, newStatus: 'active' | 'processing') => {
+    setTeachers(teachers.map(t => t.id === teacherId ? { ...t, status: newStatus } : t));
+    await supabase
+      .from('teachers')
+      .update({ is_active: newStatus === 'active' })
+      .eq('id', teacherId);
   };
 
   return (
@@ -137,7 +152,7 @@ export default function TeachersPage() {
                       </div>
                       <div className="ml-4">
                         <div className="text-sm font-medium text-gray-900">{teacher.name}</div>
-                        <div className="text-sm text-gray-500">{teacher.email}</div>
+                        <div className="text-sm text-gray-500">{teacher.email || ''}</div>
                       </div>
                     </div>
                   </td>

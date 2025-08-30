@@ -9,54 +9,107 @@ import {
   faCheckCircle,
   faExclamationTriangle
 } from '@fortawesome/free-solid-svg-icons';
-import { mockUsers } from '@/lib/enhanced-mock-data';
+import { useRouter } from 'next/navigation';
 
 type RecoveryStep = 'choose-method' | 'enter-email' | 'enter-student-id' | 'show-email' | 'success';
 
 export default function StudentForgotPassword() {
+  const router = useRouter();
   const [currentStep, setCurrentStep] = useState<RecoveryStep>('choose-method');
   const [email, setEmail] = useState('');
   const [studentId, setStudentId] = useState('');
   const [foundStudent, setFoundStudent] = useState<{id: string; name: string; email: string} | null>(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleEmailRecovery = (e: React.FormEvent) => {
+  const handleEmailRecovery = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setMessage('');
-
-    // Find student by email
-    const student = mockUsers.students.find(s => s.email.toLowerCase() === email.toLowerCase().trim());
-    
-    if (student) {
-      setFoundStudent(student);
+    setLoading(true);
+    try {
+      const res = await fetch('/api/students/password/forgot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Unable to process request');
+        return;
+      }
+      if (data?.devToken) {
+        setMessage(`Development token generated. You can reset now.`);
+        router.push(`/login/reset-password?token=${encodeURIComponent(data.devToken)}`);
+        return;
+      }
       setCurrentStep('success');
       setMessage(`Password recovery instructions have been sent to ${email}`);
-    } else {
-      setError('No student account found with this email address.');
+    } catch (err: any) {
+      setError(err?.message || 'Request failed');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleStudentIdLookup = (e: React.FormEvent) => {
+  const handleStudentIdLookup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setMessage('');
-
-    // Find student by ID
-    const student = mockUsers.students.find(s => s.id === studentId.trim());
-    
-    if (student) {
-      setFoundStudent(student);
+    setLoading(true);
+    try {
+      const res = await fetch('/api/students/lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId: studentId.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Lookup failed');
+        return;
+      }
+      if (!data?.found) {
+        setError('No student account found with this Student ID.');
+        return;
+      }
+      setFoundStudent({ id: data.student.student_id, name: data.student.full_name, email: data.student.email });
       setCurrentStep('show-email');
-    } else {
-      setError('No student account found with this Student ID.');
+    } catch (err: any) {
+      setError(err?.message || 'Lookup failed');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleEmailConfirmRecovery = () => {
-    setCurrentStep('success');
-    setMessage(`Password recovery instructions have been sent to ${foundStudent?.email || 'your email'}`);
+  const handleEmailConfirmRecovery = async () => {
+    if (!foundStudent?.email) return;
+    setError('');
+    setMessage('');
+    setLoading(true);
+    try {
+      const res = await fetch('/api/students/password/forgot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: foundStudent.email }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Unable to send recovery email');
+        return;
+      }
+      if (data?.devToken) {
+        setMessage(`Development token generated. You can reset now.`);
+        router.push(`/login/reset-password?token=${encodeURIComponent(data.devToken)}`);
+        return;
+      }
+      setCurrentStep('success');
+      setMessage(`Password recovery instructions have been sent to ${foundStudent.email}`);
+    } catch (err: any) {
+      setError(err?.message || 'Request failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const resetForm = () => {
@@ -189,8 +242,8 @@ export default function StudentForgotPassword() {
                     type="text"
                     id="studentId"
                     value={studentId}
-                    onChange={(e) => setStudentId(e.target.value)}
-                    className="pl-10 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    onChange={(e) => setStudentId(e.target.value.toUpperCase())}
+                    className="pl-10 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase"
                     placeholder="Enter your Student ID"
                     required
                   />

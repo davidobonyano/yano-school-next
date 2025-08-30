@@ -67,3 +67,29 @@ body.dark-mode .transparent {
   backdrop-filter: blur(6px);
   color: #D4D4D4 !important;
 }
+
+/* Fix Select component styling */
+[data-radix-popper-content-wrapper] {
+  z-index: 50 !important;
+}
+
+[data-radix-select-content] {
+  background-color: white !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 6px !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0,0, 0, 0.05) !important;
+}
+
+[data-radix-select-item] {
+  background-color: white !important;
+  color: #374151 !important;
+}
+
+[data-radix-select-item]:hover {
+  background-color: #f3f4f6 !important;
+}
+
+[data-radix-select-trigger] {
+  background-color: white !important;
+  border: 1px solid #d1d5db !important;
+}
