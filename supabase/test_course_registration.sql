@@ -102,3 +102,11 @@ select 'Next steps:' as next_steps;
 select '1. Create a test student registration via the API' as step1;
 select '2. Test approval/rejection workflow' as step2;
 select '3. Verify the registration appears in the dashboard' as step3;
+
+
+
+
+
+
+
+

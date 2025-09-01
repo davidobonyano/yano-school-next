@@ -3,30 +3,43 @@ import { supabaseService } from '@/lib/supabase-server';
 
 export async function GET() {
   try {
-    // Period
-    const { data: period, error: pe } = await supabaseService.rpc('get_app_period');
-    if (pe) {
-      return NextResponse.json({ error: pe.message }, { status: 500 });
+    // Get current academic context
+    const { data: currentContext, error: contextErr } = await supabaseService
+      .rpc('get_current_academic_context');
+    
+    let currentTerm = '1st Term';
+    let currentSession = '2025/2026';
+    
+    if (contextErr) {
+      console.warn('Could not get current academic context, using defaults:', contextErr.message);
+    } else if (currentContext && currentContext.length > 0) {
+      currentTerm = currentContext[0].term_name;
+      currentSession = currentContext[0].session_name;
     }
-    const currentTerm = period?.[0]?.current_term || 'First Term';
-    const currentSession = period?.[0]?.current_session || '2024/2025';
 
-    // Students: use RPC that is security definer to bypass RLS
-    const { data: classStats, error: statsErr } = await supabaseService
-      .rpc('get_school_class_statistics');
-    if (statsErr) {
-      return NextResponse.json({ error: statsErr.message }, { status: 500 });
+    // Students: direct count
+    const { count: totalStudents, error: studentsErr } = await supabaseService
+      .from('school_students')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_active', true);
+    
+    if (studentsErr) {
+      console.error('Error counting students:', studentsErr);
+      return NextResponse.json({ error: 'Failed to count students' }, { status: 500 });
     }
 
-    const totalStudents = (classStats || []).reduce((sum: number, row: any) => sum + (row?.total_students || 0), 0);
-    const activeStudents = (classStats || []).reduce((sum: number, row: any) => sum + (row?.active_students || 0), 0);
+    // Active students (same as total for now)
+    const activeStudents = totalStudents || 0;
 
-    // Teachers: simple count
+    // Teachers: direct count
     const { count: teachersCount, error: teachersErr } = await supabaseService
       .from('teachers')
-      .select('*', { count: 'exact', head: true });
+      .select('*', { count: 'exact', head: true })
+      .eq('is_active', true);
+    
     if (teachersErr) {
-      return NextResponse.json({ error: teachersErr.message }, { status: 500 });
+      console.error('Error counting teachers:', teachersErr);
+      return NextResponse.json({ error: 'Failed to count teachers' }, { status: 500 });
     }
 
     // Courses: count active courses
@@ -34,82 +47,62 @@ export async function GET() {
       .from('courses')
       .select('*', { count: 'exact', head: true })
       .eq('is_active', true);
+    
     if (coursesErr) {
-      return NextResponse.json({ error: coursesErr.message }, { status: 500 });
+      console.error('Error counting courses:', coursesErr);
+      return NextResponse.json({ error: 'Failed to count courses' }, { status: 500 });
     }
 
-    // Check if payments exist for current term/session, if not seed them
+    // Payments: try to get existing payments or return empty
     let payAgg: any[] = [];
     let pendingPayments: any[] = [];
     let completedPaymentsCount = 0;
     let totalRevenue = 0;
 
-    const { data: existingPayments, error: payErr } = await supabaseService
-      .from('payments')
-      .select('status, amount')
-      .eq('term', currentTerm)
-      .eq('session', currentSession);
-    
-    if (payErr) {
-      return NextResponse.json({ error: payErr.message }, { status: 500 });
-    }
-
-    // If no payments exist, seed them
-    if (!existingPayments || existingPayments.length === 0) {
-      const { data: seedResult, error: seedErr } = await supabaseService
-        .rpc('seed_pending_payments', { p_term: currentTerm, p_session: currentSession });
+    try {
+      const { data: existingPayments, error: payErr } = await supabaseService
+        .from('payments')
+        .select('status, amount')
+        .eq('term', currentTerm)
+        .eq('session', currentSession);
       
-      if (seedErr) {
-        console.warn('Failed to seed payments:', seedErr.message);
-      } else {
-        // Refetch payments after seeding
-        const { data: newPayments, error: refetchErr } = await supabaseService
+      if (!payErr && existingPayments) {
+        payAgg = existingPayments;
+        completedPaymentsCount = payAgg.filter(p => p.status === 'Paid').length;
+        totalRevenue = payAgg.filter(p => p.status === 'Paid').reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
+
+        // Get pending payments for display
+        const { data: pendingData } = await supabaseService
           .from('payments')
-          .select('status, amount')
+          .select('id, student_id, amount, description, status')
           .eq('term', currentTerm)
-          .eq('session', currentSession);
+          .eq('session', currentSession)
+          .eq('status', 'Pending')
+          .limit(5);
         
-        if (!refetchErr) {
-          payAgg = newPayments || [];
-        }
+        pendingPayments = pendingData || [];
       }
-    } else {
-      payAgg = existingPayments;
+    } catch (paymentError) {
+      console.warn('Payment system not available yet:', paymentError);
+      // Continue without payments
     }
-
-    completedPaymentsCount = (payAgg || []).filter(p => p.status === 'Paid').length;
-    totalRevenue = (payAgg || []).filter(p => p.status === 'Paid').reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
-
-    // Get pending payments for display
-    const { data: pendingData, error: pendingErr } = await supabaseService
-      .from('payments')
-      .select('id, student_id, amount, description, status')
-      .eq('term', currentTerm)
-      .eq('session', currentSession)
-      .eq('status', 'Pending')
-      .limit(5);
-    
-    if (pendingErr) {
-      return NextResponse.json({ error: pendingErr.message }, { status: 500 });
-    }
-    
-    pendingPayments = pendingData || [];
 
     const summary = {
-      totalStudents,
+      totalStudents: totalStudents || 0,
       activeStudents,
-      totalTeachers: teachersCount ?? 0,
-      totalCourses: coursesCount ?? 0,
+      totalTeachers: teachersCount || 0,
+      totalCourses: coursesCount || 0,
       totalRevenue,
       pendingPayments: pendingPayments || [],
       completedPaymentsCount,
-      activeCoursesCount: coursesCount ?? 0,
+      activeCoursesCount: coursesCount || 0,
       currentTerm,
       currentSession,
     };
 
     return NextResponse.json({ summary });
   } catch (err: any) {
+    console.error('Error in admin summary API:', err);
     return NextResponse.json({ error: err?.message || 'Unexpected error' }, { status: 500 });
   }
 }

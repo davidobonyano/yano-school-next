@@ -20,19 +20,70 @@ interface FeeStructure {
   term_name?: string;
 }
 
+interface Session {
+  id: string;
+  name: string;
+  is_active: boolean;
+}
+
+interface Term {
+  id: string;
+  name: string;
+  is_active: boolean;
+}
+
 interface FeeStructureManagerProps {
   className?: string;
 }
 
 export function FeeStructureManager({ className = '' }: FeeStructureManagerProps) {
   const [feeStructures, setFeeStructures] = useState<FeeStructure[]>([]);
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [terms, setTerms] = useState<Term[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedSession, setSelectedSession] = useState<string>('2025/2026');
-  const [selectedTerm, setSelectedTerm] = useState<string>('1st Term');
+  const [isLoadingSessions, setIsLoadingSessions] = useState(false);
+  const [selectedSession, setSelectedSession] = useState<string>('all');
+  const [selectedTerm, setSelectedTerm] = useState<string>('all');
   const [selectedClass, setSelectedClass] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
 
   const classes = ['KG1', 'KG2', 'KG3', 'JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3'];
+
+  // Fetch sessions and terms
+  const fetchSessionsAndTerms = async () => {
+    setIsLoadingSessions(true);
+    try {
+      // Fetch sessions
+      const sessionsResponse = await fetch('/api/academic/sessions');
+      if (sessionsResponse.ok) {
+        const sessionsData = await sessionsResponse.json();
+        setSessions(sessionsData.sessions || []);
+        
+        // Set default session to current active session
+        const activeSession = sessionsData.sessions?.find((s: Session) => s.is_active);
+        if (activeSession) {
+          setSelectedSession(activeSession.name);
+        }
+      }
+
+      // Fetch terms
+      const termsResponse = await fetch('/api/academic/terms');
+      if (termsResponse.ok) {
+        const termsData = await termsResponse.json();
+        setTerms(termsData.terms || []);
+        
+        // Set default term to current active term
+        const activeTerm = termsData.terms?.find((t: Term) => t.is_active);
+        if (activeTerm) {
+          setSelectedTerm(activeTerm.name);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching sessions and terms:', error);
+    } finally {
+      setIsLoadingSessions(false);
+    }
+  };
 
   // Fetch fee structures
   const fetchFeeStructures = async () => {
@@ -44,10 +95,17 @@ export function FeeStructureManager({ className = '' }: FeeStructureManagerProps
       if (selectedClass !== 'all') params.append('class_level', selectedClass);
       if (searchTerm) params.append('search', searchTerm);
 
+      console.log('Fetching fee structures with params:', params.toString());
       const response = await fetch(`/api/fee-structures?${params.toString()}`);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('Fee structures response:', data);
         setFeeStructures(data.feeStructures || []);
+      } else {
+        console.error('Failed to fetch fee structures:', response.status, response.statusText);
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Error details:', errorData);
       }
     } catch (error) {
       console.error('Error fetching fee structures:', error);
@@ -57,8 +115,14 @@ export function FeeStructureManager({ className = '' }: FeeStructureManagerProps
   };
 
   useEffect(() => {
-    fetchFeeStructures();
-  }, [selectedSession, selectedTerm, selectedClass, searchTerm]);
+    fetchSessionsAndTerms();
+  }, []);
+
+  useEffect(() => {
+    if (sessions.length > 0 && terms.length > 0) {
+      fetchFeeStructures();
+    }
+  }, [selectedSession, selectedTerm, selectedClass, searchTerm, sessions.length, terms.length]);
 
   // Get fee type icon
   const getFeeTypeIcon = (feeType: string) => {
@@ -110,28 +174,34 @@ export function FeeStructureManager({ className = '' }: FeeStructureManagerProps
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
             <div className="space-y-2">
               <Label>Session</Label>
-              <Select value={selectedSession} onValueChange={setSelectedSession}>
+              <Select value={selectedSession} onValueChange={setSelectedSession} disabled={isLoadingSessions}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder={isLoadingSessions ? "Loading..." : "Select Session"} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Sessions</SelectItem>
-                  <SelectItem value="2025/2026">2025/2026</SelectItem>
-                  <SelectItem value="2024/2025">2024/2025</SelectItem>
+                  {sessions.map((session) => (
+                    <SelectItem key={session.id} value={session.name}>
+                      {session.name} {session.is_active && '(Current)'}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
               <Label>Term</Label>
-              <Select value={selectedTerm} onValueChange={setSelectedTerm}>
+              <Select value={selectedTerm} onValueChange={setSelectedTerm} disabled={isLoadingSessions}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder={isLoadingSessions ? "Loading..." : "Select Term"} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Terms</SelectItem>
-                  <SelectItem value="1st Term">1st Term</SelectItem>
-                  <SelectItem value="2nd Term">2nd Term</SelectItem>
+                  {terms.map((term) => (
+                    <SelectItem key={term.id} value={term.name}>
+                      {term.name} {term.is_active && '(Current)'}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -144,8 +214,10 @@ export function FeeStructureManager({ className = '' }: FeeStructureManagerProps
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Classes</SelectItem>
-                  {classes.map(cls => (
-                    <SelectItem key={cls} value={cls}>{cls}</SelectItem>
+                  {classes.map((cls) => (
+                    <SelectItem key={cls} value={cls}>
+                      {cls}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -154,7 +226,7 @@ export function FeeStructureManager({ className = '' }: FeeStructureManagerProps
             <div className="space-y-2">
               <Label>Search</Label>
               <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input
                   placeholder="Search fees..."
                   value={searchTerm}
@@ -167,58 +239,61 @@ export function FeeStructureManager({ className = '' }: FeeStructureManagerProps
             <div className="space-y-2">
               <Label>&nbsp;</Label>
               <Button 
-                variant="outline" 
-                onClick={() => {
-                  setSelectedSession('2025/2026');
-                  setSelectedTerm('1st Term');
-                  setSelectedClass('all');
-                  setSearchTerm('');
-                }}
+                onClick={fetchFeeStructures} 
+                disabled={isLoading}
                 className="w-full"
               >
-                <Filter className="h-4 w-4 mr-2" />
-                Clear Filters
+                {isLoading ? 'Loading...' : 'Refresh'}
               </Button>
             </div>
+          </div>
+
+          {/* Debug Info */}
+          <div className="mb-4 p-3 bg-gray-50 rounded-lg text-sm text-gray-600">
+            <div>Selected Session: {selectedSession}</div>
+            <div>Selected Term: {selectedTerm}</div>
+            <div>Selected Class: {selectedClass}</div>
+            <div>Fee Structures Found: {feeStructures.length}</div>
+            <div>Total Sessions: {sessions.length}</div>
+            <div>Total Terms: {terms.length}</div>
           </div>
 
           {/* Fee Structures Display */}
           {isLoading ? (
             <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-2 text-gray-600">Loading fee structures...</p>
+              <div className="text-lg text-gray-600">Loading fee structures...</div>
             </div>
           ) : feeStructures.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-600">No fee structures found</p>
+              <div className="text-lg text-gray-600">No fee structures found</div>
+              <div className="text-sm text-gray-500 mt-2">
+                Try adjusting your filters or check if fee structures exist for the selected session/term.
+              </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="space-y-6">
               {Object.entries(groupedFees).map(([classKey, fees]) => (
-                <Card key={classKey}>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg">{classKey}</CardTitle>
-                    <CardDescription>
-                      {fees.length} fee type{fees.length !== 1 ? 's' : ''}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
+                <div key={classKey} className="border rounded-lg p-4">
+                  <h3 className="text-lg font-semibold mb-3">{classKey}</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {fees.map((fee) => (
-                      <div key={fee.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center space-x-2">
-                          {getFeeTypeIcon(fee.fee_type)}
-                          <div>
-                            <p className="font-medium capitalize">{fee.fee_type}</p>
-                            <p className="text-sm text-gray-600">₦{fee.amount.toLocaleString()}</p>
-                          </div>
+                      <div key={fee.id} className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <Badge className={getFeeTypeColor(fee.fee_type)}>
+                            {getFeeTypeIcon(fee.fee_type)}
+                            <span className="ml-1">{fee.fee_type}</span>
+                          </Badge>
+                          <span className="text-lg font-semibold">₦{fee.amount.toLocaleString()}</span>
                         </div>
-                        <Badge className={getFeeTypeColor(fee.fee_type)}>
-                          {fee.fee_type}
-                        </Badge>
+                        <p className="text-sm text-gray-600 mb-2">{fee.description}</p>
+                        <div className="text-xs text-gray-500">
+                          <div>Session: {fee.session_name || 'N/A'}</div>
+                          <div>Term: {fee.term_name || 'N/A'}</div>
+                        </div>
                       </div>
                     ))}
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               ))}
             </div>
           )}

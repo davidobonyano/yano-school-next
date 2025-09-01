@@ -15,8 +15,8 @@ export async function GET(request: NextRequest) {
       .from('fee_structures')
       .select(`
         *,
-        academic_sessions!inner(name as session_name),
-        academic_terms!inner(name as term_name)
+        academic_sessions(name as session_name),
+        academic_terms(name as term_name)
       `);
 
     // Apply filters

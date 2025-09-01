@@ -10,7 +10,7 @@ const supabase = createClient(
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const studentId = searchParams.get('student_id');
+    const studentIdParam = searchParams.get('student_id');
     const courseId = searchParams.get('course_id');
     const classLevel = searchParams.get('class_level');
     const stream = searchParams.get('stream');
@@ -21,6 +21,24 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = (page - 1) * limit;
 
+    // Resolve student_id param (accepts either UUID or human student_id like YAN001)
+    let resolvedStudentUuid: string | null = null;
+    if (studentIdParam) {
+      const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+      if (uuidRegex.test(studentIdParam)) {
+        resolvedStudentUuid = studentIdParam;
+      } else {
+        const { data: studentLookup, error: lookupError } = await supabase
+          .from('school_students')
+          .select('id')
+          .eq('student_id', studentIdParam)
+          .single();
+        if (!lookupError && studentLookup?.id) {
+          resolvedStudentUuid = studentLookup.id as string;
+        }
+      }
+    }
+
     let query = supabase
       .from('student_course_registrations')
       .select(`
@@ -30,8 +48,8 @@ export async function GET(request: NextRequest) {
       `, { count: 'exact' });
 
     // Apply filters
-    if (studentId) {
-      query = query.eq('student_id', studentId);
+    if (resolvedStudentUuid) {
+      query = query.eq('student_id', resolvedStudentUuid);
     }
     if (courseId) {
       query = query.eq('course_id', courseId);
@@ -109,12 +127,30 @@ export async function POST(request: NextRequest) {
 
     // Get student ID from auth context (in real app, this would come from JWT)
     // For now, we'll require it in the request body
-    const studentId = body.student_id;
-    if (!studentId) {
+    const studentIdInput = body.student_id;
+    if (!studentIdInput) {
       return NextResponse.json(
         { error: 'Student ID is required' },
         { status: 400 }
       );
+    }
+
+    // Resolve to UUID if a human-readable ID was provided
+    let studentId: string = studentIdInput;
+    const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+    if (!uuidRegex.test(studentIdInput)) {
+      const { data: studentLookup, error: lookupError } = await supabase
+        .from('school_students')
+        .select('id')
+        .eq('student_id', studentIdInput)
+        .single();
+      if (lookupError || !studentLookup?.id) {
+        return NextResponse.json(
+          { error: 'Student not found' },
+          { status: 404 }
+        );
+      }
+      studentId = studentLookup.id as string;
     }
 
     // Check if course exists and is active
@@ -360,4 +396,5 @@ export async function DELETE(request: NextRequest) {
     );
   }
 }
+
 

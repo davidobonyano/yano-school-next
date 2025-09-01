@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { usePeriod } from "@/lib/period-context";
-import { mockUsers } from "@/lib/enhanced-mock-data";
+import { getStudentSession } from "@/lib/student-session";
 import Link from "next/link";
 
 type LedgerRow = {
@@ -25,8 +25,8 @@ type ReceiptRow = {
 
 export default function PaymentsPage() {
   const { period } = usePeriod();
-  const student = mockUsers.students[0]; // Replace with real auth session
-  const studentId = student.id;
+  const session = getStudentSession();
+  const studentId = session?.student_id || '';
 
   const [ledger, setLedger] = useState<LedgerRow[]>([]);
   const [balance, setBalance] = useState<number>(0);

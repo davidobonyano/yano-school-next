@@ -154,3 +154,11 @@ CREATE TABLE student_course_registrations (
 - Admins have full access to everything
 - All operations are logged and auditable
 
+
+
+
+
+
+
+
+

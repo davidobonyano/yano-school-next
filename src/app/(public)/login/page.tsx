@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUser, faLock, faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 import Link from 'next/link';
+import { setStudentSession } from '@/lib/student-session';
 
 export default function StudentLogin() {
   const router = useRouter();
@@ -30,6 +31,35 @@ export default function StudentLogin() {
         setMessage(data.error || 'Login failed');
       } else {
         setMessage(`Welcome back, ${data.student.full_name}!`);
+        // Save session and enrich with class/stream from lookup
+        const baseSession = {
+          student_id: data.student.student_id,
+          full_name: data.student.full_name,
+        } as const;
+        try {
+          const lookupRes = await fetch('/api/students/lookup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ studentId: data.student.student_id })
+          });
+          if (lookupRes.ok) {
+            const lookup = await lookupRes.json();
+            if (lookup?.found) {
+              const sessionData = {
+                ...baseSession,
+                class_level: lookup.student?.class_level || undefined,
+                stream: lookup.student?.stream || undefined,
+              };
+              setStudentSession(sessionData);
+            } else {
+              setStudentSession(baseSession);
+            }
+          } else {
+            setStudentSession(baseSession);
+          }
+        } catch (error) {
+          setStudentSession(baseSession);
+        }
         setTimeout(() => {
           router.push('/dashboard/student');
         }, 800);

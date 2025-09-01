@@ -3,10 +3,11 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { ReactNode, useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { mockUsers } from '@/lib/mock-data';
+import { getStudentSession, clearStudentSession } from '@/lib/student-session';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { AcademicContextProvider } from '@/lib/academic-context';
 import { GlobalAcademicSync } from '@/lib/global-academic-sync';
+import { GlobalAcademicContextProvider } from '@/contexts/GlobalAcademicContext';
 import { 
   faHome, 
   faBook, 
@@ -21,7 +22,9 @@ import {
 export default function StudentLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const student = mockUsers.students[0]; // Replace with real auth data
+  const [studentName, setStudentName] = useState<string>('');
+  const [studentId, setStudentId] = useState<string>('');
+  const [studentClass, setStudentClass] = useState<string>('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number>(0);
@@ -77,9 +80,41 @@ export default function StudentLayout({ children }: { children: ReactNode }) {
     };
   }, [sidebarOpen]);
 
+  // Format class level for display
+  const formatClassLevel = (classLevel: string | null | undefined): string => {
+    if (!classLevel) return '';
+    
+    // Handle enum values like JSS1, SS1, PRI1, etc.
+    if (classLevel.startsWith('JSS')) {
+      return `JSS ${classLevel.slice(3)}`;
+    }
+    if (classLevel.startsWith('SS')) {
+      return `SS ${classLevel.slice(2)}`;
+    }
+    if (classLevel.startsWith('PRI')) {
+      return `Primary ${classLevel.slice(3)}`;
+    }
+    if (classLevel.startsWith('KG')) {
+      return `KG ${classLevel.slice(2)}`;
+    }
+    
+    return classLevel; // Return as-is for any other format
+  };
+
+  useEffect(() => {
+    const s = getStudentSession();
+    if (!s) {
+      router.push('/login');
+      return;
+    }
+    setStudentName(s.full_name || 'Student');
+    setStudentId(s.student_id);
+    setStudentClass(s.class_level || '');
+  }, [router]);
+
   const handleLogout = () => {
-    // In a real app, you would clear auth state here
-    router.push('/login'); // Redirect to login page
+    clearStudentSession();
+    router.push('/login');
   };
 
   const navItems = [
@@ -126,8 +161,9 @@ export default function StudentLayout({ children }: { children: ReactNode }) {
   ];
 
   return (
-    <AcademicContextProvider>
-      <GlobalAcademicSync />
+    <GlobalAcademicContextProvider>
+      <AcademicContextProvider>
+        <GlobalAcademicSync />
       <div 
         className="flex h-screen bg-gray-100 relative"
         onTouchStart={handleTouchStart}
@@ -186,9 +222,9 @@ export default function StudentLayout({ children }: { children: ReactNode }) {
               </div>
             </div>
             <div>
-              <h2 className="text-xl font-bold">{student.name}</h2>
-              <p className="text-sm text-gray-300">ID: {student.id}</p>
-              <p className="text-sm text-gray-300">Class: {student.class || 'Form 4 Science'}</p>
+              <h2 className="text-xl font-bold">{studentName}</h2>
+              <p className="text-sm text-gray-300">ID: {studentId}</p>
+              <p className="text-sm text-gray-300">Class: {formatClassLevel(studentClass) || 'Not Assigned'}</p>
             </div>
           </div>
         </div>
@@ -284,9 +320,9 @@ export default function StudentLayout({ children }: { children: ReactNode }) {
                     </div>
                   </div>
                   <div>
-                    <h2 className="font-bold">{student.name}</h2>
-                    <p className="text-xs text-gray-300">ID: {student.id}</p>
-                    <p className="text-xs text-gray-300">Class: {student.class || 'Form 4 Science'}</p>
+                    <h2 className="font-bold">{studentName}</h2>
+                    <p className="text-xs text-gray-300">ID: {studentId}</p>
+                    <p className="text-xs text-gray-300">Class: {studentClass || '—'}</p>
                   </div>
                 </div>
               </div>
@@ -338,6 +374,7 @@ export default function StudentLayout({ children }: { children: ReactNode }) {
         {children}
       </main>
       </div>
-    </AcademicContextProvider>
+      </AcademicContextProvider>
+    </GlobalAcademicContextProvider>
   );
 }

@@ -235,3 +235,11 @@ async function createTerm(termData: { session_id: string; name: string; start_da
   }, { status: 201 });
 }
 
+
+
+
+
+
+
+
+

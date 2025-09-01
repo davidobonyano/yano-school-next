@@ -79,3 +79,11 @@ order by column_name;
 -- Summary
 select 'SUMMARY: If all tests pass, you can proceed with the payment system' as message;
 
+
+
+
+
+
+
+
+

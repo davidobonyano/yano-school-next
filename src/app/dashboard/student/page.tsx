@@ -3,15 +3,10 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
-import {
-  mockUsers,
-  getStudentCourses,
-  getStudentGrades,
-  getStudentPayments,
-  getUpcomingExams,
-  generateExamLink,
-} from "@/lib/enhanced-mock-data";
+import { getStudentSession } from "@/lib/student-session";
+import { useGlobalAcademicContext } from "@/contexts/GlobalAcademicContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+
 import {
   faBook,
   faChartBar,
@@ -23,7 +18,17 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 
 export default function StudentDashboard() {
+  const { academicContext } = useGlobalAcademicContext();
   const [isClient, setIsClient] = useState(false);
+  const [studentName, setStudentName] = useState<string>('');
+  const [studentId, setStudentId] = useState<string>('');
+  const [studentClass, setStudentClass] = useState<string>('');
+  const [courses, setCourses] = useState<any[]>([]);
+  const [grades, setGrades] = useState<any[]>([]);
+  const [payments, setPayments] = useState<any[]>([]);
+  const [upcomingExams, setUpcomingExams] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  
   type Announcement = {
     id: string;
     title: string;
@@ -36,17 +41,61 @@ export default function StudentDashboard() {
     audience_role?: 'student'|'teacher'|'admin' | null;
   };
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const student = mockUsers.students[0]; // Replace with real auth data
-  const isSenior = (student.class || '').toUpperCase().startsWith('SS');
-  const stream = (student as any).stream || (isSenior ? 'Science' : '');
-  const courses = getStudentCourses();
-  const grades = getStudentGrades(student.id, "First Term", "2023/2024");
-  const payments = getStudentPayments(student.id);
-  const upcomingExams = getUpcomingExams();
+  
+  // Format class level for display
+  const formatClassLevel = (classLevel: string | null | undefined): string => {
+    if (!classLevel) return '';
+    
+    // Handle enum values like JSS1, SS1, PRI1, etc.
+    if (classLevel.startsWith('JSS')) {
+      return `JSS ${classLevel.slice(3)}`;
+    }
+    if (classLevel.startsWith('SS')) {
+      return `SS ${classLevel.slice(2)}`;
+    }
+    if (classLevel.startsWith('PRI')) {
+      return `Primary ${classLevel.slice(3)}`;
+    }
+    if (classLevel.startsWith('KG')) {
+      return `KG ${classLevel.slice(2)}`;
+    }
+    
+    return classLevel; // Return as-is for any other format
+  };
+
+  const formattedClass = formatClassLevel(studentClass);
+  const isSenior = studentClass ? studentClass.toUpperCase().startsWith('SS') : false;
+  const stream = isSenior ? 'Science' : '';
+
+
 
   useEffect(() => {
     setIsClient(true);
+    const s = getStudentSession();
+    if (s) {
+      setStudentName(s.full_name);
+      setStudentId(s.student_id);
+      setStudentClass(s.class_level || '');
+    }
+    loadStudentData();
   }, []);
+
+  const loadStudentData = async () => {
+    try {
+      setLoading(true);
+      
+      // TODO: Replace with real student courses/grades endpoints once available
+      setCourses([]);
+      setGrades([]);
+      setPayments([]);
+      setUpcomingExams([]);
+      
+    } catch (error) {
+      console.error('Error loading student data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -56,7 +105,7 @@ export default function StudentDashboard() {
         if (!res.ok) return;
         const now = Date.now();
         const classMatch = (a: Announcement): boolean => {
-          const cls = (student.class || '').toUpperCase().replace(/\s+/g, '');
+          const cls = (studentClass || '').toUpperCase().replace(/\s+/g, '');
           const target = (a.audience_class_level || '').toUpperCase();
           return !!target && cls.includes(target);
         };
@@ -74,7 +123,7 @@ export default function StudentDashboard() {
 
   const calculateGPA = () => {
     if (grades.length === 0) return "0.00";
-    const total = grades.reduce((sum, grade) => sum + grade.total, 0);
+    const total = grades.reduce((sum: number, grade: any) => sum + grade.total, 0);
     return ((total / grades.length / 100) * 4).toFixed(1);
   };
 
@@ -94,11 +143,12 @@ export default function StudentDashboard() {
   };
 
   const pendingPayments = payments.filter(
-    (p) => p.status === "Pending" || p.status === "Overdue"
+    (p: any) => p.status === "Pending" || p.status === "Partial"
   ).length;
 
+  const hasStudent = Boolean(studentId);
   // Prevent hydration mismatch by showing loading state until client renders
-  if (!isClient) {
+  if (!isClient || loading || !hasStudent) {
     return (
       <div className="p-6 bg-gray-50 min-h-screen">
         <div className="animate-pulse">
@@ -133,17 +183,17 @@ export default function StudentDashboard() {
           </div>
           <div className="flex-1">
             <h1 className="text-3xl font-bold mb-2">
-              Welcome, {student.name}!
+              Welcome, {studentName || studentId}!
             </h1>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm bg-white/10 rounded-lg p-4 backdrop-blur-sm">
               <div>
                 <span className="font-medium text-blue-200">Student ID:</span>
-                <div className="text-white font-semibold">{student.id}</div>
+                <div className="text-white font-semibold">{studentId}</div>
               </div>
               <div>
                 <span className="font-medium text-blue-200">Class:</span>
                 <div className="text-white font-semibold">
-                  {student.class || "Form 4 Science"}
+                  {formattedClass || "Not Assigned"}
                 </div>
               </div>
               {isSenior && (
@@ -154,9 +204,11 @@ export default function StudentDashboard() {
               )}
               <div>
                 <span className="font-medium text-blue-200">Session:</span>
-                <div className="text-white font-semibold">2023/2024</div>
+                <div className="text-white font-semibold">{academicContext.session || '2025/2026'}</div>
               </div>
             </div>
+            
+
           </div>
         </motion.div>
 
@@ -197,7 +249,7 @@ export default function StudentDashboard() {
               href: "/dashboard/student/schedule",
               icon: faCalendarAlt,
               title: "Today's Classes",
-              value: 5,
+              value: courses.length > 0 ? Math.min(courses.length, 5) : 0,
               color: "purple",
               bgColor: "bg-purple-50",
               iconColor: "text-purple-600",
@@ -238,7 +290,7 @@ export default function StudentDashboard() {
         </div>
 
         {/* Upcoming Exams Section */}
-        {upcomingExams.length > 0 && (
+        {upcomingExams.length > 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -254,7 +306,7 @@ export default function StudentDashboard() {
               </span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {upcomingExams.slice(0, 4).map((exam, index) => (
+              {upcomingExams.slice(0, 4).map((exam: any, index: number) => (
                 <motion.div
                   key={exam.id}
                   initial={{ opacity: 0, x: -20 }}
@@ -264,53 +316,68 @@ export default function StudentDashboard() {
                 >
                   <div className="flex justify-between items-start mb-3">
                     <h3 className="font-bold text-gray-800 text-lg">
-                      {exam.courseName}
+                      {exam.courseName || exam.name || 'Unknown Course'}
                     </h3>
                     <span className="px-3 py-1 bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 rounded-full text-xs font-semibold">
-                      {exam.status}
+                      {exam.status || 'Upcoming'}
                     </span>
                   </div>
                   <div className="text-sm text-gray-600 space-y-2 mb-4">
                     <p className="flex justify-between">
                       <span className="font-medium">Date:</span>
-                      <span>{formatDate(exam.date)}</span>
+                      <span>{formatDate(exam.date || exam.exam_date)}</span>
                     </p>
                     <p className="flex justify-between">
                       <span className="font-medium">Time:</span>
-                      <span>{exam.time}</span>
+                      <span>{exam.time || 'TBA'}</span>
                     </p>
                     <p className="flex justify-between">
                       <span className="font-medium">Duration:</span>
-                      <span>{exam.duration} minutes</span>
+                      <span>{exam.duration || 'TBA'} minutes</span>
                     </p>
                     <p className="flex justify-between">
                       <span className="font-medium">Venue:</span>
-                      <span>{exam.venue}</span>
+                      <span>{exam.venue || 'TBA'}</span>
                     </p>
                   </div>
                   <div className="flex gap-3">
                     <motion.a
-                      href={generateExamLink(student.id, exam.id)}
+                      href="https://yano-exams-o6re.vercel.app/"
+                      target="_blank"
+                      rel="noopener noreferrer"
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                       className="flex-1 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-green-700 hover:to-green-800 transition-all duration-300"
                     >
                       <FontAwesomeIcon icon={faPlay} className="text-xs" />
-                      Start Exam
+                      Go to Exam Portal
                     </motion.a>
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="px-4 py-2 border border-blue-300 text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-50 transition-all duration-300"
-                    >
-                      <FontAwesomeIcon
-                        icon={faExternalLinkAlt}
-                        className="text-xs"
-                      />
-                    </motion.button>
                   </div>
                 </motion.div>
               ))}
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.5 }}
+            className="bg-white p-6 rounded-2xl shadow-lg border mb-8"
+          >
+            <div className="text-center py-8">
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">No Upcoming Exams</h2>
+              <p className="text-gray-600 mb-6">You don't have any exams scheduled at the moment.</p>
+              <motion.a
+                href="https://yano-exams-o6re.vercel.app/"
+                target="_blank"
+                rel="noopener noreferrer"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-all duration-300"
+              >
+                <FontAwesomeIcon icon={faExternalLinkAlt} className="w-4 h-4" />
+                Visit Exam Portal
+              </motion.a>
             </div>
           </motion.div>
         )}

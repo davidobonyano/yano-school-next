@@ -1,14 +1,31 @@
 'use client';
 
-import { useState } from 'react';
-import { mockUsers, getStudentGrades } from '@/lib/enhanced-mock-data';
+import { useState, useEffect } from 'react';
+import { getStudentSession } from '@/lib/student-session';
+import { useGlobalAcademicContext } from '@/contexts/GlobalAcademicContext';
 
 export default function StudentGrades() {
-  const student = mockUsers.students[0]; // Replace with real auth data
+  const { academicContext } = useGlobalAcademicContext();
   const [selectedTerm, setSelectedTerm] = useState('First Term');
-  const [selectedSession, setSelectedSession] = useState('2023/2024');
-  
-  const grades = getStudentGrades(student.id, selectedTerm, selectedSession);
+  const [selectedSession, setSelectedSession] = useState('');
+  const [studentName, setStudentName] = useState<string>('');
+  const [studentId, setStudentId] = useState<string>('');
+  const [grades, setGrades] = useState<any[]>([]);
+
+  useEffect(() => {
+    const s = getStudentSession();
+    setStudentName(s?.full_name || '');
+    setStudentId(s?.student_id || '');
+    // TODO: Replace with real grades endpoint when available
+    setGrades([]);
+  }, [selectedTerm, selectedSession]);
+
+  // Sync selected session with global academic context
+  useEffect(() => {
+    if (academicContext.session) {
+      setSelectedSession(academicContext.session);
+    }
+  }, [academicContext.session]);
   
   const getGradeColor = (grade: string) => {
     if (grade.startsWith('A')) return 'bg-green-100 text-green-800';
@@ -34,7 +51,7 @@ export default function StudentGrades() {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">My Grades</h1>
-        <span className="text-sm text-gray-500">Student: {student.name}</span>
+        <span className="text-sm text-gray-500">Student: {studentName || studentId}</span>
       </div>
 
       {/* Term and Session Filters */}
@@ -59,7 +76,7 @@ export default function StudentGrades() {
               onChange={(e) => setSelectedSession(e.target.value)}
               className="w-full p-2 border rounded-md"
             >
-              <option value="2023/2024">2023/2024</option>
+              <option value={academicContext.session || '2025/2026'}>{academicContext.session || '2025/2026'}</option>
               <option value="2022/2023">2022/2023</option>
             </select>
           </div>

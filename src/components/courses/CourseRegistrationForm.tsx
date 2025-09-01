@@ -19,6 +19,7 @@ interface CourseRegistrationFormProps {
   onSuccess: () => void;
   userClassLevel: string;
   userStream?: string;
+  studentId?: string;
 }
 
 export function CourseRegistrationForm({ 
@@ -26,7 +27,8 @@ export function CourseRegistrationForm({
   onClose, 
   onSuccess, 
   userClassLevel, 
-  userStream 
+  userStream,
+  studentId
 }: CourseRegistrationFormProps) {
   const { currentContext } = useAcademicContext();
   const [courses, setCourses] = useState<Course[]>([]);
@@ -80,7 +82,8 @@ export function CourseRegistrationForm({
           class_level: userClassLevel,
           stream: userStream,
           term: currentContext.term_name,
-          session: currentContext.session_name
+          session: currentContext.session_name,
+          student_id: studentId
         })
       });
 

@@ -231,6 +231,7 @@ export function CourseRegistrationManager({
           onSuccess={handleRegistrationSuccess}
           userClassLevel={userClassLevel}
           userStream={userStream}
+          studentId={userId}
         />
       )}
     </div>

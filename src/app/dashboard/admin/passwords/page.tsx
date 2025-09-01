@@ -1,192 +1,107 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { 
-  faKey,
-  faSearch,
-  faFilter,
-  faEye,
-  faEyeSlash,
-  faCopy,
-  faEdit,
-  faUserShield,
-  faChalkboardTeacher,
-  faUserGraduate,
-  faCheck,
-  faTimes
-} from '@fortawesome/free-solid-svg-icons';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Search, Eye, EyeOff, RefreshCw, Key } from 'lucide-react';
 
-interface Teacher {
-  id: string;
-  full_name: string;
-  email: string;
-  school_name: string;
-  is_active: boolean;
-}
-
-interface Student {
+interface StudentPassword {
   id: string;
   student_id: string;
-  full_name: string;
-  email: string | null;
-  class_level: string | null;
-  school_name: string | null;
-  is_active: boolean;
+  first_name: string;
+  last_name: string;
+  class_level: string;
+  stream?: string;
+  has_password: boolean;
+  last_login?: string;
+  created_at: string;
 }
 
-export default function PasswordManagementPage() {
+export default function PasswordsPage() {
+  const [students, setStudents] = useState<StudentPassword[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState('');
-  const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
-  const [students, setStudents] = useState<Student[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [showPasswords, setShowPasswords] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState<string | null>(null);
   const [message, setMessage] = useState('');
-  const [showPasswordForm, setShowPasswordForm] = useState<string | null>(null);
-  const [newPassword, setNewPassword] = useState('');
 
-  // Fetch teachers and students from the database
-  useEffect(() => {
-    fetchTeachers();
-    fetchStudents();
-  }, []);
-
-  const fetchTeachers = async () => {
-    try {
-      const response = await fetch('/api/teachers');
-      if (response.ok) {
-        const data = await response.json();
-        setTeachers(data.teachers || []);
-      } else {
-        console.error('Error fetching teachers:', response.statusText);
-        setMessage('Error fetching teachers');
-      }
-    } catch (error) {
-      console.error('Error fetching teachers:', error);
-      setMessage('Error fetching teachers');
-    }
+  // Show message function
+  const showMessage = (text: string, type: 'success' | 'error' = 'success') => {
+    setMessage(text);
+    setTimeout(() => setMessage(''), 5000);
   };
 
+  // Fetch students with password status
   const fetchStudents = async () => {
+    setIsLoading(true);
     try {
-      const response = await fetch('/api/students');
+      const response = await fetch('/api/admin/students/passwords');
       if (response.ok) {
         const data = await response.json();
         setStudents(data.students || []);
       } else {
-        console.error('Error fetching students:', response.statusText);
-        setMessage('Error fetching students');
+        showMessage('Failed to fetch students', 'error');
       }
     } catch (error) {
       console.error('Error fetching students:', error);
-      setMessage('Error fetching students');
+      showMessage('Error fetching students', 'error');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const setTeacherPassword = async (email: string, password: string) => {
+  // Reset student password
+  const resetPassword = async (studentId: string) => {
+    setResettingPassword(studentId);
     try {
-      const response = await fetch('/api/teachers/set-password', {
+      const response = await fetch('/api/admin/students/reset-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ studentId }),
       });
 
       if (response.ok) {
-        setMessage(`Password set successfully for ${email}`);
-        setShowPasswordForm(null);
-        setNewPassword('');
+        const data = await response.json();
+        showMessage(`Password reset successfully. New password: ${data.newPassword}`, 'success');
+        // Refresh the list
+        fetchStudents();
       } else {
-        const error = await response.json();
-        setMessage(`Error: ${error.error}`);
+        const errorData = await response.json();
+        showMessage(errorData.error || 'Failed to reset password', 'error');
       }
     } catch (error) {
-      setMessage('Error setting password');
+      console.error('Error resetting password:', error);
+      showMessage('Error resetting password', 'error');
+    } finally {
+      setResettingPassword(null);
     }
   };
 
-  const setStudentPassword = async (studentId: string, password: string) => {
-    try {
-      const response = await fetch('/api/students/set-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ studentId, password }),
-      });
+  // Filter students based on search term
+  const filteredStudents = students.filter(student =>
+    student.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    student.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    student.student_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    student.class_level.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-      if (response.ok) {
-        setMessage(`Password set successfully for student ID: ${studentId}`);
-        setShowPasswordForm(null);
-        setNewPassword('');
-      } else {
-        const error = await response.json();
-        setMessage(`Error: ${error.error}`);
-      }
-    } catch (error) {
-      setMessage('Error setting password');
-    }
-  };
-
-  const filteredTeachers = teachers.filter(teacher => {
-    const matchesSearch = teacher.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         teacher.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = !roleFilter || roleFilter === 'teachers';
-    
-    return matchesSearch && matchesRole;
-  });
-
-  const filteredStudents = students.filter(student => {
-    const matchesSearch = student.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (student.email && student.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                         student.student_id.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = !roleFilter || roleFilter === 'students';
-    
-    return matchesSearch && matchesRole;
-  });
-
-  const togglePasswordVisibility = (userId: string) => {
-    const newVisible = new Set(visiblePasswords);
-    if (newVisible.has(userId)) {
-      newVisible.delete(userId);
-    } else {
-      newVisible.add(userId);
-    }
-    setVisiblePasswords(newVisible);
-  };
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text).then(() => {
-      setMessage('Copied to clipboard!');
-      setTimeout(() => setMessage(''), 3000);
-    });
-  };
-
-  const handlePasswordSubmit = (identifier: string, userType: 'teacher' | 'student') => {
-    if (newPassword.trim()) {
-      if (userType === 'teacher') {
-        setTeacherPassword(identifier, newPassword);
-      } else {
-        setStudentPassword(identifier, newPassword);
-      }
-    }
-  };
+  useEffect(() => {
+    fetchStudents();
+  }, []);
 
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <FontAwesomeIcon icon={faKey} className="w-6 h-6 text-red-600" />
-          Password Management
-        </h1>
-        <p className="text-gray-600">Manage teacher and student passwords and authentication settings</p>
-      </div>
-
+    <div className="p-6 space-y-6">
       {/* Message Display */}
       {message && (
-        <div className={`mb-4 p-4 rounded-lg ${
-          message.includes('Error') ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-green-50 border border-green-200 text-green-700'
+        <div className={`p-4 rounded-lg ${
+          message.includes('error') || message.includes('Failed') || message.includes('Error')
+            ? 'bg-red-50 border border-red-200 text-red-700'
+            : 'bg-green-50 border border-green-200 text-green-700'
         }`}>
           {message}
           <button 
@@ -198,200 +113,179 @@ export default function PasswordManagementPage() {
         </div>
       )}
 
-      {/* Authentication Info */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-        <div className="flex items-center gap-2">
-          <FontAwesomeIcon icon={faChalkboardTeacher} className="w-5 h-5 text-blue-600" />
-          <h3 className="text-sm font-medium text-blue-800">Authentication Method</h3>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <Key className="w-6 h-6 text-blue-600" />
+            Student Passwords Management
+          </h1>
+          <p className="text-gray-600">Manage student portal access and reset passwords</p>
         </div>
-        <p className="text-sm text-blue-700 mt-2">
-          Teachers can now authenticate using their existing Supabase credentials (same as your exam portal).
-          If they don't have Supabase accounts, you can set local passwords below.
-        </p>
+        <Button onClick={fetchStudents} disabled={isLoading}>
+          <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
       </div>
 
-      {/* Security Warning */}
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-        <div className="flex items-center">
-          <FontAwesomeIcon icon={faUserShield} className="w-5 h-5 text-red-600 mr-3" />
-          <div>
-            <h3 className="text-sm font-medium text-red-800">Security Notice</h3>
-            <p className="text-sm text-red-700 mt-1">
-              This page contains sensitive information. Only authorized administrators should have access.
-              Do not share passwords or leave this page unattended.
-            </p>
-          </div>
-        </div>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold text-blue-600">{students.length}</div>
+            <div className="text-sm text-gray-600">Total Students</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold text-green-600">
+              {students.filter(s => s.has_password).length}
+            </div>
+            <div className="text-sm text-gray-600">With Passwords</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold text-orange-600">
+              {students.filter(s => !s.has_password).length}
+            </div>
+            <div className="text-sm text-gray-600">Without Passwords</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold text-purple-600">
+              {students.filter(s => s.last_login).length}
+            </div>
+            <div className="text-sm text-gray-600">Active Users</div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Search and Filter */}
-      <div className="mb-6 flex flex-col sm:flex-row gap-4">
-        <div className="flex-1">
-          <div className="relative">
-            <FontAwesomeIcon icon={faSearch} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search teachers and students..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+      {/* Search and Filters */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <Label htmlFor="search">Search Students</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  id="search"
+                  placeholder="Search by name, ID, or class..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowPasswords(!showPasswords)}
+              >
+                {showPasswords ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
+                {showPasswords ? 'Hide' : 'Show'} Passwords
+              </Button>
+            </div>
           </div>
-        </div>
-        <div className="sm:w-48">
-          <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="">All Roles</option>
-            <option value="teachers">Teachers</option>
-            <option value="students">Students</option>
-          </select>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      {/* Users Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">
-            {roleFilter === 'teachers' ? 'Teacher Accounts' : 
-             roleFilter === 'students' ? 'Student Accounts' : 
-             'Teacher & Student Accounts'}
-          </h3>
-        </div>
-        
-        {loading ? (
-          <div className="p-6 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-2 text-gray-600">Loading users...</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Teacher
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Email
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    School
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredTeachers.map((teacher) => (
-                  <tr key={teacher.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
-                          <FontAwesomeIcon icon={faChalkboardTeacher} className="w-5 h-5 text-green-600" />
-                        </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">{teacher.full_name}</div>
-                          <div className="text-sm text-gray-500">ID: {teacher.id.slice(0, 8)}...</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {teacher.email}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {teacher.school_name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                        teacher.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                      }`}>
-                        {teacher.is_active ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      {showPasswordForm === teacher.email ? (
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="password"
-                            value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
-                            placeholder="New password"
-                            className="px-2 py-1 border border-gray-300 rounded text-sm"
-                          />
-                          <button
-                            onClick={() => handlePasswordSubmit(teacher.email)}
-                            className="text-green-600 hover:text-green-900"
-                            title="Save password"
-                          >
-                            <FontAwesomeIcon icon={faCheck} className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setShowPasswordForm(null);
-                              setNewPassword('');
-                            }}
-                            className="text-red-600 hover:text-red-900"
-                            title="Cancel"
-                          >
-                            <FontAwesomeIcon icon={faTimes} className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setShowPasswordForm(teacher.email)}
-                          className="text-indigo-600 hover:text-indigo-900 flex items-center gap-1"
-                          title="Set password"
-                        >
-                          <FontAwesomeIcon icon={faEdit} className="w-4 h-4" />
-                          Set Password
-                        </button>
-                      )}
-                    </td>
+      {/* Students Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Student Password Status</CardTitle>
+          <CardDescription>
+            {filteredStudents.length} student{filteredStudents.length !== 1 ? 's' : ''} found
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center py-8">
+              <div className="text-lg text-gray-600">Loading students...</div>
+            </div>
+          ) : filteredStudents.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="text-lg text-gray-600">No students found</div>
+              <div className="text-sm text-gray-500 mt-2">
+                {searchTerm ? 'Try adjusting your search terms.' : 'No students in the system.'}
+              </div>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Student
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Class
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Password Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Last Login
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        
-        {!loading && filteredTeachers.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-500">No teachers found matching your criteria.</p>
-          </div>
-        )}
-      </div>
-
-      {/* Usage Guidelines */}
-      <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-blue-900 mb-4">Authentication Setup Guide</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-blue-800">
-          <div>
-            <h4 className="font-medium mb-2">Option 1: Supabase Authentication (Recommended)</h4>
-            <ul className="space-y-1">
-              <li>• Teachers use existing Supabase accounts</li>
-              <li>• Same credentials as your exam portal</li>
-              <li>• Automatic profile synchronization</li>
-              <li>• No need to manage separate passwords</li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="font-medium mb-2">Option 2: Local Passwords</h4>
-            <ul className="space-y-1">
-              <li>• Set individual passwords using "Set Password"</li>
-              <li>• Passwords stored securely with bcrypt</li>
-              <li>• Teachers must remember new passwords</li>
-              <li>• Requires manual password management</li>
-            </ul>
-          </div>
-        </div>
-      </div>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredStudents.map((student) => (
+                    <tr key={student.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {student.first_name} {student.last_name}
+                          </div>
+                          <div className="text-sm text-gray-500">{student.student_id}</div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {student.class_level}
+                          {student.stream && (
+                            <span className="text-gray-500 ml-1">({student.stream})</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <Badge 
+                          className={student.has_password 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-red-100 text-red-800'
+                          }
+                        >
+                          {student.has_password ? 'Has Password' : 'No Password'}
+                        </Badge>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {student.last_login 
+                          ? new Date(student.last_login).toLocaleDateString()
+                          : 'Never'
+                        }
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <Button
+                          size="sm"
+                          onClick={() => resetPassword(student.student_id)}
+                          disabled={resettingPassword === student.student_id}
+                        >
+                          {resettingPassword === student.student_id ? 'Resetting...' : 'Reset Password'}
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

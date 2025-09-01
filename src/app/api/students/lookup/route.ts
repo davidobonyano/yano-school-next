@@ -37,6 +37,7 @@ export async function POST(request: Request) {
         full_name: data.full_name,
         email: data.email,
         class_level: data.class_level,
+        stream: data.stream,
         school_name: data.school_name,
         is_active: data.is_active,
       },
