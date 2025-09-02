@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     // Get student details
     const { data: student, error: studentError } = await supabaseService
       .from('school_students')
-      .select('id, first_name, last_name, email')
+      .select('id, full_name, student_id, email')
       .eq('student_id', studentId)
       .single();
 
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
         email_confirm: true,
         user_metadata: {
           student_id: student.student_id,
-          full_name: `${student.first_name} ${student.last_name}`,
+          full_name: student.full_name,
           role: 'student'
         }
       });
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
     }
 
     // Log the password reset
-    console.log(`Password reset for student ${student.student_id} (${student.first_name} ${student.last_name})`);
+    console.log(`Password reset for student ${student.student_id} (${student.full_name})`);
 
     return NextResponse.json({
       success: true,
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
       newPassword,
       student: {
         id: student.id,
-        name: `${student.first_name} ${student.last_name}`,
+        name: student.full_name,
         student_id: student.student_id
       }
     });

@@ -15,6 +15,7 @@ export async function POST(request: Request) {
     // This will use the same Supabase instance that your exam portal uses
     let authOk = false;
     let authError = null;
+    let sessionToken = null;
 
     try {
       console.log('Attempting Supabase auth for:', email);
@@ -24,8 +25,9 @@ export async function POST(request: Request) {
         error: authErr?.message,
         userId: authData?.user?.id 
       });
-      if (!authErr && authData?.user) {
+      if (!authErr && authData?.user && authData.session) {
         authOk = true;
+        sessionToken = authData.session.access_token;
         console.log('Supabase authentication successful for:', email);
       } else {
         authError = authErr?.message || 'Supabase authentication failed';
@@ -80,6 +82,13 @@ export async function POST(request: Request) {
         }, { status: 401 });
       }
       console.log('Local auth successful for:', email);
+      
+      // For local auth, create a simple session token
+      sessionToken = btoa(JSON.stringify({ 
+        teacherId: teacherForCred.id, 
+        email, 
+        timestamp: Date.now() 
+      }));
     }
 
     // Ensure a teacher profile exists locally; create minimal one if missing
@@ -112,7 +121,13 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ 
       success: true, 
-      teacher: { id: teacher.id, full_name: teacher.full_name, email: teacher.email },
+      teacher: { 
+        id: teacher.id, 
+        full_name: teacher.full_name, 
+        email: teacher.email,
+        school_name: teacher.school_name 
+      },
+      sessionToken,
       authMethod: authOk ? 'supabase' : 'local'
     });
   } catch (err: any) {

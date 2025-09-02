@@ -8,6 +8,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { AcademicContextProvider } from '@/lib/academic-context';
 import { GlobalAcademicSync } from '@/lib/global-academic-sync';
 import { GlobalAcademicContextProvider } from '@/contexts/GlobalAcademicContext';
+import { useDashboardRefresh } from '@/lib/use-dashboard-refresh';
 import { 
   faHome, 
   faBook, 
@@ -26,9 +27,13 @@ export default function StudentLayout({ children }: { children: ReactNode }) {
   const [studentId, setStudentId] = useState<string>('');
   const [studentClass, setStudentClass] = useState<string>('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isActive, setIsActive] = useState<boolean>(true);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number>(0);
   const touchCurrentX = useRef<number>(0);
+
+  // Use the dashboard refresh hook to automatically refresh when context changes
+  useDashboardRefresh();
 
   // Handle swipe gestures
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -110,6 +115,7 @@ export default function StudentLayout({ children }: { children: ReactNode }) {
     setStudentName(s.full_name || 'Student');
     setStudentId(s.student_id);
     setStudentClass(s.class_level || '');
+    setIsActive(typeof s.is_active === 'boolean' ? s.is_active : true);
   }, [router]);
 
   const handleLogout = () => {
@@ -157,6 +163,14 @@ export default function StudentLayout({ children }: { children: ReactNode }) {
       bgColor: 'bg-gradient-to-r from-red-600 to-red-700',
       hoverColor: 'hover:from-red-700 hover:to-red-800',
       iconColor: 'text-red-100'
+    },
+    { 
+      href: '/dashboard/student/settings/change-password', 
+      icon: faUserCircle, 
+      label: 'Change Password',
+      bgColor: 'bg-gradient-to-r from-gray-600 to-gray-700',
+      hoverColor: 'hover:from-gray-700 hover:to-gray-800',
+      iconColor: 'text-gray-100'
     },
   ];
 
@@ -224,7 +238,7 @@ export default function StudentLayout({ children }: { children: ReactNode }) {
             <div>
               <h2 className="text-xl font-bold">{studentName}</h2>
               <p className="text-sm text-gray-300">ID: {studentId}</p>
-              <p className="text-sm text-gray-300">Class: {formatClassLevel(studentClass) || 'Not Assigned'}</p>
+              <p className="text-sm text-gray-300">Class: {!isActive ? 'Graduated' : (formatClassLevel(studentClass) || 'Not Assigned')}</p>
             </div>
           </div>
         </div>

@@ -66,16 +66,17 @@ CROSS JOIN public.academic_terms t
 WHERE s.name = '2025/2026' AND t.name IN ('1st Term', '2nd Term', '3rd Term')
 ON CONFLICT (session_id, term_id, class_level, stream, fee_type) DO NOTHING;
 
--- KG3 Fee Structure (Same for all three terms)
+-- ================= PRIMARY (PRI1 - PRI6) Fee Structures (Same for all three terms) =================
+-- Seed with 0.00 tuition so admin can update per term later in UI
 INSERT INTO public.fee_structures (session_id, term_id, class_level, fee_type, amount, is_required, description)
 SELECT 
   s.id as session_id,
   t.id as term_id,
-  'KG3' as class_level,
+  'PRI1' as class_level,
   'tuition' as fee_type,
-  45000.00 as amount,
+  0.00 as amount,
   true as is_required,
-  'Tuition fee for KG3 students'
+  'Tuition fee for PRI1 students'
 FROM public.academic_sessions s
 CROSS JOIN public.academic_terms t
 WHERE s.name = '2025/2026' AND t.name IN ('1st Term', '2nd Term', '3rd Term')
@@ -85,11 +86,67 @@ INSERT INTO public.fee_structures (session_id, term_id, class_level, fee_type, a
 SELECT 
   s.id as session_id,
   t.id as term_id,
-  'KG3' as class_level,
-  'development' as fee_type,
-  4000.00 as amount,
+  'PRI2' as class_level,
+  'tuition' as fee_type,
+  0.00 as amount,
   true as is_required,
-  'Development levy for KG3 students'
+  'Tuition fee for PRI2 students'
+FROM public.academic_sessions s
+CROSS JOIN public.academic_terms t
+WHERE s.name = '2025/2026' AND t.name IN ('1st Term', '2nd Term', '3rd Term')
+ON CONFLICT (session_id, term_id, class_level, stream, fee_type) DO NOTHING;
+
+INSERT INTO public.fee_structures (session_id, term_id, class_level, fee_type, amount, is_required, description)
+SELECT 
+  s.id as session_id,
+  t.id as term_id,
+  'PRI3' as class_level,
+  'tuition' as fee_type,
+  0.00 as amount,
+  true as is_required,
+  'Tuition fee for PRI3 students'
+FROM public.academic_sessions s
+CROSS JOIN public.academic_terms t
+WHERE s.name = '2025/2026' AND t.name IN ('1st Term', '2nd Term', '3rd Term')
+ON CONFLICT (session_id, term_id, class_level, stream, fee_type) DO NOTHING;
+
+INSERT INTO public.fee_structures (session_id, term_id, class_level, fee_type, amount, is_required, description)
+SELECT 
+  s.id as session_id,
+  t.id as term_id,
+  'PRI4' as class_level,
+  'tuition' as fee_type,
+  0.00 as amount,
+  true as is_required,
+  'Tuition fee for PRI4 students'
+FROM public.academic_sessions s
+CROSS JOIN public.academic_terms t
+WHERE s.name = '2025/2026' AND t.name IN ('1st Term', '2nd Term', '3rd Term')
+ON CONFLICT (session_id, term_id, class_level, stream, fee_type) DO NOTHING;
+
+INSERT INTO public.fee_structures (session_id, term_id, class_level, fee_type, amount, is_required, description)
+SELECT 
+  s.id as session_id,
+  t.id as term_id,
+  'PRI5' as class_level,
+  'tuition' as fee_type,
+  0.00 as amount,
+  true as is_required,
+  'Tuition fee for PRI5 students'
+FROM public.academic_sessions s
+CROSS JOIN public.academic_terms t
+WHERE s.name = '2025/2026' AND t.name IN ('1st Term', '2nd Term', '3rd Term')
+ON CONFLICT (session_id, term_id, class_level, stream, fee_type) DO NOTHING;
+
+INSERT INTO public.fee_structures (session_id, term_id, class_level, fee_type, amount, is_required, description)
+SELECT 
+  s.id as session_id,
+  t.id as term_id,
+  'PRI6' as class_level,
+  'tuition' as fee_type,
+  0.00 as amount,
+  true as is_required,
+  'Tuition fee for PRI6 students'
 FROM public.academic_sessions s
 CROSS JOIN public.academic_terms t
 WHERE s.name = '2025/2026' AND t.name IN ('1st Term', '2nd Term', '3rd Term')
@@ -465,13 +522,18 @@ ORDER BY
   CASE class_level 
     WHEN 'KG1' THEN 1 
     WHEN 'KG2' THEN 2 
-    WHEN 'KG3' THEN 3 
-    WHEN 'JSS1' THEN 4 
-    WHEN 'JSS2' THEN 5 
-    WHEN 'JSS3' THEN 6 
-    WHEN 'SS1' THEN 7 
-    WHEN 'SS2' THEN 8 
-    WHEN 'SS3' THEN 9 
+    WHEN 'PRI1' THEN 3 
+    WHEN 'PRI2' THEN 4 
+    WHEN 'PRI3' THEN 5 
+    WHEN 'PRI4' THEN 6 
+    WHEN 'PRI5' THEN 7 
+    WHEN 'PRI6' THEN 8 
+    WHEN 'JSS1' THEN 9 
+    WHEN 'JSS2' THEN 10 
+    WHEN 'JSS3' THEN 11 
+    WHEN 'SS1' THEN 12 
+    WHEN 'SS2' THEN 13 
+    WHEN 'SS3' THEN 14 
   END,
   stream NULLS FIRST,
   t.name,

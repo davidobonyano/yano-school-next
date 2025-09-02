@@ -23,6 +23,8 @@ export default function StudentDashboard() {
   const [studentName, setStudentName] = useState<string>('');
   const [studentId, setStudentId] = useState<string>('');
   const [studentClass, setStudentClass] = useState<string>('');
+  const [studentStream, setStudentStream] = useState<string>('');
+  const [isActive, setIsActive] = useState<boolean>(true);
   const [courses, setCourses] = useState<any[]>([]);
   const [grades, setGrades] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
@@ -65,7 +67,8 @@ export default function StudentDashboard() {
 
   const formattedClass = formatClassLevel(studentClass);
   const isSenior = studentClass ? studentClass.toUpperCase().startsWith('SS') : false;
-  const stream = isSenior ? 'Science' : '';
+  // Use stream from session if available
+  const stream = studentStream;
 
 
 
@@ -76,6 +79,8 @@ export default function StudentDashboard() {
       setStudentName(s.full_name);
       setStudentId(s.student_id);
       setStudentClass(s.class_level || '');
+      setStudentStream(s.stream || '');
+      setIsActive(typeof s.is_active === 'boolean' ? s.is_active : true);
     }
     loadStudentData();
   }, []);
@@ -146,6 +151,46 @@ export default function StudentDashboard() {
     (p: any) => p.status === "Pending" || p.status === "Partial"
   ).length;
 
+  // Helper functions for term information
+  const getNextTerm = (currentTerm: string): string => {
+    switch (currentTerm) {
+      case '1st Term':
+        return '2nd Term';
+      case '2nd Term':
+        return '3rd Term';
+      case '3rd Term':
+        return 'New Session';
+      default:
+        return '1st Term';
+    }
+  };
+
+  const getSessionProgress = (currentTerm: string): number => {
+    switch (currentTerm) {
+      case '1st Term':
+        return 33;
+      case '2nd Term':
+        return 67;
+      case '3rd Term':
+        return 100;
+      default:
+        return 0;
+    }
+  };
+
+  const getTermStatus = (currentTerm: string): string => {
+    switch (currentTerm) {
+      case '1st Term':
+        return 'Active';
+      case '2nd Term':
+        return 'Active';
+      case '3rd Term':
+        return 'Final';
+      default:
+        return 'Unknown';
+    }
+  };
+
   const hasStudent = Boolean(studentId);
   // Prevent hydration mismatch by showing loading state until client renders
   if (!isClient || loading || !hasStudent) {
@@ -182,10 +227,15 @@ export default function StudentDashboard() {
             </div>
           </div>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold mb-2">
-              Welcome, {studentName || studentId}!
+            <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
+              <span>Welcome, {studentName || studentId}!</span>
+              {!isActive && (
+                <span className="px-2 py-1 rounded-md text-xs font-semibold bg-yellow-200 text-yellow-900 border border-yellow-300">
+                  Graduated
+                </span>
+              )}
             </h1>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm bg-white/10 rounded-lg p-4 backdrop-blur-sm">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 text-sm bg-white/10 rounded-lg p-4 backdrop-blur-sm">
               <div>
                 <span className="font-medium text-blue-200">Student ID:</span>
                 <div className="text-white font-semibold">{studentId}</div>
@@ -193,10 +243,14 @@ export default function StudentDashboard() {
               <div>
                 <span className="font-medium text-blue-200">Class:</span>
                 <div className="text-white font-semibold">
-                  {formattedClass || "Not Assigned"}
+                  {!isActive ? 'Graduated' : (formattedClass || 'Not Assigned')}
                 </div>
               </div>
-              {isSenior && (
+              <div>
+                <span className="font-medium text-blue-200">Status:</span>
+                <div className="text-white font-semibold">{isActive ? 'Active' : 'Graduated'}</div>
+              </div>
+              {(isSenior || !!stream) && (
                 <div>
                   <span className="font-medium text-blue-200">Stream:</span>
                   <div className="text-white font-semibold">{stream || '-'}</div>
@@ -205,6 +259,10 @@ export default function StudentDashboard() {
               <div>
                 <span className="font-medium text-blue-200">Session:</span>
                 <div className="text-white font-semibold">{academicContext.session || '2025/2026'}</div>
+              </div>
+              <div>
+                <span className="font-medium text-blue-200">Term:</span>
+                <div className="text-white font-semibold">{academicContext.term || '1st Term'}</div>
               </div>
             </div>
             
@@ -423,3 +481,4 @@ export default function StudentDashboard() {
     </div>
   );
 }
+

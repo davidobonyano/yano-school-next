@@ -49,6 +49,7 @@ export default function StudentLogin() {
                 ...baseSession,
                 class_level: lookup.student?.class_level || undefined,
                 stream: lookup.student?.stream || undefined,
+                is_active: typeof lookup.student?.is_active === 'boolean' ? lookup.student.is_active : undefined,
               };
               setStudentSession(sessionData);
             } else {

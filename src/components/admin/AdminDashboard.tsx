@@ -27,7 +27,9 @@ interface Term {
   id: string;
   name: string;
   is_active: boolean;
-  session_name: string;
+  academic_sessions: {
+    name: string;
+  };
 }
 
 export default function AdminDashboard() {
@@ -85,6 +87,12 @@ export default function AdminDashboard() {
       if (termsResponse.ok) {
         const termsData = await termsResponse.json();
         setTerms(termsData.terms || []);
+        
+        // Set default to current active term
+        const activeTerm = termsData.terms?.find((t: Term) => t.is_active);
+        if (activeTerm) {
+          setSelectedTerm(activeTerm.id);
+        }
       }
     } catch (error) {
       console.error('Error fetching sessions and terms:', error);
@@ -95,12 +103,15 @@ export default function AdminDashboard() {
   // Change session
   const changeSession = async (sessionId: string) => {
     try {
-      const response = await fetch('/api/admin/sessions/activate', {
+      const response = await fetch('/api/settings/academic-context', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ sessionId }),
+        body: JSON.stringify({
+          action: 'activate_session',
+          session_id: sessionId
+        }),
       });
 
       if (response.ok) {
@@ -108,6 +119,9 @@ export default function AdminDashboard() {
         // Refresh data
         fetchDashboardStats();
         fetchSessionsAndTerms();
+        
+        // Trigger global context refresh
+        window.dispatchEvent(new CustomEvent('academicContextChanged'));
       } else {
         const errorData = await response.json();
         showMessage(errorData.error || 'Failed to change session', 'error');
@@ -121,12 +135,15 @@ export default function AdminDashboard() {
   // Change term
   const changeTerm = async (termId: string) => {
     try {
-      const response = await fetch('/api/admin/terms/activate', {
+      const response = await fetch('/api/settings/academic-context', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ termId }),
+        body: JSON.stringify({
+          action: 'activate_term',
+          term_id: termId
+        }),
       });
 
       if (response.ok) {
@@ -134,6 +151,9 @@ export default function AdminDashboard() {
         // Refresh data
         fetchDashboardStats();
         fetchSessionsAndTerms();
+        
+        // Trigger global context refresh
+        window.dispatchEvent(new CustomEvent('academicContextChanged'));
       } else {
         const errorData = await response.json();
         showMessage(errorData.error || 'Failed to change term', 'error');
@@ -150,9 +170,10 @@ export default function AdminDashboard() {
   }, []);
 
   // Filter terms for selected session
-  const filteredTerms = terms.filter(term => 
-    sessions.find(s => s.id === selectedSession)?.name === term.session_name
-  );
+  const filteredTerms = terms.filter(term => {
+    const selectedSessionObj = sessions.find(s => s.id === selectedSession);
+    return selectedSessionObj && term.academic_sessions.name === selectedSessionObj.name;
+  });
 
   return (
     <div className="p-6 space-y-6">
@@ -194,6 +215,28 @@ export default function AdminDashboard() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Debug Information */}
+          <div className="bg-gray-50 p-3 rounded-lg text-sm">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <span className="font-medium">Sessions loaded:</span> {sessions.length}
+                {sessions.length > 0 && (
+                  <div className="text-xs text-gray-600 mt-1">
+                    Available: {sessions.map(s => s.name).join(', ')}
+                  </div>
+                )}
+              </div>
+              <div>
+                <span className="font-medium">Terms loaded:</span> {terms.length}
+                                 {terms.length > 0 && (
+                   <div className="text-xs text-gray-600 mt-1">
+                     Available: {terms.map(t => `${t.name} (${t.academic_sessions.name})`).join(', ')}
+                   </div>
+                 )}
+              </div>
+            </div>
+          </div>
+          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium text-gray-700">Current Session:</label>
@@ -228,11 +271,17 @@ export default function AdminDashboard() {
                     <SelectValue placeholder="Select term" />
                   </SelectTrigger>
                   <SelectContent>
-                    {filteredTerms.map((term) => (
-                      <SelectItem key={term.id} value={term.id}>
-                        {term.name} {term.is_active && '(Current)'}
-                      </SelectItem>
-                    ))}
+                    {filteredTerms.length > 0 ? (
+                      filteredTerms.map((term) => (
+                        <SelectItem key={term.id} value={term.id}>
+                          {term.name} {term.is_active && '(Current)'}
+                        </SelectItem>
+                      ))
+                                         ) : (
+                       <div className="px-2 py-1.5 text-sm text-gray-500">
+                         {selectedSession ? 'No terms for selected session' : 'Select a session first'}
+                       </div>
+                     )}
                   </SelectContent>
                 </Select>
               </div>

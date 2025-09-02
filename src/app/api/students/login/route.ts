@@ -37,6 +37,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
+    // Update last_login timestamp on successful login (best-effort, ignore errors)
+    try {
+      await supabase
+        .from('school_students')
+        .update({ last_login: new Date().toISOString() })
+        .eq('student_id', studentId);
+    } catch (_) {
+      // no-op
+    }
+
     // For now, return a simple session marker; later replace with JWT/session cookie
     return NextResponse.json({ success: true, student: { student_id: student.student_id, full_name: student.full_name } });
   } catch (err: any) {

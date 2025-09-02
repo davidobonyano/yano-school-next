@@ -21,19 +21,51 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
-    // Update the current academic context
-    const { data: contextData, error: contextError } = await supabase
+    // Find existing current academic context row (singleton)
+    const { data: existingContext, error: existingError } = await supabase
       .from('current_academic_context')
-      .update({ 
-        session_id: sessionData.id,
-        updated_at: new Date().toISOString()
-      })
-      .select(`
-        *,
-        academic_sessions!inner(name as session_name),
-        academic_terms!inner(name as term_name)
-      `)
-      .single();
+      .select('id')
+      .limit(1)
+      .maybeSingle();
+
+    if (existingError) {
+      console.error('Error reading academic context:', existingError);
+      return NextResponse.json({ error: 'Failed to read academic context' }, { status: 500 });
+    }
+
+    let contextData;
+    let contextError;
+
+    if (existingContext?.id) {
+      // Update the existing row by id (required filter for updates)
+      ({ data: contextData, error: contextError } = await supabase
+        .from('current_academic_context')
+        .update({
+          session_id: sessionData.id,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingContext.id)
+        .select(`
+          *,
+          academic_sessions!inner(name as session_name),
+          academic_terms!inner(name as term_name)
+        `)
+        .single());
+    } else {
+      // Insert a new context row if none exists
+      ({ data: contextData, error: contextError } = await supabase
+        .from('current_academic_context')
+        .insert({
+          session_id: sessionData.id,
+          updated_at: new Date().toISOString()
+        })
+        .select(`
+          *,
+          academic_sessions!inner(name as session_name),
+          academic_terms!inner(name as term_name)
+        `)
+        .single());
+    }
 
     if (contextError) {
       console.error('Error updating academic context:', contextError);

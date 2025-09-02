@@ -67,7 +67,28 @@ export function GlobalAcademicSwitcher({ className = '' }: GlobalAcademicSwitche
   };
 
   const handleRefresh = () => {
-    window.location.reload();
+    // Force refresh all dashboard pages
+    window.dispatchEvent(new CustomEvent('forcePageRefresh'));
+    
+    // Also trigger a router refresh
+    if (typeof window !== 'undefined' && window.location) {
+      const currentPath = window.location.pathname;
+      if (currentPath.includes('/dashboard/')) {
+        window.dispatchEvent(new CustomEvent('dashboardContextChanged', {
+          detail: { 
+            session: academicContext.session, 
+            term: academicContext.term,
+            sessionId: academicContext.sessionId,
+            termId: academicContext.termId
+          }
+        }));
+      }
+    }
+    
+    // Finally, reload the page if needed
+    setTimeout(() => {
+      window.location.reload();
+    }, 500);
   };
 
   return (
@@ -190,6 +211,8 @@ export function GlobalAcademicSwitcher({ className = '' }: GlobalAcademicSwitche
 
 // Import Label component
 import { Label } from '@/components/ui/label';
+
+
 
 
 

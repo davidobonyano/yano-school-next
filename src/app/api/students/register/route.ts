@@ -27,8 +27,22 @@ export async function POST(request: Request) {
 
     // Optionally persist stream/classLevel/email updates if provided
     const updates: Record<string, unknown> = {};
-    if (stream && typeof stream === 'string') {
-      updates.stream = stream;
+    const isSS = typeof classLevel === 'string' && /^SS[1-3]$/i.test(classLevel.trim());
+    // Normalize stream to allowed canonical values only for SS classes
+    const normalizedStreamInput = typeof stream === 'string' ? stream.trim() : '';
+    const canonicalStream = normalizedStreamInput
+      ? (/^science$/i.test(normalizedStreamInput)
+          ? 'Science'
+          : (/^commercial$/i.test(normalizedStreamInput)
+              ? 'Commercial'
+              : (/^arts?$/i.test(normalizedStreamInput)
+                  ? 'Art'
+                  : undefined)))
+      : undefined;
+    if (isSS) {
+      updates.stream = canonicalStream ?? null;
+    } else {
+      updates.stream = null;
     }
     if (classLevel && typeof classLevel === 'string') {
       updates.class_level = classLevel;

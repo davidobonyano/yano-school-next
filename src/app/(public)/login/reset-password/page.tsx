@@ -1,11 +1,11 @@
 'use client';
 
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 
-export default function StudentResetPassword() {
+function ResetPasswordInner() {
   const params = useSearchParams();
   const router = useRouter();
   const token = params.get('token') || '';
@@ -106,6 +106,14 @@ export default function StudentResetPassword() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function StudentResetPassword() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <ResetPasswordInner />
+    </Suspense>
   );
 }
 

@@ -4,13 +4,13 @@ import { requireAdmin } from '@/lib/authz';
 
 export async function GET(
   request: Request,
-  { params }: { params: { sessionId: string } }
+  context: { params: Promise<{ sessionId: string }> }
 ) {
   try {
     const gate = requireAdmin(request);
     if (!gate.ok) return gate.error as Response;
 
-    const { sessionId } = params;
+    const { sessionId } = await context.params;
 
     if (!sessionId) {
       return NextResponse.json({ error: 'Session ID is required' }, { status: 400 });

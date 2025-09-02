@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faSearch, faFilter, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faPlus, faSearch, faFilter, faTrash, faGraduationCap } from '@fortawesome/free-solid-svg-icons';
 import { supabase, StudentRow } from '@/lib/supabase';
 
 type ClassLevel =
@@ -74,7 +74,7 @@ export default function StudentsPage() {
       full_name: s.full_name,
       email: s.email || '',
       phone: s.phone || '',
-      class_level: (s.class_level as ClassLevel) || 'KG',
+      class_level: (s.class_level as ClassLevel) || 'KG1',
       stream: s.stream || '',
       school_name: s.school_name || '',
       parent_name: s.parent_name || '',
@@ -94,6 +94,18 @@ export default function StudentsPage() {
   const saveEdit = async () => {
     if (!editing || !form) return;
     setSaving(true);
+    // Normalize stream to allowed values and SS-only
+    const isSS = ['SS1','SS2','SS3'].includes(form.class_level);
+    const normalizedStream = (form.stream || '').trim();
+    const canonicalStream = normalizedStream
+      ? (/^science$/i.test(normalizedStream)
+          ? 'Science'
+          : (/^commercial$/i.test(normalizedStream)
+              ? 'Commercial'
+              : (/^arts?$/i.test(normalizedStream)
+                  ? 'Art'
+                  : normalizedStream)))
+      : '';
     if (allowReassignId && selectedCustomId) {
       const { error: idErr } = await supabase
         .from('school_students')
@@ -108,7 +120,7 @@ export default function StudentsPage() {
         email: form.email || null,
         phone: form.phone || null,
         class_level: form.class_level,
-        stream: form.stream || null,
+        stream: isSS ? (canonicalStream || null) : null,
         school_name: form.school_name,
         parent_name: form.parent_name || null,
         parent_phone: form.parent_phone || null,
@@ -134,13 +146,22 @@ export default function StudentsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Student Management</h1>
           <p className="text-gray-600">View and manage all students</p>
         </div>
-        <a
-          href="/dashboard/admin/students/create"
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-        >
-          <FontAwesomeIcon icon={faPlus} className="w-4 h-4" />
-          Add Student
-        </a>
+        <div className="flex gap-3">
+          <a
+            href="/dashboard/admin/promotions"
+            className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
+          >
+            <FontAwesomeIcon icon={faGraduationCap} className="w-4 h-4" />
+            Manage Promotions
+          </a>
+          <a
+            href="/dashboard/admin/students/create"
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+          >
+            <FontAwesomeIcon icon={faPlus} className="w-4 h-4" />
+            Add Student
+          </a>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow p-4 mb-6">

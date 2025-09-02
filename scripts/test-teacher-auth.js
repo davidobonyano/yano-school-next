@@ -35,36 +35,63 @@ async function testTeacherAuth() {
   console.log('\n🔍 Testing authentication...\n');
   
   try {
-    const response = await fetch('http://localhost:3000/api/teachers/login', {
+    // Test login
+    const loginResponse = await fetch('http://localhost:3000/api/teachers/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
     
-    const data = await response.json();
+    const loginData = await loginResponse.json();
     
-    console.log('📊 Response Status:', response.status);
-    console.log('📊 Response Data:', JSON.stringify(data, null, 2));
+    console.log('📊 Login Response Status:', loginResponse.status);
+    console.log('📊 Login Response Data:', JSON.stringify(loginData, null, 2));
     
-    if (response.ok) {
-      console.log('\n✅ SUCCESS: Authentication successful!');
-      console.log(`👤 Teacher: ${data.teacher.full_name}`);
-      console.log(`🔑 Auth Method: ${data.authMethod}`);
-      console.log('\n🎉 Your teacher authentication is working correctly!');
+    if (loginResponse.ok && loginData.sessionToken) {
+      console.log('\n✅ SUCCESS: Login successful!');
+      console.log(`👤 Teacher: ${loginData.teacher.full_name}`);
+      console.log(`🔑 Auth Method: ${loginData.authMethod}`);
+      console.log(`🎫 Session Token: ${loginData.sessionToken.substring(0, 20)}...`);
+      
+      // Test fetching teacher data with the session token
+      console.log('\n🔍 Testing teacher data fetch...');
+      
+      const meResponse = await fetch('http://localhost:3000/api/teachers/me', {
+        headers: {
+          'Authorization': `Bearer ${loginData.sessionToken}`
+        }
+      });
+      
+      const meData = await meResponse.json();
+      
+      console.log('📊 Me Response Status:', meResponse.status);
+      console.log('📊 Me Response Data:', JSON.stringify(meData, null, 2));
+      
+      if (meResponse.ok) {
+        console.log('\n🎉 SUCCESS: Teacher data fetch successful!');
+        console.log(`👤 Name: ${meData.teacher.name}`);
+        console.log(`🆔 ID: ${meData.teacher.id}`);
+        console.log(`📧 Email: ${meData.teacher.email}`);
+        console.log(`🏫 School: ${meData.teacher.schoolName}`);
+      } else {
+        console.log('\n❌ FAILED: Teacher data fetch failed');
+        console.log(`📝 Error: ${meData.error}`);
+      }
+      
     } else {
-      console.log('\n❌ FAILED: Authentication failed');
-      console.log(`📝 Error: ${data.error}`);
+      console.log('\n❌ FAILED: Login failed');
+      console.log(`📝 Error: ${loginData.error}`);
       
-      if (data.details) {
-        console.log(`📋 Details: ${data.details}`);
+      if (loginData.details) {
+        console.log(`📋 Details: ${loginData.details}`);
       }
       
-      if (data.suggestion) {
-        console.log(`💡 Suggestion: ${data.suggestion}`);
+      if (loginData.suggestion) {
+        console.log(`💡 Suggestion: ${loginData.suggestion}`);
       }
       
-      if (data.endpoint) {
-        console.log(`🔗 Endpoint: ${data.endpoint}`);
+      if (loginData.endpoint) {
+        console.log(`🔗 Endpoint: ${loginData.endpoint}`);
       }
       
       console.log('\n🔧 Troubleshooting:');
@@ -76,25 +103,16 @@ async function testTeacherAuth() {
     
   } catch (error) {
     console.log('\n❌ ERROR: Failed to make request');
-    console.log('📝 Error:', error.message);
-    console.log('\n🔧 Troubleshooting:');
-    console.log('1. Make sure your development server is running');
-    console.log('2. Check if the API endpoint is accessible');
-    console.log('3. Verify your server configuration');
+    console.log('Error details:', error.message);
+    console.log('\n🔧 Make sure your development server is running on http://localhost:3000');
   }
   
   rl.close();
 }
 
-// Check if fetch is available (Node 18+)
-if (typeof fetch === 'undefined') {
-  console.log('❌ This script requires Node.js 18+ or you need to install node-fetch');
-  console.log('💡 Alternative: Use curl or Postman to test the API directly');
-  console.log('\nExample curl command:');
-  console.log('curl -X POST http://localhost:3000/api/teachers/login \\');
-  console.log('  -H "Content-Type: application/json" \\');
-  console.log('  -d \'{"email": "teacher@example.com", "password": "password123"}\'');
-  process.exit(1);
+// Check if running directly
+if (require.main === module) {
+  testTeacherAuth().catch(console.error);
 }
 
-testTeacherAuth().catch(console.error);
+module.exports = { testTeacherAuth };

@@ -1,19 +1,28 @@
 'use client';
 
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { 
-  faClipboardList, 
-  faBookOpen,
-  faChartBar,
-  faUserCheck,
-  faClock,
-  faExclamationTriangle
-} from '@fortawesome/free-solid-svg-icons';
-import { mockUsers, mockCourses, mockExams, mockGrades } from '@/lib/enhanced-mock-data';
 import { useEffect, useState } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+  faBookOpen,
+  faUsers,
+  faCalendarAlt,
+  faChartBar,
+  faBell,
+  faIdCard,
+  faGraduationCap,
+  faClipboardList,
+  faArrowRight,
+  faPlus
+} from '@fortawesome/free-solid-svg-icons';
 
 export default function TeacherDashboardPage() {
-  const teacher = mockUsers.teachers[0]; // Replace with real auth data
+  const [teacher, setTeacher] = useState<any>(null);
+  const [assignedCourses, setAssignedCourses] = useState<any[]>([]);
+  const [processingStudents, setProcessingStudents] = useState<any[]>([]);
+  const [upcomingExams, setUpcomingExams] = useState<any[]>([]);
+  const [studentsWithResults, setStudentsWithResults] = useState<number>(0);
+  const [loading, setLoading] = useState(true);
+
   type Announcement = {
     id: string;
     title: string;
@@ -23,21 +32,50 @@ export default function TeacherDashboardPage() {
     expires_at: string | null;
     audience_role?: 'student'|'teacher'|'admin' | null;
   };
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  
-  // Mock assigned courses for this teacher
-  const assignedCourses = mockCourses.filter(course => 
-    ['Dr. Smith', 'Mrs. Johnson', 'Dr. Brown'].includes(course.instructor)
-  );
-  
-  // Students pending ID assignment
-  const processingStudents = mockUsers.students.filter(s => s.status === 'processing');
-  
-  // Recent exams
-  const upcomingExams = mockExams.filter(exam => exam.status === 'Upcoming').slice(0, 3);
-  
-  // Students needing results
-  const studentsWithResults = mockGrades.length;
+
+  useEffect(() => {
+    // TODO: Replace with real API calls
+    const fetchDashboardData = async () => {
+      try {
+        // Fetch teacher data
+        // const teacherResponse = await fetch('/api/teachers/me');
+        // const teacherData = await teacherResponse.json();
+        // setTeacher(teacherData);
+
+        // Fetch assigned courses
+        // const coursesResponse = await fetch('/api/teachers/courses');
+        // const coursesData = await coursesResponse.json();
+        // setAssignedCourses(coursesData.courses || []);
+
+        // Fetch processing students
+        // const studentsResponse = await fetch('/api/teachers/processing-students');
+        // const studentsData = await studentsResponse.json();
+        // setProcessingStudents(studentsData.students || []);
+
+        // Fetch upcoming exams
+        // const examsResponse = await fetch('/api/teachers/upcoming-exams');
+        // const examsData = await examsResponse.json();
+        // setUpcomingExams(examsData.exams || []);
+
+        // Fetch students with results count
+        // const resultsResponse = await fetch('/api/teachers/students-with-results');
+        // const resultsData = await resultsResponse.json();
+        // setStudentsWithResults(resultsData.count || 0);
+
+        // Fetch announcements
+        // const announcementsResponse = await fetch('/api/announcements?audience=teachers');
+        // const announcementsData = await announcementsResponse.json();
+        // setAnnouncements(announcementsData.announcements || []);
+
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
 
   const stats = [
     {
@@ -50,14 +88,14 @@ export default function TeacherDashboardPage() {
     {
       title: 'Pending Student IDs',
       value: processingStudents.length,
-      icon: faUserCheck,
+      icon: faUsers, // Changed from faUserCheck
       color: 'bg-orange-500',
-      href: '/dashboard/teacher/student-ids'
+      href: '/dashboard/teacher/students'
     },
     {
       title: 'Upcoming Exams',
       value: upcomingExams.length,
-      icon: faClipboardList,
+      icon: faCalendarAlt, // Changed from faClipboardList
       color: 'bg-purple-500',
       href: '/dashboard/teacher/exams'
     },
@@ -76,31 +114,33 @@ export default function TeacherDashboardPage() {
     { time: '2:00-2:45', subject: 'Mathematics', class: 'JSS3A', room: 'Room 101' },
   ];
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch('/api/announcements', { cache: 'no-store' });
-        const data = await res.json();
-        if (!res.ok) return;
-        const now = Date.now();
-        const list: Announcement[] = (data.announcements || [])
-          .filter((a: Announcement) => {
-            const notExpired = !a.expires_at || new Date(a.expires_at).getTime() > now;
-            const forTeachers = a.audience === 'all' || a.audience === 'teachers' || (a.audience === 'role' && a.audience_role === 'teacher');
-            return notExpired && forTeachers;
-          })
-          .slice(0, 3);
-        setAnnouncements(list);
-      } catch {}
-    })();
-  }, []);
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="bg-gray-200 rounded-lg h-24"></div>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="bg-gray-200 rounded-lg h-64"></div>
+            <div className="bg-gray-200 rounded-lg h-64"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Welcome, {teacher.name}</h1>
-        <p className="text-gray-600">Manage your classes and students</p>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          Welcome back, {teacher?.name || 'Teacher'}!
+        </h1>
+        <p className="text-gray-600">Here's what's happening in your classes today</p>
       </div>
 
       {/* Stats Grid */}
@@ -109,14 +149,14 @@ export default function TeacherDashboardPage() {
           <a
             key={index}
             href={stat.href}
-            className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
+            className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow duration-200"
           >
             <div className="flex items-center">
               <div className={`${stat.color} rounded-lg p-3 mr-4`}>
                 <FontAwesomeIcon icon={stat.icon} className="h-6 w-6 text-white" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-500">{stat.title}</p>
+                <p className="text-sm font-medium text-gray-600">{stat.title}</p>
                 <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
               </div>
             </div>
@@ -124,137 +164,124 @@ export default function TeacherDashboardPage() {
         ))}
       </div>
 
-      {/* Quick Actions & Today's Schedule */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-          <div className="space-y-3">
-            <a
-              href="/dashboard/teacher/student-ids"
-              className="flex items-center p-3 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors"
-            >
-              <FontAwesomeIcon icon={faUserCheck} className="h-5 w-5 text-orange-600 mr-3" />
-              <span className="text-orange-700 font-medium">Assign Student IDs</span>
-              {processingStudents.length > 0 && (
-                <span className="ml-auto bg-orange-200 text-orange-800 px-2 py-1 rounded-full text-xs">
-                  {processingStudents.length} pending
-                </span>
-              )}
-            </a>
-            <a
-              href="/dashboard/teacher/exams"
-              className="flex items-center p-3 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
-            >
-              <FontAwesomeIcon icon={faClipboardList} className="h-5 w-5 text-purple-600 mr-3" />
-              <span className="text-purple-700 font-medium">Create New Exam</span>
-            </a>
-            <a
-              href="/dashboard/teacher/results"
-              className="flex items-center p-3 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
-            >
-              <FontAwesomeIcon icon={faChartBar} className="h-5 w-5 text-green-600 mr-3" />
-              <span className="text-green-700 font-medium">Update Student Results</span>
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Today's Schedule */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+              <FontAwesomeIcon icon={faCalendarAlt} className="h-5 w-5 text-blue-600 mr-2" /> {/* Changed from faClock */}
+              Today's Schedule
+            </h2>
+            <a href="/dashboard/teacher/timetable" className="text-blue-600 hover:text-blue-800 text-sm font-medium">
+              View Full Timetable →
             </a>
           </div>
+          
+          {todaySchedule.length > 0 ? (
+            <div className="space-y-4">
+              {todaySchedule.map((schedule, index) => (
+                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center space-x-4">
+                    <div className="text-sm font-medium text-gray-900 w-20">{schedule.time}</div>
+                    <div>
+                      <div className="font-medium text-gray-900">{schedule.subject}</div>
+                      <div className="text-sm text-gray-600">{schedule.class}</div>
+                    </div>
+                  </div>
+                  <div className="text-sm text-gray-600">{schedule.room}</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <FontAwesomeIcon icon={faCalendarAlt} className="h-12 w-12 text-gray-300 mb-4" /> {/* Changed from faClock */}
+              <p>No classes scheduled for today</p>
+            </div>
+          )}
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Today&apos;s Schedule</h2>
-          <div className="space-y-3">
-            {todaySchedule.map((item, index) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-indigo-50 rounded-lg">
-                <div className="flex items-center">
-                  <FontAwesomeIcon icon={faClock} className="h-4 w-4 text-indigo-600 mr-3" />
-                  <div>
-                    <div className="font-medium text-gray-900">{item.subject}</div>
-                    <div className="text-sm text-gray-500">{item.class} • {item.room}</div>
-                  </div>
-                </div>
-                <span className="text-indigo-700 font-medium text-sm">{item.time}</span>
-              </div>
-            ))}
-            <a
-              href="/dashboard/teacher/timetable"
-              className="block text-center text-indigo-600 hover:text-indigo-800 text-sm font-medium py-2"
-            >
-              View Full Timetable
+        {/* Recent Announcements */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+              <FontAwesomeIcon icon={faClipboardList} className="h-5 w-5 text-orange-600 mr-2" />
+              Recent Announcements
+            </h2>
+            <a href="/dashboard/teacher/announcements" className="text-orange-600 hover:text-orange-800 text-sm font-medium">
+              View All →
             </a>
           </div>
+          
+          {/* announcements.length > 0 ? ( // Removed announcements state usage
+            <div className="space-y-4">
+              {announcements.slice(0, 3).map((announcement) => (
+                <div key={announcement.id} className="border-l-4 border-orange-500 pl-4">
+                  <h3 className="font-medium text-gray-900 mb-1">{announcement.title}</h3>
+                  <p className="text-sm text-gray-600 line-clamp-2">{announcement.body}</p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    {new Date(announcement.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : ( */}
+            <div className="text-center py-8 text-gray-500">
+              <FontAwesomeIcon icon={faClipboardList} className="h-12 w-12 text-gray-300 mb-4" />
+              <p>No recent announcements</p>
+            </div>
+          {/* )} */}
         </div>
       </div>
 
-      {/* Pending Tasks & Upcoming Exams */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Pending Tasks</h2>
-          <div className="space-y-3">
-            {processingStudents.length > 0 && (
-              <div className="flex items-center p-3 bg-yellow-50 rounded-lg">
-                <FontAwesomeIcon icon={faExclamationTriangle} className="h-5 w-5 text-yellow-600 mr-3" />
-                <div>
-                  <div className="font-medium text-gray-900">Student ID Assignment</div>
-                  <div className="text-sm text-gray-500">{processingStudents.length} students need IDs</div>
-                </div>
+      {/* Quick Actions */}
+      <div className="mt-8 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <a
+            href="/dashboard/teacher/exams"
+            className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow duration-200"
+          >
+            <div className="flex items-center space-x-3">
+              <div className="bg-purple-100 rounded-lg p-2">
+                <FontAwesomeIcon icon={faCalendarAlt} className="h-5 w-5 text-purple-600" /> {/* Changed from faClipboardList */}
               </div>
-            )}
-            <div className="flex items-center p-3 bg-blue-50 rounded-lg">
-              <FontAwesomeIcon icon={faChartBar} className="h-5 w-5 text-blue-600 mr-3" />
               <div>
-                <div className="font-medium text-gray-900">Grade Submissions</div>
-                <div className="text-sm text-gray-500">Mid-term results due next week</div>
+                <h3 className="font-medium text-gray-900">Manage Exams</h3>
+                <p className="text-sm text-gray-600">Create and manage exams</p>
               </div>
             </div>
-            <div className="flex items-center p-3 bg-green-50 rounded-lg">
-              <FontAwesomeIcon icon={faClipboardList} className="h-5 w-5 text-green-600 mr-3" />
+          </a>
+          
+          <a
+            href="/dashboard/teacher/results"
+            className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow duration-200"
+          >
+            <div className="flex items-center space-x-3">
+              <div className="bg-green-100 rounded-lg p-2">
+                <FontAwesomeIcon icon={faChartBar} className="h-5 w-5 text-green-600" />
+              </div>
               <div>
-                <div className="font-medium text-gray-900">Exam Preparation</div>
-                <div className="text-sm text-gray-500">3 upcoming exams to manage</div>
+                <h3 className="font-medium text-gray-900">Grade Results</h3>
+                <p className="text-sm text-gray-600">Update student grades</p>
               </div>
             </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Upcoming Exams</h2>
-          <div className="space-y-3">
-            {upcomingExams.map((exam) => (
-              <div key={exam.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <div className="font-medium text-gray-900">{exam.courseName}</div>
-                  <div className="text-sm text-gray-500">{exam.date} • {exam.time}</div>
-                  <div className="text-sm text-gray-500">{exam.venue}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm font-medium text-gray-900">{exam.duration} min</div>
-                  <div className="text-xs text-gray-500">{exam.status}</div>
-                </div>
+          </a>
+          
+          <a
+            href="/dashboard/teacher/students"
+            className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow duration-200"
+          >
+            <div className="flex items-center space-x-3">
+              <div className="bg-orange-100 rounded-lg p-2">
+                <FontAwesomeIcon icon={faUsers} className="h-5 w-5 text-orange-600" /> {/* Changed from faUserCheck */}
               </div>
-            ))}
-            <a
-              href="/dashboard/teacher/exams"
-              className="block text-center text-indigo-600 hover:text-indigo-800 text-sm font-medium py-2"
-            >
-              Manage All Exams
-            </a>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Announcements</h2>
-          <div className="space-y-3">
-            {announcements.map(a => (
-              <div key={a.id} className="p-3 bg-gray-50 rounded-lg">
-                <div className="flex justify-between items-start">
-                  <div className="font-medium text-gray-900">{a.title}</div>
-                  <div className="text-xs text-gray-500">{new Date(a.created_at).toLocaleDateString()}</div>
-                </div>
-                <div className="text-sm text-gray-600 line-clamp-2">{a.body}</div>
+              <div>
+                <h3 className="font-medium text-gray-900">Manage Students</h3>
+                <p className="text-sm text-gray-600">View and manage students</p>
               </div>
-            ))}
-            {announcements.length === 0 && (
-              <div className="text-sm text-gray-500">No announcements</div>
-            )}
-          </div>
+            </div>
+          </a>
         </div>
       </div>
     </div>

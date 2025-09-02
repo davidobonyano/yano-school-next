@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { AcademicContextProvider } from '@/lib/academic-context';
 import { GlobalAcademicSync } from '@/lib/global-academic-sync';
+import { useDashboardRefresh } from '@/lib/use-dashboard-refresh';
 
 import { 
   faHome, 
@@ -18,13 +19,17 @@ import {
   faUserShield,
   faBookOpen,
   faFileExport,
-  faTimes
+  faTimes,
+  faGraduationCap
 } from '@fortawesome/free-solid-svg-icons';
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [admin, setAdmin] = useState<{ id: string; name: string; email: string } | null>(null);
+
+  // Use the dashboard refresh hook to automatically refresh when context changes
+  useDashboardRefresh();
 
   useEffect(() => {
     const load = async () => {
@@ -165,6 +170,14 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       bgColor: 'bg-gradient-to-r from-teal-600 to-teal-700',
       hoverColor: 'hover:from-teal-700 hover:to-teal-800',
       iconColor: 'text-teal-100'
+    },
+    { 
+      href: '/dashboard/admin/promotions', 
+      icon: faGraduationCap, 
+      label: 'Promotions',
+      bgColor: 'bg-gradient-to-r from-purple-600 to-purple-700',
+      hoverColor: 'hover:from-purple-700 hover:to-purple-800',
+      iconColor: 'text-purple-100'
     },
   ];
 

@@ -47,7 +47,7 @@ export function FeeStructureManager({ className = '' }: FeeStructureManagerProps
   const [selectedClass, setSelectedClass] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const classes = ['KG1', 'KG2', 'KG3', 'JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3'];
+  const classes = ['KG1', 'KG2', 'PRI1', 'PRI2', 'PRI3', 'PRI4', 'PRI5', 'PRI6', 'JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3'];
 
   // Fetch sessions and terms
   const fetchSessionsAndTerms = async () => {

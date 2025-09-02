@@ -29,6 +29,11 @@ export default function TeacherLogin() {
       if (!res.ok) {
         setMessage(data.error || 'Login failed');
       } else {
+        // Store session token in localStorage
+        if (data.sessionToken) {
+          localStorage.setItem('teacherSessionToken', data.sessionToken);
+        }
+        
         setMessage(`Welcome back, ${data.teacher.full_name}!`);
         setTimeout(() => {
           router.push('/dashboard/teacher');

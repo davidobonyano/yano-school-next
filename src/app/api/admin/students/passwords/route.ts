@@ -16,6 +16,7 @@ export async function GET(request: Request) {
         full_name,
         class_level,
         stream,
+        last_login,
         created_at
       `)
       .eq('is_active', true)
@@ -50,7 +51,7 @@ export async function GET(request: Request) {
       class_level: student.class_level,
       stream: student.stream,
       has_password: studentsWithPasswordsSet.has(student.student_id),
-      last_login: null, // We'll add this later if needed
+      last_login: student.last_login,
       created_at: student.created_at
     })) || [];
 

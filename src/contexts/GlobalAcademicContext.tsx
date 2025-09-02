@@ -11,9 +11,9 @@ interface AcademicContext {
 
 interface GlobalAcademicContextType {
   academicContext: AcademicContext;
-  setAcademicContext: (context: AcademicContext) => void;
-  updateSession: (session: string) => void;
-  updateTerm: (term: string) => void;
+  setAcademicContext: React.Dispatch<React.SetStateAction<AcademicContext>>;
+  updateSession: (session: string) => Promise<void>;
+  updateTerm: (term: string) => Promise<void>;
   isLoading: boolean;
 }
 
@@ -35,15 +35,15 @@ export function GlobalAcademicContextProvider({ children }: { children: ReactNod
 
   const fetchCurrentAcademicContext = async () => {
     try {
-      const response = await fetch('/api/settings/academic-context');
+      const response = await fetch('/api/settings/academic-context?action=current');
       if (response.ok) {
         const data = await response.json();
-        if (data.currentContext) {
+        if (data.current) {
           setAcademicContext({
-            session: data.currentContext.session_name,
-            term: data.currentContext.term_name,
-            sessionId: data.currentContext.session_id,
-            termId: data.currentContext.term_id
+            session: data.current.session_name,
+            term: data.current.term_name,
+            sessionId: data.current.session_id,
+            termId: data.current.term_id
           });
         }
       }
@@ -72,6 +72,21 @@ export function GlobalAcademicContextProvider({ children }: { children: ReactNod
         
         // Trigger a global refresh event
         window.dispatchEvent(new CustomEvent('academicContextChanged'));
+        
+        // Force all dashboard pages to refresh their data
+        window.dispatchEvent(new CustomEvent('forcePageRefresh'));
+        
+        // Also trigger a router refresh for Next.js pages
+        if (typeof window !== 'undefined' && window.location) {
+          // Force a soft refresh of the current page
+          const currentPath = window.location.pathname;
+          if (currentPath.includes('/dashboard/')) {
+            // Trigger a re-render of all dashboard components
+            window.dispatchEvent(new CustomEvent('dashboardContextChanged', {
+              detail: { session: data.session_name, sessionId: data.session_id }
+            }));
+          }
+        }
       }
     } catch (error) {
       console.error('Error updating session:', error);
@@ -96,6 +111,21 @@ export function GlobalAcademicContextProvider({ children }: { children: ReactNod
         
         // Trigger a global refresh event
         window.dispatchEvent(new CustomEvent('academicContextChanged'));
+        
+        // Force all dashboard pages to refresh their data
+        window.dispatchEvent(new CustomEvent('forcePageRefresh'));
+        
+        // Also trigger a router refresh for Next.js pages
+        if (typeof window !== 'undefined' && window.location) {
+          // Force a soft refresh of the current page
+          const currentPath = window.location.pathname;
+          if (currentPath.includes('/dashboard/')) {
+            // Trigger a re-render of all dashboard components
+            window.dispatchEvent(new CustomEvent('dashboardContextChanged', {
+              detail: { term: data.term_name, termId: data.term_id }
+            }));
+          }
+        }
       }
     } catch (error) {
       console.error('Error updating term:', error);
@@ -124,6 +154,8 @@ export function useGlobalAcademicContext() {
   }
   return context;
 }
+
+
 
 
 

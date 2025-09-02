@@ -265,6 +265,27 @@ export function AcademicContextProvider({ children }: AcademicContextProviderPro
     refreshContext();
   }, []);
 
+  // Listen for global academic context changes
+  useEffect(() => {
+    const handleGlobalContextChange = () => {
+      console.log('Global academic context changed, refreshing local context...');
+      refreshContext();
+    };
+
+    const handleForceRefresh = () => {
+      console.log('Force refresh triggered for academic context...');
+      refreshContext();
+    };
+
+    window.addEventListener('academicContextChanged', handleGlobalContextChange);
+    window.addEventListener('forcePageRefresh', handleForceRefresh);
+
+    return () => {
+      window.removeEventListener('academicContextChanged', handleGlobalContextChange);
+      window.removeEventListener('forcePageRefresh', handleForceRefresh);
+    };
+  }, []);
+
   // Fetch terms when current context changes
   useEffect(() => {
     if (currentContext?.session_id) {
@@ -291,6 +312,8 @@ export function AcademicContextProvider({ children }: AcademicContextProviderPro
     </AcademicContext.Provider>
   );
 }
+
+
 
 
 

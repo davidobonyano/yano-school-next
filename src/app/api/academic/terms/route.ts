@@ -11,7 +11,7 @@ export async function GET() {
         is_active, 
         start_date, 
         end_date,
-        academic_sessions!inner(name as session_name)
+        academic_sessions(name)
       `)
       .order('start_date', { ascending: true });
 

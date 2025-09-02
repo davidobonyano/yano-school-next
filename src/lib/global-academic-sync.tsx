@@ -12,7 +12,7 @@ export function GlobalAcademicSync() {
   const { currentContext, refreshContext } = useAcademicContext();
   const { academicContext, setAcademicContext } = useGlobalAcademicContext();
 
-  // Sync local context with global context
+  // Sync local context with global context when local context changes
   useEffect(() => {
     if (currentContext) {
       setAcademicContext({
@@ -24,10 +24,15 @@ export function GlobalAcademicSync() {
     }
   }, [currentContext, setAcademicContext]);
 
-  // Listen for global academic context changes
+  // Listen for global academic context changes and immediately sync local context
   useEffect(() => {
-    const handleGlobalChange = () => {
-      refreshContext();
+    const handleGlobalChange = async () => {
+      // Immediately refresh the local context to get the latest data
+      await refreshContext();
+      
+      // Also trigger a page refresh for components that don't use the context
+      // This ensures all dashboard pages get updated
+      window.dispatchEvent(new CustomEvent('forcePageRefresh'));
     };
 
     window.addEventListener('academicContextChanged', handleGlobalChange);
@@ -35,6 +40,17 @@ export function GlobalAcademicSync() {
       window.removeEventListener('academicContextChanged', handleGlobalChange);
     };
   }, [refreshContext]);
+
+  // Listen for global context changes and update local context immediately
+  useEffect(() => {
+    if (academicContext.sessionId && academicContext.termId) {
+      // If global context has changed and we have new IDs, refresh local context
+      if (currentContext?.session_id !== academicContext.sessionId || 
+          currentContext?.term_id !== academicContext.termId) {
+        refreshContext();
+      }
+    }
+  }, [academicContext.sessionId, academicContext.termId, currentContext, refreshContext]);
 
   // Trigger payment record creation when context changes
   useEffect(() => {

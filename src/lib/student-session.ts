@@ -5,6 +5,7 @@ export type StudentSession = {
   full_name: string;
   class_level?: string | null;
   stream?: string | null;
+  is_active?: boolean | null;
 };
 
 const STORAGE_KEY = 'student_session';
@@ -30,5 +31,7 @@ export function clearStudentSession() {
     localStorage.removeItem(STORAGE_KEY);
   } catch {}
 }
+
+
 
 

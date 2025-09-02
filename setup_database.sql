@@ -215,3 +215,5 @@ from public.academic_sessions s
 join public.academic_terms t on s.id = t.session_id
 where s.is_active = true
 order by t.start_date;
+
+

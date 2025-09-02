@@ -3,10 +3,11 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { ReactNode, useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { mockUsers } from '@/lib/enhanced-mock-data';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { AcademicContextProvider } from '@/lib/academic-context';
+import { AcademicContextDisplay } from '@/components/academic-context/AcademicContextDisplay';
 import { GlobalAcademicSync } from '@/lib/global-academic-sync';
+import { useDashboardRefresh } from '@/lib/use-dashboard-refresh';
 
 import { 
   faHome, 
@@ -18,17 +19,21 @@ import {
   faSignOutAlt,
   faChalkboardTeacher,
   faFileExport,
-  faTimes
+  faTimes,
+  faChartBar
 } from '@fortawesome/free-solid-svg-icons';
 
 export default function TeacherLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const teacher = mockUsers.teachers[0]; // Replace with real auth data
+  const [teacher, setTeacher] = useState<any>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number>(0);
   const touchCurrentX = useRef<number>(0);
+
+  // Use the dashboard refresh hook to automatically refresh when context changes
+  useDashboardRefresh();
 
   // Handle swipe gestures
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -77,9 +82,54 @@ export default function TeacherLayout({ children }: { children: ReactNode }) {
     };
   }, [sidebarOpen]);
 
+  // Fetch teacher data
+  useEffect(() => {
+    const fetchTeacherData = async () => {
+      try {
+        // Get session token from localStorage (set during login)
+        const sessionToken = localStorage.getItem('teacherSessionToken');
+        
+        if (!sessionToken) {
+          console.log('No session token found, redirecting to login');
+          router.push('/login/teacher');
+          return;
+        }
+
+        const response = await fetch('/api/teachers/me', {
+          headers: {
+            'Authorization': `Bearer ${sessionToken}`
+          }
+        });
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            // Token expired or invalid, redirect to login
+            localStorage.removeItem('teacherSessionToken');
+            router.push('/login/teacher');
+            return;
+          }
+          throw new Error('Failed to fetch teacher data');
+        }
+
+        const data = await response.json();
+        if (data.success && data.teacher) {
+          setTeacher(data.teacher);
+        }
+      } catch (error) {
+        console.error('Error fetching teacher data:', error);
+        // On error, redirect to login
+        localStorage.removeItem('teacherSessionToken');
+        router.push('/login/teacher');
+      }
+    };
+
+    fetchTeacherData();
+  }, [router]);
+
   const handleLogout = () => {
-    // In a real app, you would clear auth state here
-    router.push('/login'); // Redirect to login page
+    // Clear session token and redirect to login
+    localStorage.removeItem('teacherSessionToken');
+    router.push('/login/teacher');
   };
 
 
@@ -94,9 +144,9 @@ export default function TeacherLayout({ children }: { children: ReactNode }) {
       iconColor: 'text-indigo-100'
     },
     { 
-      href: '/dashboard/teacher/student-ids', 
+      href: '/dashboard/teacher/students', 
       icon: faUserCheck, 
-      label: 'Student IDs',
+      label: 'Students',
       bgColor: 'bg-gradient-to-r from-green-600 to-green-700',
       hoverColor: 'hover:from-green-700 hover:to-green-800',
       iconColor: 'text-green-100'
@@ -124,6 +174,14 @@ export default function TeacherLayout({ children }: { children: ReactNode }) {
       bgColor: 'bg-gradient-to-r from-orange-600 to-orange-700',
       hoverColor: 'hover:from-orange-700 hover:to-orange-800',
       iconColor: 'text-orange-100'
+    },
+    { 
+      href: '/dashboard/teacher/results', 
+      icon: faChartBar, 
+      label: 'Results Management',
+      bgColor: 'bg-gradient-to-r from-green-600 to-green-700',
+      hoverColor: 'hover:from-green-700 hover:to-green-800',
+      iconColor: 'text-green-100'
     },
     { 
       href: '/dashboard/teacher/announcements', 
@@ -202,9 +260,9 @@ export default function TeacherLayout({ children }: { children: ReactNode }) {
               </div>
             </div>
             <div>
-              <h2 className="text-xl font-bold">{teacher.name}</h2>
+              <h2 className="text-xl font-bold">{teacher?.name || 'Welcome back, Teacher!'}</h2>
               <p className="text-sm text-indigo-300">Teacher</p>
-              <p className="text-sm text-indigo-300">ID: {teacher.id}</p>
+              <p className="text-sm text-indigo-300">ID: {teacher?.id || 'Loading...'}</p>
             </div>
           </div>
         </div>
@@ -300,9 +358,9 @@ export default function TeacherLayout({ children }: { children: ReactNode }) {
                     </div>
                   </div>
                   <div>
-                    <h2 className="font-bold">{teacher.name}</h2>
+                    <h2 className="font-bold">{teacher?.name || 'Welcome back, Teacher!'}</h2>
                     <p className="text-xs text-indigo-300">Teacher</p>
-                    <p className="text-xs text-indigo-300">ID: {teacher.id}</p>
+                    <p className="text-xs text-indigo-300">ID: {teacher?.id || 'Loading...'}</p>
                   </div>
                 </div>
               </div>
@@ -351,6 +409,11 @@ export default function TeacherLayout({ children }: { children: ReactNode }) {
 
       {/* Main Content Area */}
       <main className="flex-1 overflow-auto bg-gray-50 lg:ml-0 pl-16 lg:pl-0">
+        <div className="sticky top-0 z-30 bg-gray-50/80 backdrop-blur supports-[backdrop-filter]:bg-gray-50/60 border-b border-gray-200">
+          <div className="px-4 py-3">
+            <AcademicContextDisplay showControls={false} className="!mb-0" />
+          </div>
+        </div>
         {children}
       </main>
       </div>

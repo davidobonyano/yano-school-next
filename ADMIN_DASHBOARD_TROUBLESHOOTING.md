@@ -122,3 +122,5 @@ After fixing, your admin dashboard should show:
 5. **Check if you're logged in as admin**
 
 The most common cause is simply that the database function hasn't been created yet. Running the SQL script should fix this immediately.
+
+

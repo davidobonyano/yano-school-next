@@ -153,42 +153,156 @@ async function getTermsForSession(sessionId: string) {
   });
 }
 
-// Activate a session
+// Activate a session (without using RPC to avoid UPDATE without WHERE)
 async function activateSession(sessionId: string) {
-  const { error } = await supabase.rpc('activate_academic_session', {
-    p_session_id: sessionId
-  });
+  // Deactivate currently active sessions only (filtered)
+  const { error: deactivateError } = await supabase
+    .from('academic_sessions')
+    .update({ is_active: false, updated_at: new Date().toISOString() })
+    .eq('is_active', true);
 
-  if (error) {
-    console.error('Error activating session:', error);
-    return NextResponse.json(
-      { error: 'Failed to activate session' },
-      { status: 500 }
-    );
+  if (deactivateError) {
+    console.error('Error deactivating sessions:', deactivateError);
+    return NextResponse.json({ error: 'Failed to deactivate sessions' }, { status: 500 });
   }
 
-  return NextResponse.json({
-    message: 'Session activated successfully'
-  });
+  // Activate the specified session
+  const { error: activateError } = await supabase
+    .from('academic_sessions')
+    .update({ is_active: true, updated_at: new Date().toISOString() })
+    .eq('id', sessionId);
+
+  if (activateError) {
+    console.error('Error activating session:', activateError);
+    return NextResponse.json({ error: 'Failed to activate session' }, { status: 500 });
+  }
+
+  // Update current academic context row (by id) or insert if missing
+  const { data: existingContext, error: existingError } = await supabase
+    .from('current_academic_context')
+    .select('id')
+    .limit(1)
+    .maybeSingle();
+
+  if (existingError) {
+    console.error('Error reading current academic context:', existingError);
+    return NextResponse.json({ error: 'Failed to read academic context' }, { status: 500 });
+  }
+
+  // Optionally select the first term of this session (1st Term) to keep parity with RPC behavior
+  const { data: defaultTerm, error: termLookupError } = await supabase
+    .from('academic_terms')
+    .select('id')
+    .eq('session_id', sessionId)
+    .eq('name', '1st Term')
+    .limit(1)
+    .maybeSingle();
+
+  if (termLookupError) {
+    console.error('Error looking up default term:', termLookupError);
+  }
+
+  const contextUpdate = {
+    session_id: sessionId,
+    term_id: defaultTerm?.id ?? null,
+    updated_at: new Date().toISOString()
+  } as const;
+
+  let contextError;
+  if (existingContext?.id) {
+    ({ error: contextError } = await supabase
+      .from('current_academic_context')
+      .update(contextUpdate)
+      .eq('id', existingContext.id));
+  } else {
+    ({ error: contextError } = await supabase
+      .from('current_academic_context')
+      .insert(contextUpdate));
+  }
+
+  if (contextError) {
+    console.error('Error updating current academic context:', contextError);
+    return NextResponse.json({ error: 'Failed to update academic context' }, { status: 500 });
+  }
+
+  return NextResponse.json({ message: 'Session activated successfully' });
 }
 
-// Activate a term
+// Activate a term (without using RPC to avoid UPDATE without WHERE)
 async function activateTerm(termId: string) {
-  const { error } = await supabase.rpc('activate_academic_term', {
-    p_term_id: termId
-  });
+  // Get the session for this term
+  const { data: termRow, error: termFetchError } = await supabase
+    .from('academic_terms')
+    .select('session_id')
+    .eq('id', termId)
+    .single();
 
-  if (error) {
-    console.error('Error activating term:', error);
-    return NextResponse.json(
-      { error: 'Failed to activate term' },
-      { status: 500 }
-    );
+  if (termFetchError || !termRow?.session_id) {
+    console.error('Error fetching term session:', termFetchError);
+    return NextResponse.json({ error: 'Term not found' }, { status: 404 });
   }
 
-  return NextResponse.json({
-    message: 'Term activated successfully'
-  });
+  const sessionId = termRow.session_id as string;
+
+  // Deactivate terms in this session only
+  const { error: deactivateTermsError } = await supabase
+    .from('academic_terms')
+    .update({ is_active: false, updated_at: new Date().toISOString() })
+    .eq('session_id', sessionId)
+    .eq('is_active', true);
+
+  if (deactivateTermsError) {
+    console.error('Error deactivating terms:', deactivateTermsError);
+    return NextResponse.json({ error: 'Failed to deactivate terms' }, { status: 500 });
+  }
+
+  // Activate the specified term
+  const { error: activateTermError } = await supabase
+    .from('academic_terms')
+    .update({ is_active: true, updated_at: new Date().toISOString() })
+    .eq('id', termId);
+
+  if (activateTermError) {
+    console.error('Error activating term:', activateTermError);
+    return NextResponse.json({ error: 'Failed to activate term' }, { status: 500 });
+  }
+
+  // Update current academic context row (by id) or insert if missing
+  const { data: existingContext, error: existingError } = await supabase
+    .from('current_academic_context')
+    .select('id')
+    .limit(1)
+    .maybeSingle();
+
+  if (existingError) {
+    console.error('Error reading current academic context:', existingError);
+    return NextResponse.json({ error: 'Failed to read academic context' }, { status: 500 });
+  }
+
+  const contextUpdate = {
+    session_id: sessionId,
+    term_id: termId,
+    updated_at: new Date().toISOString()
+  } as const;
+
+  let contextError;
+  if (existingContext?.id) {
+    ({ error: contextError } = await supabase
+      .from('current_academic_context')
+      .update(contextUpdate)
+      .eq('id', existingContext.id));
+  } else {
+    ({ error: contextError } = await supabase
+      .from('current_academic_context')
+      .insert(contextUpdate));
+  }
+
+  if (contextError) {
+    console.error('Error updating current academic context:', contextError);
+    return NextResponse.json({ error: 'Failed to update academic context' }, { status: 500 });
+  }
+
+  return NextResponse.json({ message: 'Term activated successfully' });
 }
 
 // Create a new session
@@ -234,6 +348,8 @@ async function createTerm(termData: { session_id: string; name: string; start_da
     term: data
   }, { status: 201 });
 }
+
+
 
 
 

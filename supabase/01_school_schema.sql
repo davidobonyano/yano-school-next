@@ -111,6 +111,18 @@ create table if not exists public.school_students (
   constraint uq_student_per_class unique(full_name, class_level)
 );
 
+-- Add last_login column if missing (tracks last successful portal login)
+do $$ begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'school_students'
+      and column_name = 'last_login'
+  ) then
+    alter table public.school_students add column last_login timestamptz;
+  end if;
+end $$;
+
 
 create table if not exists public.student_credentials (
   student_id text primary key,
@@ -859,8 +871,14 @@ do $$ begin
     alter table public.school_students
       add constraint chk_ss_streams_valid
       check (
-        (class_level in ('SS1','SS2','SS3') and stream in ('Science','Commercial','Art'))
-        or (class_level not in ('SS1','SS2','SS3') and stream is null)
+        (
+          class_level in ('SS1'::public.class_level,'SS2'::public.class_level,'SS3'::public.class_level)
+          and (stream is null or stream in ('Science','Commercial','Art'))
+        )
+        or (
+          class_level not in ('SS1'::public.class_level,'SS2'::public.class_level,'SS3'::public.class_level)
+          and stream is null
+        )
       );
   end if;
 exception when duplicate_object then null; end $$;
