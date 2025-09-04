@@ -1,9 +1,42 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { readTeacherSession } from '@/lib/teacher-session';
 
 export async function GET(request: Request) {
   try {
-    // Get the authorization header
+    // First try to get session from cookie (new method)
+    const session = readTeacherSession();
+    
+    if (session) {
+      // Get teacher profile from the teachers table using session data
+      const { data: teacher, error: teacherError } = await supabase
+        .from('teachers')
+        .select('*')
+        .eq('id', session.teacherId)
+        .maybeSingle();
+
+      if (teacherError) {
+        console.error('Error fetching teacher profile:', teacherError);
+        return NextResponse.json({ error: 'Failed to fetch teacher profile' }, { status: 500 });
+      }
+
+      if (!teacher) {
+        return NextResponse.json({ error: 'Teacher not found' }, { status: 404 });
+      }
+
+      return NextResponse.json({ 
+        success: true, 
+        teacher: {
+          id: teacher.id,
+          full_name: teacher.full_name,
+          email: teacher.email,
+          school_name: teacher.school_name,
+          is_active: teacher.is_active
+        }
+      });
+    }
+
+    // Fallback: Get the authorization header (old method for backward compatibility)
     const authHeader = request.headers.get('authorization');
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {

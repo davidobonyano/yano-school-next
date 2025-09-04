@@ -22,43 +22,31 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = (page - 1) * limit;
 
-    let query = supabase
-      .from('courses')
-      .select('*', { count: 'exact' });
+    const buildQuery = () => {
+      let q = supabase
+        .from('courses')
+        .select('*', { count: 'exact' });
+      if (classLevel) q = q.eq('class_level', classLevel);
+      if (term) q = q.eq('term', term);
+      if (sessionId) q = q.eq('session_id', sessionId);
+      if (termId) q = q.eq('term_id', termId);
+      if (category) q = q.eq('category', category);
+      if (stream) q = q.eq('stream', stream);
+      if (subjectType) q = q.eq('subject_type', subjectType);
+      if (search) q = q.or(`name.ilike.%${search}%,code.ilike.%${search}%,description.ilike.%${search}%`);
+      q = q.range(offset, offset + limit - 1);
+      q = q.order('class_level', { ascending: true });
+      q = q.order('term', { ascending: true });
+      q = q.order('name', { ascending: true });
+      return q;
+    };
 
-    // Apply filters
-    if (classLevel) {
-      query = query.eq('class_level', classLevel);
+    // First try filtering active-only; if that errors (e.g., column missing), fallback without it
+    let { data: courses, error, count } = await buildQuery().eq('is_active', true);
+    if (error) {
+      console.warn('Active filter failed, retrying without is_active filter:', error.message || error);
+      ({ data: courses, error, count } = await buildQuery());
     }
-    if (term) {
-      query = query.eq('term', term);
-    }
-    if (sessionId) {
-      query = query.eq('session_id', sessionId);
-    }
-    if (termId) {
-      query = query.eq('term_id', termId);
-    }
-    if (category) {
-      query = query.eq('category', category);
-    }
-    if (stream) {
-      query = query.eq('stream', stream);
-    }
-    if (subjectType) {
-      query = query.eq('subject_type', subjectType);
-    }
-    if (search) {
-      query = query.or(`name.ilike.%${search}%,code.ilike.%${search}%,description.ilike.%${search}%`);
-    }
-
-    // Apply pagination
-    query = query.range(offset, offset + limit - 1);
-    query = query.order('class_level', { ascending: true });
-    query = query.order('term', { ascending: true });
-    query = query.order('name', { ascending: true });
-
-    const { data: courses, error, count } = await query;
 
     if (error) {
       console.error('Error fetching courses:', error);

@@ -99,12 +99,12 @@ export default function FeesPage() {
               {fees.map(f => (
                 <tr key={f.id}>
                   <td className="px-6 py-3 text-sm text-gray-900">{f.class_level_text}</td>
-                  <td className="px-6 py-3 text-sm text-gray-900">₦{f.tuition_fee.toLocaleString()}</td>
-                  <td className="px-6 py-3 text-sm text-gray-900">₦{f.development_levy.toLocaleString()}</td>
-                  <td className="px-6 py-3 text-sm text-gray-900">₦{f.examination_fee.toLocaleString()}</td>
-                  <td className="px-6 py-3 text-sm text-gray-900">₦{f.sports_fee.toLocaleString()}</td>
-                  <td className="px-6 py-3 text-sm text-gray-900">₦{f.pta_fee.toLocaleString()}</td>
-                  <td className="px-6 py-3 text-sm font-semibold text-gray-900">₦{f.total_fee.toLocaleString()}</td>
+                  <td className="px-6 py-3 text-sm text-gray-900">₦{Number(f.tuition_fee ?? 0).toLocaleString('en-NG')}</td>
+                  <td className="px-6 py-3 text-sm text-gray-900">₦{Number(f.development_levy ?? 0).toLocaleString('en-NG')}</td>
+                  <td className="px-6 py-3 text-sm text-gray-900">₦{Number(f.examination_fee ?? 0).toLocaleString('en-NG')}</td>
+                  <td className="px-6 py-3 text-sm text-gray-900">₦{Number(f.sports_fee ?? 0).toLocaleString('en-NG')}</td>
+                  <td className="px-6 py-3 text-sm text-gray-900">₦{Number(f.pta_fee ?? 0).toLocaleString('en-NG')}</td>
+                  <td className="px-6 py-3 text-sm font-semibold text-gray-900">₦{Number(f.total_fee ?? 0).toLocaleString('en-NG')}</td>
                 </tr>
               ))}
               {fees.length === 0 && (

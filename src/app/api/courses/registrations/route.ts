@@ -153,13 +153,25 @@ export async function POST(request: NextRequest) {
       studentId = studentLookup.id as string;
     }
 
-    // Check if course exists and is active
-    const { data: course, error: courseError } = await supabase
+    // Check if course exists and is active. If the is_active column is missing or causes an error,
+    // retry without the is_active filter (for backward compatibility with older schemas).
+    let { data: course, error: courseError } = await supabase
       .from('courses')
       .select('id, class_level, stream')
       .eq('id', course_id)
       .eq('is_active', true)
       .single();
+
+    if (courseError) {
+      // Retry without is_active filter
+      const retry = await supabase
+        .from('courses')
+        .select('id, class_level, stream')
+        .eq('id', course_id)
+        .single();
+      course = retry.data as any;
+      courseError = retry.error as any;
+    }
 
     if (courseError || !course) {
       return NextResponse.json(

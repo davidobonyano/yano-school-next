@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 import { CourseRegistrationUpdate } from '@/types/courses';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ registrationId: string }> }
+  { params }: { params: { registrationId: string } }
 ) {
   try {
-    const { registrationId } = await params;
+    const { registrationId } = params;
     const body: CourseRegistrationUpdate = await request.json();
 
     // Validate required fields
@@ -19,19 +24,29 @@ export async function PUT(
     }
 
     // Update the registration
+    // Build safe update payload
+    const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+    const updatePayload: Record<string, any> = {
+      status: body.status,
+      updated_at: new Date().toISOString()
+    };
+    if (body.status === 'approved') {
+      updatePayload.approved_at = body.approved_at || new Date().toISOString();
+      if (body.approved_by && uuidRegex.test(body.approved_by)) {
+        updatePayload.approved_by = body.approved_by;
+      }
+    }
+    if (body.status === 'rejected') {
+      updatePayload.rejection_reason = body.rejection_reason || null;
+    }
+
     const { data, error } = await supabase
       .from('student_course_registrations')
-      .update({
-        status: body.status,
-        approved_by: body.approved_by,
-        approved_at: body.approved_at,
-        rejection_reason: body.rejection_reason,
-        updated_at: new Date().toISOString()
-      })
+      .update(updatePayload)
       .eq('id', registrationId)
       .select(`
         *,
-        school_students!inner(name),
+        school_students!inner(full_name),
         courses!inner(name, code)
       `)
       .single();
@@ -54,7 +69,7 @@ export async function PUT(
     // Transform the data to match the expected format
     const transformedData = {
       ...data,
-      student_name: data.school_students?.name,
+      student_name: (data as any).school_students?.full_name,
       course_name: data.courses?.name,
       course_code: data.courses?.code
     };
@@ -75,10 +90,10 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ registrationId: string }> }
+  { params }: { params: { registrationId: string } }
 ) {
   try {
-    const { registrationId } = await params;
+    const { registrationId } = params;
 
     // Delete the registration
     const { error } = await supabase

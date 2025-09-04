@@ -114,7 +114,7 @@ export async function PUT(request: Request) {
   const gate = requireAdmin(request);
   if (!gate.ok) return gate.error as Response;
   try {
-    const schema = baseSchema.extend({ id: z.string().min(1) });
+    const schema = baseSchema.extend({ id: z.union([z.string().min(1), z.number()]) });
     const raw = await request.json();
     const body = schema.parse({
       ...raw,

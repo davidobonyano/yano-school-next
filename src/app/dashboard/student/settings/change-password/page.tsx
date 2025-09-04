@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getStudentSession } from '@/lib/student-session';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 
 export default function StudentChangePasswordPage() {
   const router = useRouter();
@@ -13,6 +15,9 @@ export default function StudentChangePasswordPage() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     const s = getStudentSession();
@@ -71,35 +76,71 @@ export default function StudentChangePasswordPage() {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium mb-1">Current Password</label>
-          <input
-            type="password"
-            className="w-full border rounded px-3 py-2"
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            required
-          />
+          <div className="relative">
+            <input
+              type={showCurrentPassword ? "text" : "password"}
+              className="w-full border rounded px-3 py-2 pr-10"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              required
+            />
+            <button
+              type="button"
+              className="absolute inset-y-0 right-0 pr-3 flex items-center"
+              onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+            >
+              <FontAwesomeIcon
+                icon={showCurrentPassword ? faEyeSlash : faEye}
+                className="h-4 w-4 text-gray-400 hover:text-gray-600"
+              />
+            </button>
+          </div>
         </div>
         <div>
           <label className="block text-sm font-medium mb-1">New Password</label>
-          <input
-            type="password"
-            className="w-full border rounded px-3 py-2"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            required
-            minLength={6}
-          />
+          <div className="relative">
+            <input
+              type={showNewPassword ? "text" : "password"}
+              className="w-full border rounded px-3 py-2 pr-10"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              required
+              minLength={6}
+            />
+            <button
+              type="button"
+              className="absolute inset-y-0 right-0 pr-3 flex items-center"
+              onClick={() => setShowNewPassword(!showNewPassword)}
+            >
+              <FontAwesomeIcon
+                icon={showNewPassword ? faEyeSlash : faEye}
+                className="h-4 w-4 text-gray-400 hover:text-gray-600"
+              />
+            </button>
+          </div>
         </div>
         <div>
           <label className="block text-sm font-medium mb-1">Confirm New Password</label>
-          <input
-            type="password"
-            className="w-full border rounded px-3 py-2"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-            minLength={6}
-          />
+          <div className="relative">
+            <input
+              type={showConfirmPassword ? "text" : "password"}
+              className="w-full border rounded px-3 py-2 pr-10"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              minLength={6}
+            />
+            <button
+              type="button"
+              className="absolute inset-y-0 right-0 pr-3 flex items-center"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+            >
+              <FontAwesomeIcon
+                icon={showConfirmPassword ? faEyeSlash : faEye}
+                className="h-4 w-4 text-gray-400 hover:text-gray-600"
+              />
+            </button>
+          </div>
         </div>
         <button
           type="submit"

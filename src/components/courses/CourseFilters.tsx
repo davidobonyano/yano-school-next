@@ -10,12 +10,13 @@ import { Search, Filter, X, Download, Upload } from 'lucide-react';
 import { COURSE_CATEGORIES, COURSE_TERMS, CLASS_LEVELS, ACADEMIC_STREAMS } from '@/types/courses';
 
 interface CourseFiltersProps {
-  filters: CourseFilters;
-  onFiltersChange: (filters: CourseFilters) => void;
+  filters: CourseFiltersType;
+  onFiltersChange: (filters: CourseFiltersType) => void;
   onExport?: () => void;
   onImport?: () => void;
   showAdvancedFilters?: boolean;
   className?: string;
+  studentMode?: boolean;
 }
 
 export function CourseFiltersComponent({ 
@@ -24,9 +25,10 @@ export function CourseFiltersComponent({
   onExport,
   onImport,
   showAdvancedFilters = true,
-  className = ''
+  className = '',
+  studentMode = false
 }: CourseFiltersProps) {
-  const [localFilters, setLocalFilters] = useState<CourseFilters>({
+  const [localFilters, setLocalFilters] = useState<CourseFiltersType>({
     ...filters,
     class_level: filters.class_level || '__all__',
     term: filters.term || '__all__',
@@ -34,6 +36,17 @@ export function CourseFiltersComponent({
     stream: filters.stream || '__all__'
   });
   const [showFilters, setShowFilters] = useState(false);
+
+  const cleanAndSend = (next: CourseFiltersType) => {
+    const cleaned: Record<string, unknown> = { ...next };
+    Object.keys(cleaned).forEach((k) => {
+      const v = cleaned[k];
+      if (v === undefined || v === '' || v === '__all__') {
+        delete cleaned[k];
+      }
+    });
+    onFiltersChange(cleaned as CourseFiltersType);
+  };
 
   useEffect(() => {
     setLocalFilters({
@@ -45,7 +58,7 @@ export function CourseFiltersComponent({
     });
   }, [filters]);
 
-  const handleFilterChange = (key: keyof CourseFilters, value: string | number | undefined) => {
+  const handleFilterChange = (key: keyof CourseFiltersType, value: string | number | undefined) => {
     const newFilters = { ...localFilters, [key]: value };
     if (key === 'page') {
       newFilters.page = 1; // Reset to first page when filters change
@@ -55,19 +68,18 @@ export function CourseFiltersComponent({
 
   const applyFilters = () => {
     // Clean up filters - remove undefined values and __all__ values
-    const cleanFilters = { ...localFilters };
+    const cleanFilters = { ...localFilters } as Record<string, unknown>;
     Object.keys(cleanFilters).forEach(key => {
-      if (cleanFilters[key as keyof CourseFilters] === undefined || 
-          cleanFilters[key as keyof CourseFilters] === '' ||
-          cleanFilters[key as keyof CourseFilters] === '__all__') {
-        delete cleanFilters[key as keyof CourseFilters];
+      const val = cleanFilters[key];
+      if (val === undefined || val === '' || val === '__all__') {
+        delete cleanFilters[key];
       }
     });
-    onFiltersChange(cleanFilters);
+    onFiltersChange(cleanFilters as CourseFiltersType);
   };
 
   const clearFilters = () => {
-    const clearedFilters: CourseFilters = {
+    const clearedFilters: CourseFiltersType = {
       page: 1,
       limit: filters.limit
     };
@@ -83,7 +95,7 @@ export function CourseFiltersComponent({
   };
 
   const hasActiveFilters = Object.keys(filters).some(key => 
-    key !== 'page' && key !== 'limit' && filters[key as keyof CourseFilters]
+    key !== 'page' && key !== 'limit' && (filters as Record<string, unknown>)[key]
   );
 
   return (
@@ -99,7 +111,7 @@ export function CourseFiltersComponent({
               handleFilterChange('search', e.target.value);
               // Apply search immediately
               const newFilters = { ...localFilters, search: e.target.value, page: 1 };
-              onFiltersChange(newFilters);
+              cleanAndSend(newFilters);
             }}
             className="pl-10"
           />
@@ -116,7 +128,7 @@ export function CourseFiltersComponent({
             {hasActiveFilters && (
               <Badge variant="secondary" className="ml-1">
                 {Object.keys(filters).filter(key => 
-                  key !== 'page' && key !== 'limit' && filters[key as keyof CourseFilters]
+                  key !== 'page' && key !== 'limit' && (filters as Record<string, unknown>)[key]
                 ).length}
               </Badge>
             )}
@@ -138,52 +150,84 @@ export function CourseFiltersComponent({
         </div>
       </div>
 
-      {/* Quick Class Level Filters */}
-      <div className="flex flex-wrap gap-2">
-        <Button
-          variant={!localFilters.class_level ? "default" : "outline"}
-          size="sm"
-          onClick={() => {
-            handleFilterChange('class_level', undefined);
-            const newFilters = { ...localFilters, class_level: undefined, page: 1 };
-            onFiltersChange(newFilters);
-          }}
-          className="text-xs"
-        >
-          All Classes
-        </Button>
-        {CLASS_LEVELS.slice(0, 8).map((level) => (
+      {/* Quick Filters Area */}
+      {!studentMode && (
+        <div className="flex flex-wrap gap-2">
           <Button
-            key={level}
-            variant={localFilters.class_level === level ? "default" : "outline"}
+            variant={!localFilters.class_level ? "default" : "outline"}
             size="sm"
             onClick={() => {
-              handleFilterChange('class_level', level);
-              const newFilters = { ...localFilters, class_level: level, page: 1 };
-              onFiltersChange(newFilters);
+              handleFilterChange('class_level', undefined);
+              const newFilters = { ...localFilters, class_level: undefined, page: 1 };
+              cleanAndSend(newFilters);
             }}
             className="text-xs"
           >
-            {level}
+            All Classes
           </Button>
-        ))}
-        {CLASS_LEVELS.length > 8 && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowFilters(true)}
-            className="text-xs"
-          >
-            More...
-          </Button>
-        )}
-      </div>
+          {CLASS_LEVELS.slice(0, 8).map((level) => (
+            <Button
+              key={level}
+              variant={localFilters.class_level === level ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                handleFilterChange('class_level', level);
+                const newFilters = { ...localFilters, class_level: level, page: 1 };
+                cleanAndSend(newFilters);
+              }}
+              className="text-xs"
+            >
+              {level}
+            </Button>
+          ))}
+          {CLASS_LEVELS.length > 8 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowFilters(true)}
+              className="text-xs"
+            >
+              More...
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* Minimal Term Filter for Students */}
+      {studentMode && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">Term</label>
+            <Select
+              value={localFilters.term || '__all__'}
+              onValueChange={(value) => {
+                handleFilterChange('term', value === '__all__' ? undefined : value);
+                const newFilters = { ...localFilters, term: value === '__all__' ? undefined : value, page: 1 };
+                cleanAndSend(newFilters);
+              }}
+            >
+              <SelectTrigger className="bg-white">
+                <SelectValue placeholder="All Terms" />
+              </SelectTrigger>
+              <SelectContent className="bg-white">
+                <SelectItem value="__all__">All Terms</SelectItem>
+                {COURSE_TERMS.map((term) => (
+                  <SelectItem key={term} value={term}>
+                    {term} Term
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      )}
 
       {/* Advanced Filters */}
       {showFilters && showAdvancedFilters && (
         <div className="border rounded-lg p-4 bg-gray-50" style={{ zIndex: 10 }}>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Class Level Filter */}
+            {!studentMode && (
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Class Level</label>
               <Select
@@ -203,6 +247,7 @@ export function CourseFiltersComponent({
                 </SelectContent>
               </Select>
             </div>
+            )}
 
             {/* Term Filter */}
             <div className="space-y-2">
@@ -226,6 +271,7 @@ export function CourseFiltersComponent({
             </div>
 
             {/* Category Filter */}
+            {!studentMode && (
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Category</label>
               <Select
@@ -245,8 +291,10 @@ export function CourseFiltersComponent({
                 </SelectContent>
               </Select>
             </div>
+            )}
 
             {/* Stream Filter */}
+            {!studentMode && (
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Stream</label>
               <Select
@@ -267,6 +315,7 @@ export function CourseFiltersComponent({
                 </SelectContent>
               </Select>
             </div>
+            )}
           </div>
 
           {/* Active Filters Display */}
@@ -287,7 +336,7 @@ export function CourseFiltersComponent({
                       {key}: {value}
                       <button
                         onClick={() => {
-                          handleFilterChange(key as keyof CourseFilters, undefined);
+                          handleFilterChange(key as keyof CourseFiltersType, undefined);
                           const newFilters = { ...localFilters, [key]: undefined, page: 1 };
                           onFiltersChange(newFilters);
                         }}

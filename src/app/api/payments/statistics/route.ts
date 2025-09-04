@@ -43,52 +43,94 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: statsError.message }, { status: 500 });
     }
 
-    // Calculate statistics from payment records
-    const { data: paymentRecords, error: recordsError } = await supabase
-      .from('payment_records')
-      .select(`
-        *,
-        school_students!inner(full_name, class_level, stream)
-      `)
-      .eq('session_id', sessionData.id)
-      .eq('term_id', termData.id);
+    // Calculate statistics from payment ledgers
+    const { data: ledgerEntries, error: ledgerError } = await supabase
+      .from('payment_ledgers')
+      .select('student_id, entry_type, amount')
+      .eq('term', term)
+      .eq('session', session);
 
-    if (recordsError) {
-      return NextResponse.json({ error: recordsError.message }, { status: 500 });
+    if (ledgerError) {
+      return NextResponse.json({ error: ledgerError.message }, { status: 500 });
     }
 
-    // Calculate comprehensive statistics
-    const totalStudents = new Set((paymentRecords || []).map(r => r.student_id)).size;
-    const totalExpected = (paymentRecords || []).reduce((sum, r) => sum + Number(r.expected_amount), 0);
-    const totalCollected = (paymentRecords || []).reduce((sum, r) => sum + Number(r.paid_amount), 0);
-    
-    // Group by student and calculate status
-    const studentGroups = (paymentRecords || []).reduce((acc, record) => {
-      if (!acc[record.student_id]) {
-        acc[record.student_id] = {
-          expected: 0,
-          paid: 0,
-          records: []
+    // Group ledger entries by student
+    const studentGroups = (ledgerEntries || []).reduce((acc, entry) => {
+      if (!acc[entry.student_id]) {
+        acc[entry.student_id] = {
+          billed: 0,
+          paid: 0
         };
       }
-      acc[record.student_id].expected += Number(record.expected_amount);
-      acc[record.student_id].paid += Number(record.paid_amount);
-      acc[record.student_id].records.push(record);
+      const amount = Number(entry.amount || 0);
+      if (entry.entry_type === 'Bill' || entry.entry_type === 'CarryForward') {
+        acc[entry.student_id].billed += amount;
+      } else if (entry.entry_type === 'Payment') {
+        acc[entry.student_id].paid += amount;
+      }
       return acc;
-    }, {} as Record<string, { expected: number; paid: number; records: any[] }>);
+    }, {} as Record<string, { billed: number; paid: number }>);
 
+    // Fetch all students and fee structures to include students without records
+    const { data: allStudents, error: studentsError } = await supabase
+      .from('school_students')
+      .select('student_id, class_level, stream');
+    if (studentsError) {
+      return NextResponse.json({ error: studentsError.message }, { status: 500 });
+    }
+
+    const { data: feeRows, error: feesError } = await supabase
+      .from('fee_structures')
+      .select('class_level, stream, term, session, total_fee')
+      .eq('session', session)
+      .eq('term', term);
+    if (feesError) {
+      return NextResponse.json({ error: feesError.message }, { status: 500 });
+    }
+
+    const normalize = (v: any) => (v ?? '').toString().trim().toLowerCase();
+    const feeMap = new Map<string, number>();
+    (feeRows || []).forEach((r: any) => {
+      const cls = normalize(r.class_level);
+      const str = normalize(r.stream);
+      const amt = Number(r.total_fee || 0);
+      const key = `${cls}|${str}`;
+      const keyNoStream = `${cls}|`;
+      feeMap.set(key, amt);
+      if (!feeMap.has(keyNoStream)) feeMap.set(keyNoStream, amt);
+      if (str && str.endsWith('s')) feeMap.set(`${cls}|${str.slice(0, -1)}`, amt); else if (str) feeMap.set(`${cls}|${str + 's'}`, amt);
+    });
+
+    let totalStudents = (allStudents || []).length;
+    let totalExpected = 0;
+    let totalCollected = 0;
     let pendingCount = 0, outstandingCount = 0, paidCount = 0;
     let pendingAmount = 0, outstandingAmount = 0;
 
-    Object.values(studentGroups).forEach((student: any) => {
-      if (student.paid === 0) {
-        pendingCount++;
-        pendingAmount += student.expected;
-      } else if (student.paid < student.expected) {
-        outstandingCount++;
-        outstandingAmount += (student.expected - student.paid);
-      } else {
-        paidCount++;
+    (allStudents || []).forEach((s) => {
+      const cls = normalize(s.class_level);
+      const str = normalize(s.stream);
+      const key = `${cls}|${str}`;
+      const expected = feeMap.get(key)
+        ?? feeMap.get(`${cls}|`)
+        ?? (str && str.endsWith('s') ? feeMap.get(`${cls}|${str.slice(0, -1)}`) : undefined)
+        ?? (str ? feeMap.get(`${cls}|${str + 's'}`) : undefined)
+        ?? 0;
+      const grp = studentGroups[s.student_id];
+      const paid = grp ? grp.paid : 0;
+      const billed = grp ? grp.billed : expected;
+      
+      totalExpected += expected; // Use fee structure amount for expected
+      totalCollected += paid;
+      
+      if (paid === 0) { 
+        pendingCount++; 
+        pendingAmount += expected; 
+      } else if (paid < expected) { 
+        outstandingCount++; 
+        outstandingAmount += (expected - paid); 
+      } else { 
+        paidCount++; 
       }
     });
 

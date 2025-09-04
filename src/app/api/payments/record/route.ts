@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     });
     const { studentId, term, session, amount, method, recordedBy, description } = schema.parse(await request.json());
 
-    const { data, error } = await supabase.rpc('record_payment', {
+    const { data, error } = await supabase.rpc('record_student_payment', {
       p_student_id: studentId,
       p_term: term,
       p_session: session,

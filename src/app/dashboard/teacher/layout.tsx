@@ -86,25 +86,12 @@ export default function TeacherLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     const fetchTeacherData = async () => {
       try {
-        // Get session token from localStorage (set during login)
-        const sessionToken = localStorage.getItem('teacherSessionToken');
-        
-        if (!sessionToken) {
-          console.log('No session token found, redirecting to login');
-          router.push('/login/teacher');
-          return;
-        }
-
-        const response = await fetch('/api/teachers/me', {
-          headers: {
-            'Authorization': `Bearer ${sessionToken}`
-          }
-        });
+        // Session is now handled by middleware and cookies
+        const response = await fetch('/api/teachers/me');
 
         if (!response.ok) {
           if (response.status === 401) {
-            // Token expired or invalid, redirect to login
-            localStorage.removeItem('teacherSessionToken');
+            // Session expired or invalid, redirect to login
             router.push('/login/teacher');
             return;
           }
@@ -118,7 +105,6 @@ export default function TeacherLayout({ children }: { children: ReactNode }) {
       } catch (error) {
         console.error('Error fetching teacher data:', error);
         // On error, redirect to login
-        localStorage.removeItem('teacherSessionToken');
         router.push('/login/teacher');
       }
     };
@@ -126,9 +112,13 @@ export default function TeacherLayout({ children }: { children: ReactNode }) {
     fetchTeacherData();
   }, [router]);
 
-  const handleLogout = () => {
-    // Clear session token and redirect to login
-    localStorage.removeItem('teacherSessionToken');
+  const handleLogout = async () => {
+    // Clear session cookie and redirect to login
+    try {
+      await fetch('/api/teachers/logout', { method: 'POST' });
+    } catch (error) {
+      console.error('Error during logout:', error);
+    }
     router.push('/login/teacher');
   };
 

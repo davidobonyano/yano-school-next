@@ -61,6 +61,17 @@ create trigger trg_receipts_updated_at
   for each row execute function public.handle_updated_at();
 
 -- =================== HELPERS ===================
+-- Normalize term names to a canonical form used in fee_structures
+create or replace function public.normalize_term(p_term text)
+returns text as $$
+declare v text := trim(coalesce(p_term, ''));
+begin
+  -- Normalize to compact ordinal labels used across the app: '1st', '2nd', '3rd'
+  if v ~* '\\b(1st|first)\\b' then return '1st'; end if;
+  if v ~* '\\b(2nd|second)\\b' then return '2nd'; end if;
+  if v ~* '\\b(3rd|third)\\b' then return '3rd'; end if;
+  return v; -- fallback: use as-is
+end; $$ language plpgsql immutable;
 -- Generate unique, human-friendly receipt number YAN-YYYYMMDD-XXXX
 create or replace function public.generate_receipt_no()
 returns text as $$
@@ -80,6 +91,8 @@ end; $$ language plpgsql immutable;
 create or replace function public.get_student_balance(p_student_id text, p_term text, p_session text)
 returns numeric as $$
 declare v_balance numeric := 0; begin
+  -- normalize 1st/2nd/3rd/etc to match fee/billing terms
+  p_term := public.normalize_term(p_term);
   select coalesce(sum(case when entry_type in ('Bill','CarryForward') then amount else -amount end), 0)
     into v_balance
   from public.payment_ledgers
@@ -91,35 +104,32 @@ end; $$ language plpgsql stable;
 -- Seed bills for all active students for a term/session from fee_structures
 create or replace function public.open_term_seed_bills(p_term text, p_session text)
 returns jsonb as $$
-declare v_inserted int := 0; begin
+declare v_inserted int := 0; v_term text := public.normalize_term(p_term); begin
   insert into public.payment_ledgers (student_id, term, session, entry_type, amount, description)
   select
     ss.student_id,
-    p_term,
+    v_term,
     p_session,
     'Bill'::public.ledger_entry_type,
     fs.total_fee,
-    concat('School Fees - ', p_term)
+    concat('School Fees - ', v_term)
   from public.school_students ss
   join public.fee_structures fs
-    on fs.term = p_term and fs.session = p_session
-   and (
-     (ss.class_level in ('PRI1','PRI2','PRI3','PRI4','PRI5','PRI6') and fs.class_level_text = concat('Primary ', substring(ss.class_level from 4)))
-     or (ss.class_level like 'JSS%' and fs.class_level_text = replace(ss.class_level, 'JSS', 'JSS '))
-     or (ss.class_level like 'SS%' and (fs.class_level_text = ss.class_level or fs.class_level_text = replace(ss.class_level, 'SS', 'SS ')))
-   )
+    on public.normalize_term(fs.term) = v_term 
+   and fs.session = p_session
+   and fs.class_level = ss.class_level
+   and (fs.stream is null or fs.stream = ss.stream)
   where ss.is_active = true
     and not exists (
       select 1 from public.payment_ledgers pl
-      where pl.student_id = ss.student_id and pl.term = p_term and pl.session = p_session and pl.entry_type = 'Bill'
-    )
-  returning 1;
+      where pl.student_id = ss.student_id and pl.term = v_term and pl.session = p_session and pl.entry_type = 'Bill'
+    );
 
   get diagnostics v_inserted = row_count;
 
   -- update running balances
   update public.payment_ledgers pl set balance_after = public.get_student_balance(pl.student_id, pl.term, pl.session)
-  where pl.term = p_term and pl.session = p_session;
+  where pl.term = v_term and pl.session = p_session;
 
   return jsonb_build_object('success', true, 'bills_inserted', v_inserted);
 end; $$ language plpgsql security definer;
@@ -166,6 +176,8 @@ create or replace function public.record_payment(
   p_description text default 'Payment received'
 ) returns jsonb as $$
 declare v_receipt_no text; v_balance_after numeric; v_ledger_id uuid; begin
+  -- Normalize term to ensure it aligns with billing records
+  p_term := public.normalize_term(p_term);
   -- insert ledger entry
   insert into public.payment_ledgers (student_id, term, session, entry_type, amount, method, description, recorded_by)
   values (p_student_id, p_term, p_session, 'Payment', p_amount, p_method, p_description, p_recorded_by)
@@ -197,6 +209,8 @@ create or replace function public.record_adjustment(
   p_recorded_by uuid
 ) returns jsonb as $$
 declare v_ledger_id uuid; v_balance_after numeric; begin
+  -- Normalize term to canonical '1st'/'2nd'/'3rd'
+  p_term := public.normalize_term(p_term);
   insert into public.payment_ledgers (student_id, term, session, entry_type, amount, description, recorded_by)
   values (p_student_id, p_term, p_session, 'Adjustment', p_amount, p_description, p_recorded_by)
   returning id into v_ledger_id;
@@ -230,7 +244,7 @@ returns table(student_id text, full_name text, outstanding numeric, terms_owing 
 begin
   return query
   with periods as (
-    select unnest(array['First','Second','Third']) as term
+    select unnest(array['1st','2nd','3rd']) as term
   ),
   hist as (
     select ss.student_id, ss.full_name,
@@ -252,6 +266,61 @@ grant execute on function public.get_outstanding_aging to anon, authenticated;
 -- =================== RLS (open for now) ===================
 alter table public.payment_ledgers enable row level security;
 alter table public.receipts enable row level security;
+
+-- =================== STUDENT FINANCIAL SUMMARY ===================
+-- Provides totals used by the app API: billed_total, paid_total, pending/outstanding, overdue_total
+create or replace function public.get_student_financial_summary(
+  p_student_id text,
+  p_term text,
+  p_session text
+) returns table (
+  billed_total numeric,
+  paid_total numeric,
+  pending_total numeric,
+  outstanding_total numeric,
+  overdue_total numeric
+) as $$
+declare
+  v_term text := public.normalize_term(p_term);
+  v_expected_from_fee numeric := 0;
+begin
+  -- Try to determine expected fee from fee_structures when no bills exist yet
+  select coalesce(fs.total_fee, 0) into v_expected_from_fee
+  from public.school_students ss
+  left join public.fee_structures fs
+    on public.normalize_term(fs.term) = v_term
+   and fs.session = p_session
+   and fs.class_level = ss.class_level
+   and (fs.stream is null or fs.stream = ss.stream)
+  where ss.student_id = p_student_id
+  limit 1;
+
+  return query
+  with agg as (
+    select
+      coalesce(sum(case when entry_type in ('Bill','CarryForward') then amount else 0 end), 0) as billed,
+      coalesce(sum(case when entry_type = 'Payment' then amount else 0 end), 0) as paid
+    from public.payment_ledgers
+    where student_id = p_student_id
+      and term = v_term
+      and session = p_session
+  ),
+  merged as (
+    select
+      greatest(agg.billed, coalesce(v_expected_from_fee, 0)) as billed,
+      agg.paid
+    from agg
+  )
+  select
+    billed as billed_total,
+    paid as paid_total,
+    greatest(billed - paid, 0) as pending_total,
+    greatest(billed - paid, 0) as outstanding_total,
+    0::numeric as overdue_total
+  from merged;
+end; $$ language plpgsql stable;
+
+grant execute on function public.get_student_financial_summary(text, text, text) to anon, authenticated;
 
 -- =================== INSTALLMENT TRACKING ===================
 create table if not exists public.installment_plans (
@@ -363,26 +432,4 @@ declare v_sid text; v_promoted int := 0; begin
 end; $$ language plpgsql security definer;
 
 grant execute on function public.bulk_promote_students to anon, authenticated;
-
--- =================== SEEDS: FEE TEMPLATES ===================
--- Example seeds; idempotent based on unique (term, session, class_level_text)
-insert into public.fee_structures (class_level_text, class_level_code, term, session, tuition_fee, development_levy, examination_fee, sports_fee, pta_fee, total_fee)
-select * from (values
-  ('JSS 1', 'JSS1'::public.class_level, 'First', '2024/2025', 90000, 0, 0, 0, 0, 90000),
-  ('JSS 1', 'JSS1'::public.class_level, 'Second', '2024/2025', 90000, 0, 0, 0, 0, 90000),
-  ('JSS 1', 'JSS1'::public.class_level, 'Third', '2024/2025', 90000, 0, 0, 0, 0, 90000),
-  ('SS1',   'SS1'::public.class_level,   'First', '2024/2025', 120000, 0, 0, 0, 0, 120000),
-  ('SS1',   'SS1'::public.class_level,   'Second', '2024/2025', 120000, 0, 0, 0, 0, 120000),
-  ('SS1',   'SS1'::public.class_level,   'Third', '2024/2025', 120000, 0, 0, 0, 0, 120000),
-  ('JSS 2', 'JSS2'::public.class_level, 'First', '2024/2025', 95000, 0, 0, 0, 0, 95000),
-  ('JSS 2', 'JSS2'::public.class_level, 'Second', '2024/2025', 95000, 0, 0, 0, 0, 95000),
-  ('JSS 2', 'JSS2'::public.class_level, 'Third', '2024/2025', 95000, 0, 0, 0, 0, 95000),
-  ('SS2',   'SS2'::public.class_level,   'First', '2024/2025', 125000, 0, 0, 0, 0, 125000),
-  ('SS2',   'SS2'::public.class_level,   'Second', '2024/2025', 125000, 0, 0, 0, 0, 125000),
-  ('SS2',   'SS2'::public.class_level,   'Third', '2024/2025', 125000, 0, 0, 0, 0, 125000)
-) v(class_text, class_code, term, session, tuition, dev, exam, sport, pta, total)
-where not exists (
-  select 1 from public.fee_structures fs where fs.term = v.term and fs.session = v.session and fs.class_level_text = v.class_text
-);
-
 

@@ -143,7 +143,7 @@ export default function StudentLayout({ children }: { children: ReactNode }) {
     { 
       href: '/dashboard/student/grades', 
       icon: faChartBar, 
-      label: 'Grades',
+      label: 'Results',
       bgColor: 'bg-gradient-to-r from-purple-600 to-purple-700',
       hoverColor: 'hover:from-purple-700 hover:to-purple-800',
       iconColor: 'text-purple-100'

@@ -20,6 +20,8 @@ import { CheckCircle, XCircle, Clock, BookOpen, Users, AlertCircle, Loader2, Fil
 // import { toast } from 'sonner';
 import { CourseRegistrationForm } from './CourseRegistrationForm';
 import { RegistrationTable } from './RegistrationTable';
+import { useAcademicContext } from '@/lib/academic-context';
+import { CLASS_LEVELS } from '@/types/courses';
 
 interface CourseRegistrationManagerProps {
   userRole: 'admin' | 'teacher' | 'student';
@@ -36,6 +38,7 @@ export function CourseRegistrationManager({
   userStream, 
   className = '' 
 }: CourseRegistrationManagerProps) {
+  const { currentContext } = useAcademicContext();
   const [registrations, setRegistrations] = useState<StudentCourseRegistration[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showRegistrationForm, setShowRegistrationForm] = useState(false);
@@ -123,7 +126,32 @@ export function CourseRegistrationManager({
             {userRole === 'student' && 'Register for courses and track your applications'}
           </p>
         </div>
-        
+        {canManageRegistrations && currentContext && (
+          <Button
+            variant="destructive"
+            onClick={async () => {
+              if (!confirm(`Reset all registrations for ${currentContext.term_name} • ${currentContext.session_name}?`)) return;
+              try {
+                const resp = await fetch('/api/courses/registrations/reset', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ term: currentContext.term_name, session: currentContext.session_name })
+                });
+                if (!resp.ok) {
+                  const data = await resp.json().catch(() => ({}));
+                  throw new Error(data.error || 'Failed to reset');
+                }
+                fetchRegistrations();
+              } catch (e) {
+                console.error(e);
+                alert(e instanceof Error ? e.message : 'Failed to reset registrations');
+              }
+            }}
+          >
+            Reset Current Term Registrations
+          </Button>
+        )}
+
         {canCreateRegistrations && (
           <Button onClick={() => setShowRegistrationForm(true)} className="flex items-center gap-2">
             <BookOpen className="h-4 w-4" />
@@ -166,12 +194,9 @@ export function CourseRegistrationManager({
                   </SelectTrigger>
                   <SelectContent>
                                       <SelectItem value="all">All classes</SelectItem>
-                  <SelectItem value="JSS1">JSS1</SelectItem>
-                  <SelectItem value="JSS2">JSS2</SelectItem>
-                  <SelectItem value="JSS3">JSS3</SelectItem>
-                  <SelectItem value="SS1">SS1</SelectItem>
-                  <SelectItem value="SS2">SS2</SelectItem>
-                  <SelectItem value="SS3">SS3</SelectItem>
+                  {CLASS_LEVELS.map((level) => (
+                    <SelectItem key={level} value={level}>{level}</SelectItem>
+                  ))}
                   </SelectContent>
                 </Select>
               </div>

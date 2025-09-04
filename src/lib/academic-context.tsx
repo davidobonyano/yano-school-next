@@ -150,7 +150,7 @@ export function AcademicContextProvider({ children }: AcademicContextProviderPro
           if (data.current) {
             await fetch('/api/payments/auto-create', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 'Content-Type': 'application/json', 'x-role': 'admin' },
               body: JSON.stringify({
                 sessionId: data.current.session_id,
                 termId: data.current.term_id,
@@ -192,7 +192,7 @@ export function AcademicContextProvider({ children }: AcademicContextProviderPro
           if (data.current) {
             await fetch('/api/payments/auto-create', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 'Content-Type': 'application/json', 'x-role': 'admin' },
               body: JSON.stringify({
                 sessionId: data.current.session_id,
                 termId: data.current.term_id,

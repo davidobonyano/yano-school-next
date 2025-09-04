@@ -1105,19 +1105,20 @@ create table if not exists public.result_uploads (
 create table if not exists public.student_results (
   id uuid primary key default gen_random_uuid(),
   student_id text not null references public.school_students(student_id) on delete cascade,
-  subject_id uuid not null references public.subjects(id) on delete cascade,
+  course_id uuid not null references public.courses(id) on delete cascade,
   session_id uuid not null references public.academic_sessions(id),
   term_id uuid not null references public.academic_terms(id),
   ca_score numeric(5,2) default 0 check (ca_score >= 0),
+  midterm_score numeric(5,2) default 0 check (midterm_score >= 0),
   exam_score numeric(5,2) default 0 check (exam_score >= 0),
-  total_score numeric(5,2) generated always as (coalesce(ca_score,0)+coalesce(exam_score,0)) stored,
+  total_score numeric(5,2) generated always as (coalesce(ca_score,0)+coalesce(midterm_score,0)+coalesce(exam_score,0)) stored,
   grade text,
   remark text,
   uploaded_by uuid references public.teachers(id) on delete set null,
   upload_id uuid references public.result_uploads(id) on delete set null,
   created_at timestamptz default now() not null,
   updated_at timestamptz default now() not null,
-  constraint uq_result unique(student_id, subject_id, session_id, term_id)
+  constraint uq_result unique(student_id, course_id, session_id, term_id)
 );
 
 drop trigger if exists trg_student_results_updated_at on public.student_results;
@@ -1141,21 +1142,22 @@ end; $$ language plpgsql immutable;
 -- RPC: upsert a single result
 create or replace function public.upsert_student_result(
   p_student_id text,
-  p_subject_id uuid,
+  p_course_id uuid,
   p_session_id uuid,
   p_term_id uuid,
   p_ca numeric,
+  p_midterm numeric,
   p_exam numeric,
   p_uploaded_by uuid,
   p_upload_id uuid default null
 ) returns jsonb as $$
 declare v_id uuid; v_total numeric; v_grade text; begin
-  v_total := coalesce(p_ca,0)+coalesce(p_exam,0);
+  v_total := coalesce(p_ca,0)+coalesce(p_midterm,0)+coalesce(p_exam,0);
   v_grade := public.compute_grade(v_total);
-  insert into public.student_results(student_id, subject_id, session_id, term_id, ca_score, exam_score, grade, uploaded_by, upload_id)
-  values(p_student_id, p_subject_id, p_session_id, p_term_id, p_ca, p_exam, v_grade, p_uploaded_by, p_upload_id)
-  on conflict (student_id, subject_id, session_id, term_id)
-  do update set ca_score=excluded.ca_score, exam_score=excluded.exam_score, grade=excluded.grade, uploaded_by=excluded.uploaded_by, upload_id=excluded.upload_id, updated_at=now()
+  insert into public.student_results(student_id, course_id, session_id, term_id, ca_score, midterm_score, exam_score, grade, uploaded_by, upload_id)
+  values(p_student_id, p_course_id, p_session_id, p_term_id, p_ca, p_midterm, p_exam, v_grade, p_uploaded_by, p_upload_id)
+  on conflict (student_id, course_id, session_id, term_id)
+  do update set ca_score=excluded.ca_score, midterm_score=excluded.midterm_score, exam_score=excluded.exam_score, grade=excluded.grade, uploaded_by=excluded.uploaded_by, upload_id=excluded.upload_id, updated_at=now()
   returning id into v_id;
   return jsonb_build_object('success', true, 'id', v_id, 'grade', v_grade);
 exception when others then

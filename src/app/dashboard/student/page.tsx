@@ -102,6 +102,33 @@ export default function StudentDashboard() {
     }
   };
 
+  // Fetch approved registrations for current term/session and set as current courses
+  useEffect(() => {
+    const fetchApprovedCourses = async () => {
+      if (!studentId || !academicContext?.term || !academicContext?.session) return;
+      try {
+        const params = new URLSearchParams();
+        params.append('student_id', studentId);
+        params.append('term', academicContext.term);
+        params.append('session', academicContext.session);
+        params.append('status', 'approved');
+        params.append('limit', '200');
+        const res = await fetch(`/api/courses/registrations?${params.toString()}`, { cache: 'no-store' });
+        if (!res.ok) {
+          setCourses([]);
+          return;
+        }
+        const data = await res.json();
+        const regs = Array.isArray(data.registrations) ? data.registrations : [];
+        setCourses(regs);
+      } catch (e) {
+        console.error('Failed to fetch approved courses', e);
+        setCourses([]);
+      }
+    };
+    fetchApprovedCourses();
+  }, [studentId, academicContext?.term, academicContext?.session]);
+
   useEffect(() => {
     (async () => {
       try {
@@ -276,7 +303,7 @@ export default function StudentDashboard() {
             {
               href: "/dashboard/student/courses",
               icon: faBook,
-              title: "Current Courses",
+              title: "Current Courses (Approved)",
               value: courses.length,
               color: "blue",
               bgColor: "bg-blue-50",

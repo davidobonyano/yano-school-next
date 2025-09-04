@@ -7,14 +7,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Filter, DollarSign, BookOpen, FlaskConical } from 'lucide-react';
+import { Plus, Search, Filter } from 'lucide-react';
 
 interface FeeStructure {
   id: string;
   class_level: string;
   stream?: string;
-  fee_type: string;
-  amount: number;
+  tuition_fee?: number;
+  development_levy?: number;
+  examination_fee?: number;
+  sports_fee?: number;
+  pta_fee?: number;
+  total_fee?: number;
   description: string;
   session_name?: string;
   term_name?: string;
@@ -49,6 +53,102 @@ export function FeeStructureManager({ className = '' }: FeeStructureManagerProps
 
   const classes = ['KG1', 'KG2', 'PRI1', 'PRI2', 'PRI3', 'PRI4', 'PRI5', 'PRI6', 'JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3'];
 
+  // Selection for bulk actions
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const toggleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(new Set(feeStructures.map((f) => f.id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  // Edit modal state
+  const [editRowId, setEditRowId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<Partial<FeeStructure>>({});
+
+  const beginEdit = (row: FeeStructure) => {
+    setEditRowId(row.id);
+    setEditForm({
+      tuition_fee: row.tuition_fee ?? 0,
+      development_levy: row.development_levy ?? 0,
+      examination_fee: row.examination_fee ?? 0,
+      sports_fee: row.sports_fee ?? 0,
+      pta_fee: row.pta_fee ?? 0,
+      total_fee: row.total_fee ?? 0,
+    });
+  };
+  const cancelEdit = () => { setEditRowId(null); setEditForm({}); };
+
+  const saveEdit = async (id: string) => {
+    const payload = {
+      tuition_fee: Number(editForm.tuition_fee ?? 0),
+      development_levy: Number(editForm.development_levy ?? 0),
+      examination_fee: Number(editForm.examination_fee ?? 0),
+      sports_fee: Number(editForm.sports_fee ?? 0),
+      pta_fee: Number(editForm.pta_fee ?? 0),
+      total_fee: Number(editForm.total_fee ?? 0),
+    };
+    const res = await fetch(`/api/fee-structures/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    if (res.ok) {
+      setFeeStructures((prev) => prev.map((f) => f.id === id ? { ...f, ...payload } : f));
+      cancelEdit();
+    } else {
+      console.error('Failed to update fee structure', await res.text());
+    }
+  };
+
+  // Delete confirmation modal
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const confirmDelete = (id: string) => setDeleteId(id);
+  const cancelDelete = () => setDeleteId(null);
+  const doDelete = async () => {
+    if (!deleteId) return;
+    const res = await fetch(`/api/fee-structures/${deleteId}`, { method: 'DELETE' });
+    if (res.ok) {
+      setFeeStructures((prev) => prev.filter((f) => f.id !== deleteId));
+      setSelectedIds((prev) => { const next = new Set(prev); next.delete(deleteId); return next; });
+      setDeleteId(null);
+    } else {
+      console.error('Failed to delete fee structure', await res.text());
+    }
+  };
+
+  // Bulk edit modal
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkForm, setBulkForm] = useState<{ tuition_fee?: string; development_levy?: string; examination_fee?: string; sports_fee?: string; pta_fee?: string; total_fee?: string; }>({});
+  const openBulk = () => setBulkOpen(true);
+  const closeBulk = () => { setBulkOpen(false); setBulkForm({}); };
+  const saveBulk = async () => {
+    const updates: any = {};
+    if (bulkForm.tuition_fee !== undefined && bulkForm.tuition_fee !== '') updates.tuition_fee = Number(bulkForm.tuition_fee);
+    if (bulkForm.development_levy !== undefined && bulkForm.development_levy !== '') updates.development_levy = Number(bulkForm.development_levy);
+    if (bulkForm.examination_fee !== undefined && bulkForm.examination_fee !== '') updates.examination_fee = Number(bulkForm.examination_fee);
+    if (bulkForm.sports_fee !== undefined && bulkForm.sports_fee !== '') updates.sports_fee = Number(bulkForm.sports_fee);
+    if (bulkForm.pta_fee !== undefined && bulkForm.pta_fee !== '') updates.pta_fee = Number(bulkForm.pta_fee);
+    if (bulkForm.total_fee !== undefined && bulkForm.total_fee !== '') updates.total_fee = Number(bulkForm.total_fee);
+
+    if (Object.keys(updates).length === 0) { closeBulk(); return; }
+
+    // Apply sequentially per row
+    const ids = Array.from(selectedIds);
+    await Promise.all(ids.map(async (id) => {
+      const res = await fetch(`/api/fee-structures/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updates) });
+      if (!res.ok) console.error('Bulk update failed for', id, await res.text());
+    }));
+
+    // Update local state
+    setFeeStructures((prev) => prev.map((f) => selectedIds.has(f.id) ? { ...f, ...updates } : f));
+    closeBulk();
+  };
+
   // Fetch sessions and terms
   const fetchSessionsAndTerms = async () => {
     setIsLoadingSessions(true);
@@ -58,25 +158,16 @@ export function FeeStructureManager({ className = '' }: FeeStructureManagerProps
       if (sessionsResponse.ok) {
         const sessionsData = await sessionsResponse.json();
         setSessions(sessionsData.sessions || []);
-        
-        // Set default session to current active session
         const activeSession = sessionsData.sessions?.find((s: Session) => s.is_active);
-        if (activeSession) {
-          setSelectedSession(activeSession.name);
-        }
+        if (activeSession) setSelectedSession(activeSession.name);
       }
-
       // Fetch terms
       const termsResponse = await fetch('/api/academic/terms');
       if (termsResponse.ok) {
         const termsData = await termsResponse.json();
         setTerms(termsData.terms || []);
-        
-        // Set default term to current active term
         const activeTerm = termsData.terms?.find((t: Term) => t.is_active);
-        if (activeTerm) {
-          setSelectedTerm(activeTerm.name);
-        }
+        if (activeTerm) setSelectedTerm(activeTerm.name);
       }
     } catch (error) {
       console.error('Error fetching sessions and terms:', error);
@@ -101,7 +192,22 @@ export function FeeStructureManager({ className = '' }: FeeStructureManagerProps
       if (response.ok) {
         const data = await response.json();
         console.log('Fee structures response:', data);
-        setFeeStructures(data.feeStructures || []);
+        const rows = Array.isArray(data?.feeStructures) ? data.feeStructures : (Array.isArray(data?.fees) ? data.fees : []);
+        const normalized: FeeStructure[] = rows.map((r: any) => ({
+          id: r.id,
+          class_level: r.class_level_text ?? r.class_level ?? '',
+          stream: r.stream ?? undefined,
+          tuition_fee: Number(r.tuition_fee ?? 0),
+          development_levy: Number(r.development_levy ?? 0),
+          examination_fee: Number(r.examination_fee ?? 0),
+          sports_fee: Number(r.sports_fee ?? 0),
+          pta_fee: Number(r.pta_fee ?? 0),
+          total_fee: Number(r.total_fee ?? 0),
+          description: r.description ?? '',
+          session_name: r.session ?? r.session_name ?? undefined,
+          term_name: r.term ?? r.term_name ?? undefined,
+        }));
+        setFeeStructures(normalized);
       } else {
         console.error('Failed to fetch fee structures:', response.status, response.statusText);
         const errorData = await response.json().catch(() => ({}));
@@ -114,43 +220,8 @@ export function FeeStructureManager({ className = '' }: FeeStructureManagerProps
     }
   };
 
-  useEffect(() => {
-    fetchSessionsAndTerms();
-  }, []);
-
-  useEffect(() => {
-    if (sessions.length > 0 && terms.length > 0) {
-      fetchFeeStructures();
-    }
-  }, [selectedSession, selectedTerm, selectedClass, searchTerm, sessions.length, terms.length]);
-
-  // Get fee type icon
-  const getFeeTypeIcon = (feeType: string) => {
-    switch (feeType) {
-      case 'tuition': return <DollarSign className="h-4 w-4" />;
-      case 'library': return <BookOpen className="h-4 w-4" />;
-      case 'laboratory': return <FlaskConical className="h-4 w-4" />;
-      default: return <DollarSign className="h-4 w-4" />;
-    }
-  };
-
-  // Get fee type color
-  const getFeeTypeColor = (feeType: string) => {
-    switch (feeType) {
-      case 'tuition': return 'bg-blue-100 text-blue-800';
-      case 'library': return 'bg-green-100 text-green-800';
-      case 'laboratory': return 'bg-purple-100 text-purple-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  // Group fee structures by class
-  const groupedFees = feeStructures.reduce((acc, fee) => {
-    const key = `${fee.class_level}${fee.stream ? `-${fee.stream}` : ''}`;
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(fee);
-    return acc;
-  }, {} as Record<string, FeeStructure[]>);
+  useEffect(() => { fetchSessionsAndTerms(); }, []);
+  useEffect(() => { if (sessions.length > 0 && terms.length > 0) fetchFeeStructures(); }, [selectedSession, selectedTerm, selectedClass, searchTerm, sessions.length, terms.length]);
 
   return (
     <div className={`space-y-6 ${className}`}>
@@ -163,10 +234,14 @@ export function FeeStructureManager({ className = '' }: FeeStructureManagerProps
                 View and manage fee structures for all classes and terms
               </CardDescription>
             </div>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Fee Structure
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={() => setSelectedIds(new Set())}>Clear Selection</Button>
+              <Button onClick={openBulk} disabled={selectedIds.size === 0} className="bg-blue-600 text-white hover:bg-blue-700">Bulk Edit</Button>
+              <Button className="bg-green-600 text-white hover:bg-green-700">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Fee Structure
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -258,7 +333,7 @@ export function FeeStructureManager({ className = '' }: FeeStructureManagerProps
             <div>Total Terms: {terms.length}</div>
           </div>
 
-          {/* Fee Structures Display */}
+          {/* Fee Structures Table */}
           {isLoading ? (
             <div className="text-center py-8">
               <div className="text-lg text-gray-600">Loading fee structures...</div>
@@ -271,32 +346,146 @@ export function FeeStructureManager({ className = '' }: FeeStructureManagerProps
               </div>
             </div>
           ) : (
-            <div className="space-y-6">
-              {Object.entries(groupedFees).map(([classKey, fees]) => (
-                <div key={classKey} className="border rounded-lg p-4">
-                  <h3 className="text-lg font-semibold mb-3">{classKey}</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {fees.map((fee) => (
-                      <div key={fee.id} className="border rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <Badge className={getFeeTypeColor(fee.fee_type)}>
-                            {getFeeTypeIcon(fee.fee_type)}
-                            <span className="ml-1">{fee.fee_type}</span>
-                          </Badge>
-                          <span className="text-lg font-semibold">₦{fee.amount.toLocaleString()}</span>
-                        </div>
-                        <p className="text-sm text-gray-600 mb-2">{fee.description}</p>
-                        <div className="text-xs text-gray-500">
-                          <div>Session: {fee.session_name || 'N/A'}</div>
-                          <div>Term: {fee.term_name || 'N/A'}</div>
-                        </div>
-                      </div>
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3"><input type="checkbox" checked={selectedIds.size === feeStructures.length} onChange={(e) => toggleSelectAll(e.target.checked)} /></th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stream</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tuition</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dev.</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Exam</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sports</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PTA</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Session</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Term</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {feeStructures.map((fee) => (
+                      <tr key={fee.id}>
+                        <td className="px-4 py-3"><input type="checkbox" checked={selectedIds.has(fee.id)} onChange={() => toggleSelect(fee.id)} /></td>
+                        <td className="px-6 py-3 text-sm text-gray-900">{fee.class_level}</td>
+                        <td className="px-6 py-3 text-sm text-gray-900">{fee.stream || '-'}</td>
+                        <td className="px-6 py-3 text-sm text-gray-900">₦{Number(fee.tuition_fee ?? 0).toLocaleString('en-NG')}</td>
+                        <td className="px-6 py-3 text-sm text-gray-900">₦{Number(fee.development_levy ?? 0).toLocaleString('en-NG')}</td>
+                        <td className="px-6 py-3 text-sm text-gray-900">₦{Number(fee.examination_fee ?? 0).toLocaleString('en-NG')}</td>
+                        <td className="px-6 py-3 text-sm text-gray-900">₦{Number(fee.sports_fee ?? 0).toLocaleString('en-NG')}</td>
+                        <td className="px-6 py-3 text-sm text-gray-900">₦{Number(fee.pta_fee ?? 0).toLocaleString('en-NG')}</td>
+                        <td className="px-6 py-3 text-sm text-gray-900">₦{Number(fee.total_fee ?? 0).toLocaleString('en-NG')}</td>
+                        <td className="px-6 py-3 text-sm text-gray-900">{fee.session_name || selectedSession || '-'}</td>
+                        <td className="px-6 py-3 text-sm text-gray-900">{fee.term_name || selectedTerm || '-'}</td>
+                        <td className="px-6 py-3 text-sm text-gray-900">
+                          <div className="flex gap-2">
+                            <Button className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => beginEdit(fee)}>Edit</Button>
+                            <Button className="bg-red-600 text-white hover:bg-red-700" onClick={() => confirmDelete(fee.id)}>Delete</Button>
+                          </div>
+                        </td>
+                      </tr>
                     ))}
-                  </div>
-                </div>
-              ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
+
+          {/* Edit Modal */}
+          {editRowId && (
+            <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 w-full max-w-2xl">
+                <h3 className="text-lg font-semibold mb-4">Edit Fee Structure</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label>Tuition</Label>
+                    <Input type="number" value={String(editForm.tuition_fee ?? 0)} onChange={(e) => setEditForm((p) => ({ ...p, tuition_fee: Number(e.target.value || 0) }))} />
+                  </div>
+                  <div>
+                    <Label>Development Levy</Label>
+                    <Input type="number" value={String(editForm.development_levy ?? 0)} onChange={(e) => setEditForm((p) => ({ ...p, development_levy: Number(e.target.value || 0) }))} />
+                  </div>
+                  <div>
+                    <Label>Examination Fee</Label>
+                    <Input type="number" value={String(editForm.examination_fee ?? 0)} onChange={(e) => setEditForm((p) => ({ ...p, examination_fee: Number(e.target.value || 0) }))} />
+                  </div>
+                  <div>
+                    <Label>Sports Fee</Label>
+                    <Input type="number" value={String(editForm.sports_fee ?? 0)} onChange={(e) => setEditForm((p) => ({ ...p, sports_fee: Number(e.target.value || 0) }))} />
+                  </div>
+                  <div>
+                    <Label>PTA Fee</Label>
+                    <Input type="number" value={String(editForm.pta_fee ?? 0)} onChange={(e) => setEditForm((p) => ({ ...p, pta_fee: Number(e.target.value || 0) }))} />
+                  </div>
+                  <div>
+                    <Label>Total</Label>
+                    <Input type="number" value={String(editForm.total_fee ?? 0)} onChange={(e) => setEditForm((p) => ({ ...p, total_fee: Number(e.target.value || 0) }))} />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 mt-6">
+                  <Button variant="ghost" onClick={cancelEdit}>Cancel</Button>
+                  <Button className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => saveEdit(editRowId)}>Save</Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Delete Confirm Modal */}
+          {deleteId && (
+            <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 w-full max-w-md">
+                <h3 className="text-lg font-semibold mb-4">Delete Fee Structure</h3>
+                <p className="text-sm text-gray-600">Are you sure you want to delete this fee structure? This action cannot be undone.</p>
+                <div className="flex justify-end gap-2 mt-6">
+                  <Button variant="ghost" onClick={cancelDelete}>Cancel</Button>
+                  <Button className="bg-red-600 text-white hover:bg-red-700" onClick={doDelete}>Delete</Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Bulk Edit Modal */}
+          {bulkOpen && (
+            <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 w-full max-w-2xl">
+                <h3 className="text-lg font-semibold mb-4">Bulk Edit ({selectedIds.size} selected)</h3>
+                <p className="text-sm text-gray-600 mb-4">Only fields you fill will be updated; leave a field blank to keep its current value.</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label>Tuition</Label>
+                    <Input type="number" placeholder="leave blank" value={bulkForm.tuition_fee ?? ''} onChange={(e) => setBulkForm((p) => ({ ...p, tuition_fee: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label>Development Levy</Label>
+                    <Input type="number" placeholder="leave blank" value={bulkForm.development_levy ?? ''} onChange={(e) => setBulkForm((p) => ({ ...p, development_levy: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label>Examination Fee</Label>
+                    <Input type="number" placeholder="leave blank" value={bulkForm.examination_fee ?? ''} onChange={(e) => setBulkForm((p) => ({ ...p, examination_fee: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label>Sports Fee</Label>
+                    <Input type="number" placeholder="leave blank" value={bulkForm.sports_fee ?? ''} onChange={(e) => setBulkForm((p) => ({ ...p, sports_fee: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label>PTA Fee</Label>
+                    <Input type="number" placeholder="leave blank" value={bulkForm.pta_fee ?? ''} onChange={(e) => setBulkForm((p) => ({ ...p, pta_fee: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label>Total</Label>
+                    <Input type="number" placeholder="leave blank" value={bulkForm.total_fee ?? ''} onChange={(e) => setBulkForm((p) => ({ ...p, total_fee: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 mt-6">
+                  <Button variant="ghost" onClick={closeBulk}>Cancel</Button>
+                  <Button className="bg-blue-600 text-white hover:bg-blue-700" onClick={saveBulk}>Apply</Button>
+                </div>
+              </div>
+            </div>
+          )}
+
         </CardContent>
       </Card>
     </div>

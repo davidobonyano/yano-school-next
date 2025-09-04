@@ -1,22 +1,26 @@
 -- ================= PAYMENT SYSTEM WITH ACADEMIC CONTEXT =================
 -- This file creates the payment system that integrates with sessions and terms
 
--- Fee Structure Table
+-- Fee Structure Table (aligned to existing schema using public.class_level)
 create table if not exists public.fee_structures (
   id uuid primary key default gen_random_uuid(),
-  session_id uuid references public.academic_sessions(id) on delete cascade not null,
-  term_id uuid references public.academic_terms(id) on delete cascade not null,
-  class_level text not null,
-  stream text, -- for SS classes
-  fee_type text not null check (fee_type in ('tuition', 'library', 'laboratory', 'sports', 'other')),
-  amount decimal(10,2) not null,
-  is_required boolean default true not null,
-  description text,
+  session_id uuid references public.academic_sessions(id) on delete cascade,
+  term_id uuid references public.academic_terms(id) on delete cascade,
+  class_level public.class_level null,
+  stream text null,
+  -- Aggregated fee breakdown (aligned with existing)
+  tuition_fee numeric(12,2) not null default 0,
+  development_levy numeric(12,2) not null default 0,
+  examination_fee numeric(12,2) not null default 0,
+  sports_fee numeric(12,2) not null default 0,
+  pta_fee numeric(12,2) not null default 0,
+  total_fee numeric(12,2) not null default 0,
+  term text not null,
+  session text not null,
+  class_level_code text null,
   created_at timestamptz default now() not null,
   updated_at timestamptz default now() not null,
-  
-  -- Ensure unique fee structure per session/term/class/fee_type
-  unique(session_id, term_id, class_level, stream, fee_type)
+  unique(session_id, term_id, class_level, stream)
 );
 
 -- Payment Records Table
@@ -73,7 +77,7 @@ create table if not exists public.carry_over_balances (
 -- Indexes for performance
 create index if not exists idx_fee_structures_session_term on public.fee_structures(session_id, term_id);
 create index if not exists idx_fee_structures_class on public.fee_structures(class_level, stream);
-create index if not exists idx_fee_structures_type on public.fee_structures(fee_type);
+create index if not exists idx_fee_structures_term_session on public.fee_structures(term, session);
 
 create index if not exists idx_payment_records_student on public.payment_records(student_id);
 create index if not exists idx_payment_records_session_term on public.payment_records(session_id, term_id);
@@ -298,45 +302,4 @@ begin
 end;
 $$ language plpgsql security definer;
 
--- Insert sample fee structure for 2025/2026 session
-insert into public.fee_structures (session_id, term_id, class_level, fee_type, amount, is_required, description)
-select 
-  s.id as session_id,
-  t.id as term_id,
-  'JSS1' as class_level,
-  'tuition' as fee_type,
-  50000.00 as amount,
-  true as is_required,
-  'Tuition fee for JSS1 students'
-from public.academic_sessions s
-join public.academic_terms t on s.id = t.session_id
-where s.name = '2025/2026' and t.name = '1st Term'
-on conflict (session_id, term_id, class_level, stream, fee_type) do nothing;
-
-insert into public.fee_structures (session_id, term_id, class_level, fee_type, amount, is_required, description)
-select 
-  s.id as session_id,
-  t.id as term_id,
-  'JSS1' as class_level,
-  'library' as fee_type,
-  5000.00 as amount,
-  true as is_required,
-  'Library fee for JSS1 students'
-from public.academic_sessions s
-join public.academic_terms t on s.id = t.session_id
-where s.name = '2025/2026' and t.name = '1st Term'
-on conflict (session_id, term_id, class_level, stream, fee_type) do nothing;
-
-insert into public.fee_structures (session_id, term_id, class_level, fee_type, amount, is_required, description)
-select 
-  s.id as session_id,
-  t.id as term_id,
-  'JSS1' as class_level,
-  'laboratory' as fee_type,
-  3000.00 as amount,
-  true as is_required,
-  'Laboratory fee for JSS1 students'
-from public.academic_sessions s
-join public.academic_terms t on s.id = t.session_id
-where s.name = '2025/2026' and t.name = '1st Term'
-on conflict (session_id, term_id, class_level, stream, fee_type) do nothing;
+-- Sample seed removed to avoid conflicts; rely on your existing fee_structures data

@@ -315,6 +315,7 @@ export function CourseDashboard({
         onExport={canManageCourses ? handleExport : undefined}
         onImport={canManageCourses ? handleImport : undefined}
         showAdvancedFilters={canViewAllCourses}
+        studentMode={userRole === 'student'}
       />
 
       {/* Courses Table */}

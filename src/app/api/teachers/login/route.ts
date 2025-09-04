@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { createTeacherSessionToken, setTeacherSessionCookie } from '@/lib/teacher-session';
 import bcrypt from 'bcryptjs';
 
 export async function POST(request: Request) {
@@ -15,7 +16,7 @@ export async function POST(request: Request) {
     // This will use the same Supabase instance that your exam portal uses
     let authOk = false;
     let authError = null;
-    let sessionToken = null;
+    let supabaseToken = null;
 
     try {
       console.log('Attempting Supabase auth for:', email);
@@ -27,7 +28,7 @@ export async function POST(request: Request) {
       });
       if (!authErr && authData?.user && authData.session) {
         authOk = true;
-        sessionToken = authData.session.access_token;
+        supabaseToken = authData.session.access_token;
         console.log('Supabase authentication successful for:', email);
       } else {
         authError = authErr?.message || 'Supabase authentication failed';
@@ -84,7 +85,7 @@ export async function POST(request: Request) {
       console.log('Local auth successful for:', email);
       
       // For local auth, create a simple session token
-      sessionToken = btoa(JSON.stringify({ 
+      supabaseToken = btoa(JSON.stringify({ 
         teacherId: teacherForCred.id, 
         email, 
         timestamp: Date.now() 
@@ -119,6 +120,14 @@ export async function POST(request: Request) {
       }
     }
 
+    // Create session and set cookie
+    const newSessionToken = createTeacherSessionToken({ 
+      teacherId: teacher.id, 
+      email: teacher.email, 
+      name: teacher.full_name 
+    });
+    setTeacherSessionCookie(newSessionToken);
+
     return NextResponse.json({ 
       success: true, 
       teacher: { 
@@ -127,7 +136,7 @@ export async function POST(request: Request) {
         email: teacher.email,
         school_name: teacher.school_name 
       },
-      sessionToken,
+      sessionToken: newSessionToken,
       authMethod: authOk ? 'supabase' : 'local'
     });
   } catch (err: any) {

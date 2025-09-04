@@ -29,6 +29,7 @@ export function RegistrationTable({
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [expandedStudentId, setExpandedStudentId] = useState<string | null>(null);
 
   const canManageRegistrations = userRole === 'admin' || userRole === 'teacher';
 
@@ -52,15 +53,13 @@ export function RegistrationTable({
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          status: 'approved',
-          approved_by: 'current-user-id', // In real app, get from auth context
-          approved_at: new Date().toISOString()
+          status: 'approved'
         })
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to approve registration');
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || error.message || 'Failed to approve registration');
       }
 
       console.log('Registration approved successfully!');
@@ -87,15 +86,13 @@ export function RegistrationTable({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           status: 'rejected',
-          approved_by: 'current-user-id', // In real app, get from auth context
-          approved_at: new Date().toISOString(),
           rejection_reason: rejectionReason
         })
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to reject registration');
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || error.message || 'Failed to reject registration');
       }
 
       console.log('Registration rejected successfully!');
@@ -134,6 +131,28 @@ export function RegistrationTable({
     }
   };
 
+  const handleApproveAllForStudent = async (studentId: string) => {
+    const pending = (groupedByStudent[studentId] || []).filter(r => r.status === 'pending');
+    if (pending.length === 0) return;
+    setIsSubmitting(true);
+    try {
+      const results = await Promise.all(
+        pending.map(r => fetch(`/api/courses/registrations/${r.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'approved' })
+        }))
+      );
+      const anyFail = results.some(r => !r.ok);
+      if (anyFail) {
+        console.error('Some approvals failed');
+      }
+      onRefresh();
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <Card>
@@ -166,6 +185,14 @@ export function RegistrationTable({
     );
   }
 
+  // Group registrations by student for admin/teacher view
+  const groupedByStudent: Record<string, StudentCourseRegistration[]> = registrations.reduce((acc, r) => {
+    const key = r.student_id;
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(r);
+    return acc;
+  }, {} as Record<string, StudentCourseRegistration[]>);
+
   return (
     <div className="space-y-4">
       <Card>
@@ -177,101 +204,171 @@ export function RegistrationTable({
           <CardDescription>
             {userRole === 'student' 
               ? 'Your course registration history' 
-              : 'Manage student course registrations'
-            }
+              : 'Manage student course registrations'}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left p-3 font-medium">Student</th>
-                  <th className="text-left p-3 font-medium">Course</th>
-                  <th className="text-left p-3 font-medium">Class</th>
-                  <th className="text-left p-3 font-medium">Term/Session</th>
-                  <th className="text-left p-3 font-medium">Status</th>
-                  <th className="text-left p-3 font-medium">Registered</th>
-                  {canManageRegistrations && <th className="text-left p-3 font-medium">Actions</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {registrations.map((registration) => (
-                  <tr key={registration.id} className="border-b hover:bg-gray-50">
-                    <td className="p-3">
-                      <div className="flex items-center gap-2">
+          {userRole !== 'student' ? (
+            <div className="space-y-3">
+              {Object.entries(groupedByStudent).map(([studentId, regs]) => {
+                const first = regs[0];
+                const expanded = expandedStudentId === studentId;
+                return (
+                  <div key={studentId} className="border rounded">
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      className="w-full flex items-center justify-between p-3 hover:bg-gray-50"
+                      onClick={() => setExpandedStudentId(expanded ? null : studentId)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setExpandedStudentId(expanded ? null : studentId);
+                        }
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
                         <User className="h-4 w-4 text-gray-400" />
-                        <span className="font-medium">{registration.student_name || 'Unknown Student'}</span>
+                        <div className="text-left">
+                          <div className="font-medium">{first.student_name || 'Unknown Student'}</div>
+                          <div className="text-xs text-gray-500">ID: {first.student_id} • Class: {first.class_level}{first.stream ? ` (${first.stream})` : ''}</div>
+                        </div>
                       </div>
-                    </td>
-                    <td className="p-3">
-                      <div>
-                        <div className="font-medium">{registration.course_name || 'Unknown Course'}</div>
-                        <div className="text-sm text-gray-500">{registration.course_code}</div>
-                      </div>
-                    </td>
-                    <td className="p-3">
-                      <div className="text-sm">
-                        {registration.class_level}
-                        {registration.stream && <span className="text-gray-500"> ({registration.stream})</span>}
-                      </div>
-                    </td>
-                    <td className="p-3">
-                      <div className="text-sm">
-                        <div>{registration.term}</div>
-                        <div className="text-gray-500">{registration.session}</div>
-                      </div>
-                    </td>
-                    <td className="p-3">
-                      {getStatusBadge(registration.status)}
-                    </td>
-                    <td className="p-3">
-                      <div className="flex items-center gap-1 text-sm text-gray-500">
-                        <Calendar className="h-3 w-3" />
-                        {new Date(registration.registered_at).toLocaleDateString()}
-                      </div>
-                    </td>
-                    {canManageRegistrations && (
-                      <td className="p-3">
-                        <div className="flex items-center gap-2">
-                          {registration.status === 'pending' && (
-                            <>
-                              <Button
-                                size="sm"
-                                onClick={() => setApprovingId(registration.id)}
-                                disabled={isSubmitting}
-                                className="h-8 px-2 bg-green-600 hover:bg-green-700"
-                              >
-                                <CheckCircle className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => setRejectingId(registration.id)}
-                                disabled={isSubmitting}
-                                className="h-8 px-2"
-                              >
-                                <XCircle className="h-3 w-3" />
-                              </Button>
-                            </>
-                          )}
+                      <div className="flex items-center gap-2">
+                        {canManageRegistrations && (
                           <Button
                             size="sm"
-                            variant="outline"
-                            onClick={() => handleDelete(registration.id)}
-                            disabled={isSubmitting}
-                            className="h-8 px-2"
+                            className="h-7 px-2 bg-green-600 hover:bg-green-700"
+                            onClick={(e) => { e.stopPropagation(); handleApproveAllForStudent(studentId); }}
+                            disabled={isSubmitting || regs.every(r => r.status !== 'pending')}
                           >
-                            Delete
+                            Approve All
                           </Button>
+                        )}
+                        <span className="text-xs text-gray-500">{regs.length} registration(s)</span>
+                      </div>
+                    </div>
+                    {expanded && (
+                      <div className="px-3 pb-3">
+                        <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead>
+                              <tr className="border-b">
+                                <th className="text-left p-2">Course</th>
+                                <th className="text-left p-2">Term/Session</th>
+                                <th className="text-left p-2">Status</th>
+                                <th className="text-left p-2">Registered</th>
+                                <th className="text-left p-2">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {regs.map((registration) => (
+                                <tr key={registration.id} className="border-b hover:bg-gray-50">
+                                  <td className="p-2">
+                                    <div className="font-medium">{registration.course_name || 'Unknown Course'}</div>
+                                    <div className="text-xs text-gray-500">{registration.course_code}</div>
+                                  </td>
+                                  <td className="p-2 text-sm">
+                                    <div>{registration.term}</div>
+                                    <div className="text-gray-500">{registration.session}</div>
+                                  </td>
+                                  <td className="p-2">{getStatusBadge(registration.status)}</td>
+                                  <td className="p-2">
+                                    <div className="flex items-center gap-1 text-xs text-gray-500">
+                                      <Calendar className="h-3 w-3" />
+                                      {new Date(registration.registered_at).toLocaleDateString()}
+                                    </div>
+                                  </td>
+                                  <td className="p-2">
+                                    <div className="flex items-center gap-2">
+                                      {registration.status === 'pending' && (
+                                        <>
+                                          <Button
+                                            size="sm"
+                                            onClick={() => setApprovingId(registration.id)}
+                                            disabled={isSubmitting}
+                                            className="h-8 px-2 bg-green-600 hover:bg-green-700"
+                                          >
+                                            <CheckCircle className="h-3 w-3" />
+                                          </Button>
+                                          <Button
+                                            size="sm"
+                                            variant="destructive"
+                                            onClick={() => setRejectingId(registration.id)}
+                                            disabled={isSubmitting}
+                                            className="h-8 px-2"
+                                          >
+                                            <XCircle className="h-3 w-3" />
+                                          </Button>
+                                        </>
+                                      )}
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleDelete(registration.id)}
+                                        disabled={isSubmitting}
+                                        className="h-8 px-2"
+                                      >
+                                        Delete
+                                      </Button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              {/* Existing student self-view table retained for students */}
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left p-3 font-medium">Course</th>
+                    <th className="text-left p-3 font-medium">Class</th>
+                    <th className="text-left p-3 font-medium">Term/Session</th>
+                    <th className="text-left p-3 font-medium">Status</th>
+                    <th className="text-left p-3 font-medium">Registered</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {registrations.map((registration) => (
+                    <tr key={registration.id} className="border-b hover:bg-gray-50">
+                      <td className="p-3">
+                        <div className="font-medium">{registration.course_name || 'Unknown Course'}</div>
+                        <div className="text-sm text-gray-500">{registration.course_code}</div>
+                      </td>
+                      <td className="p-3">
+                        <div className="text-sm">
+                          {registration.class_level}
+                          {registration.stream && <span className="text-gray-500"> ({registration.stream})</span>}
                         </div>
                       </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      <td className="p-3">
+                        <div className="text-sm">
+                          <div>{registration.term}</div>
+                          <div className="text-gray-500">{registration.session}</div>
+                        </div>
+                      </td>
+                      <td className="p-3">{getStatusBadge(registration.status)}</td>
+                      <td className="p-3">
+                        <div className="flex items-center gap-1 text-sm text-gray-500">
+                          <Calendar className="h-3 w-3" />
+                          {new Date(registration.registered_at).toLocaleDateString()}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
