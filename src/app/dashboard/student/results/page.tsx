@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getStudentSession } from '@/lib/student-session';
 import { useRouter } from 'next/navigation';
+import { useAcademicContext } from '@/lib/academic-context';
 
 interface Row {
 	id: string;
@@ -31,6 +32,7 @@ function gradeToPoint(grade: string): number {
 
 export default function FullResultsPage() {
 	const router = useRouter();
+	const { currentContext } = useAcademicContext();
 	const [rows, setRows] = useState<Row[]>([]);
 	const [loading, setLoading] = useState<boolean>(true);
 	const [sessionFilter, setSessionFilter] = useState<string>('All');
@@ -53,27 +55,35 @@ export default function FullResultsPage() {
 				const sessJson = await sessResp.json();
 				const sessions: Array<{ name: string }> = sessJson.sessions || [];
 				const terms = ['First Term', 'Second Term', 'Third Term'];
+				const requests: Promise<any>[] = [];
+				sessions.forEach(sessItem => {
+					terms.forEach(term => {
+						requests.push(
+							fetch(`/api/results?student_id=${encodeURIComponent(s.student_id)}&session=${encodeURIComponent(sessItem.name)}&term=${encodeURIComponent(term)}`)
+								.then(r => (r.ok ? r.json() : { results: [], _session: sessItem.name, _term: term }))
+								.catch(() => ({ results: [], _session: sessItem.name, _term: term }))
+						);
+					});
+				});
+				const responses = await Promise.all(requests);
 				const all: Row[] = [];
-				for (const sess of sessions) {
-					for (const term of terms) {
-						const r = await fetch(`/api/results?student_id=${encodeURIComponent(s.student_id)}&session=${encodeURIComponent(sess.name)}&term=${encodeURIComponent(term)}`);
-						if (!r.ok) continue;
-						const data = await r.json();
-						for (const x of (data.results || [])) {
-							all.push({
-								id: x.id,
-								session: sess.name,
-								term,
-								courseName: x.courseName,
-								ca: Number(x.ca || 0),
-								midterm: Number(x.midterm || 0),
-								exam: Number(x.exam || 0),
-								total: Number(x.total || 0),
-								grade: x.grade || ''
-							});
-						}
-					}
-				}
+				responses.forEach((data, idx) => {
+					const attachedSession = data._session ?? sessions[Math.floor(idx / terms.length)]?.name;
+					const attachedTerm = data._term ?? terms[idx % terms.length];
+					(data.results || []).forEach((x: any) => {
+						all.push({
+							id: x.id,
+							session: attachedSession,
+							term: attachedTerm,
+							courseName: x.courseName,
+							ca: Number(x.ca || 0),
+							midterm: Number(x.midterm || 0),
+							exam: Number(x.exam || 0),
+							total: Number(x.total || 0),
+							grade: x.grade || ''
+						});
+					});
+				});
 				setRows(all);
 			} finally {
 				setLoading(false);
@@ -81,6 +91,28 @@ export default function FullResultsPage() {
 		};
 		fetchAll();
 	}, []);
+
+	// Map DB term names like "1st Term"/"2nd Term"/"3rd Term" to display values used here
+	function toDisplayTermName(termName?: string): string | undefined {
+		if (!termName) return undefined;
+		const lower = termName.toLowerCase();
+		if (lower.startsWith('1') || lower.startsWith('1st') || lower.startsWith('first')) return 'First Term';
+		if (lower.startsWith('2') || lower.startsWith('2nd') || lower.startsWith('second')) return 'Second Term';
+		if (lower.startsWith('3') || lower.startsWith('3rd') || lower.startsWith('third')) return 'Third Term';
+		return termName; // fallback
+	}
+
+	// Default the filters to the current academic context when it becomes available
+	useEffect(() => {
+		const defaultSession = currentContext?.session_name;
+		const defaultTerm = toDisplayTermName(currentContext?.term_name);
+		if (defaultSession && sessionFilter === 'All') {
+			setSessionFilter(defaultSession);
+		}
+		if (defaultTerm && termFilter === 'All') {
+			setTermFilter(defaultTerm);
+		}
+	}, [currentContext?.session_name, currentContext?.term_name]);
 
 	const filtered = useMemo(() => rows.filter(r =>
 		(sessionFilter === 'All' || r.session === sessionFilter) &&

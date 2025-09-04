@@ -45,8 +45,14 @@ export default function StudentGrades() {
     const fetchGrades = async () => {
       const s = getStudentSession();
       if (!s?.student_id || !selectedSession || !selectedTerm) return;
-      const res = await fetch(`/api/results?student_id=${encodeURIComponent(s.student_id)}&session=${encodeURIComponent(selectedSession)}&term=${encodeURIComponent(selectedTerm)}`);
-      const json = await res.json();
+      const [res, rankRes] = await Promise.all([
+        fetch(`/api/results?student_id=${encodeURIComponent(s.student_id)}&session=${encodeURIComponent(selectedSession)}&term=${encodeURIComponent(selectedTerm)}`),
+        studentClassLevel
+          ? fetch(`/api/reports/results?class_level=${encodeURIComponent(studentClassLevel)}&stream=${encodeURIComponent(studentStream || 'null')}&term=${encodeURIComponent(selectedTerm)}&session=${encodeURIComponent(selectedSession)}`)
+          : Promise.resolve(null as any)
+      ]);
+
+      const json = res ? await res.json() : { results: [] };
       const results = (json?.results || []).map((r: any) => ({
         id: r.id,
         courseName: r.courseName,
@@ -68,15 +74,12 @@ export default function StudentGrades() {
       }
 
       // Position via report endpoint
-      if (studentClassLevel) {
-        const rr = await fetch(`/api/reports/results?class_level=${encodeURIComponent(studentClassLevel)}&stream=${encodeURIComponent(studentStream || 'null')}&term=${encodeURIComponent(selectedTerm)}&session=${encodeURIComponent(selectedSession)}`);
-        if (rr.ok) {
-          const rj = await rr.json();
-          const me = (rj.rankings || []).find((x: any) => x.studentId === s.student_id);
-          setPosition(me ? String(me.rank) : 'N/A');
-        } else {
-          setPosition('N/A');
-        }
+      if (rankRes && rankRes.ok) {
+        const rj = await rankRes.json();
+        const me = (rj.rankings || []).find((x: any) => x.studentId === s.student_id);
+        setPosition(me ? String(me.rank) : 'N/A');
+      } else if (studentClassLevel) {
+        setPosition('N/A');
       }
     };
     fetchGrades();
@@ -87,20 +90,10 @@ export default function StudentGrades() {
     const fetchCgpa = async () => {
       const s = getStudentSession();
       if (!s?.student_id || !selectedSession) return setCgpa('0.00');
-      const terms = ['First Term', 'Second Term', 'Third Term'];
-      const all: number[] = [];
-      for (const t of terms) {
-        const res = await fetch(`/api/results?student_id=${encodeURIComponent(s.student_id)}&session=${encodeURIComponent(selectedSession)}&term=${encodeURIComponent(t)}`);
-        if (!res.ok) continue;
-        const json = await res.json();
-        const rows = (json?.results || []) as Array<{ grade: string }>;
-        for (const row of rows) {
-          all.push(gradeToPoint(row.grade));
-        }
-      }
-      if (all.length === 0) return setCgpa('0.00');
-      const cg = all.reduce((a: number, b: number) => a + b, 0) / all.length;
-      setCgpa(cg.toFixed(2));
+      const sumResp = await fetch(`/api/students/summary?student_id=${encodeURIComponent(s.student_id)}&session=${encodeURIComponent(selectedSession)}`);
+      if (!sumResp.ok) return setCgpa('0.00');
+      const sj = await sumResp.json();
+      setCgpa(String(sj.sessionCgpa || '0.00'));
     };
     fetchCgpa();
   }, [selectedSession]);
@@ -111,26 +104,10 @@ export default function StudentGrades() {
       const s = getStudentSession();
       if (!s?.student_id) return setOverallCgpa('0.00');
       try {
-        const sessionsResp = await fetch('/api/settings/academic-context?action=sessions');
-        if (!sessionsResp.ok) return setOverallCgpa('0.00');
-        const sessionsJson = await sessionsResp.json();
-        const sessions: Array<{ name: string }> = sessionsJson.sessions || [];
-        const terms = ['First Term', 'Second Term', 'Third Term'];
-        const allPoints: number[] = [];
-        for (const sess of sessions) {
-          for (const t of terms) {
-            const res = await fetch(`/api/results?student_id=${encodeURIComponent(s.student_id)}&session=${encodeURIComponent(sess.name)}&term=${encodeURIComponent(t)}`);
-            if (!res.ok) continue;
-            const json = await res.json();
-            const rows = (json?.results || []) as Array<{ grade: string }>;
-            for (const row of rows) {
-              allPoints.push(gradeToPoint(row.grade));
-            }
-          }
-        }
-        if (allPoints.length === 0) return setOverallCgpa('0.00');
-        const ocg = allPoints.reduce((a: number, b: number) => a + b, 0) / allPoints.length;
-        setOverallCgpa(ocg.toFixed(2));
+        const sumResp = await fetch(`/api/students/summary?student_id=${encodeURIComponent(s.student_id)}`);
+        if (!sumResp.ok) return setOverallCgpa('0.00');
+        const sj = await sumResp.json();
+        setOverallCgpa(String(sj.overallCgpa || '0.00'));
       } catch (e) {
         setOverallCgpa('0.00');
       }
@@ -144,6 +121,24 @@ export default function StudentGrades() {
       setSelectedSession(academicContext.session);
     }
   }, [academicContext.session]);
+
+  // Sync selected term with global academic context (map 1st/2nd/3rd -> First/Second/Third Term)
+  useEffect(() => {
+    const term = (academicContext.term || '').toLowerCase();
+    if (!term) return;
+    if (term.startsWith('1') || term.startsWith('1st') || term.startsWith('first')) {
+      setSelectedTerm('First Term');
+      return;
+    }
+    if (term.startsWith('2') || term.startsWith('2nd') || term.startsWith('second')) {
+      setSelectedTerm('Second Term');
+      return;
+    }
+    if (term.startsWith('3') || term.startsWith('3rd') || term.startsWith('third')) {
+      setSelectedTerm('Third Term');
+      return;
+    }
+  }, [academicContext.term]);
   
   const getGradeColor = (grade: string) => {
     if (grade?.startsWith('A')) return 'bg-green-100 text-green-800';

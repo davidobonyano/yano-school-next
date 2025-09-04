@@ -30,6 +30,7 @@ export default function StudentDashboard() {
   const [payments, setPayments] = useState<any[]>([]);
   const [upcomingExams, setUpcomingExams] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentSessionCgpa, setCurrentSessionCgpa] = useState<string>('0.00');
   
   type Announcement = {
     id: string;
@@ -178,6 +179,53 @@ export default function StudentDashboard() {
     (p: any) => p.status === "Pending" || p.status === "Partial"
   ).length;
 
+  // Compute CGPA for current session
+  useEffect(() => {
+    const computeSessionCgpa = async () => {
+      const s = getStudentSession();
+      const sessionName = academicContext.session;
+      if (!s?.student_id || !sessionName) {
+        setCurrentSessionCgpa('0.00');
+        return;
+      }
+      try {
+        const terms = ['First Term', 'Second Term', 'Third Term'];
+        const requests = terms.map(t =>
+          fetch(`/api/results?student_id=${encodeURIComponent(s.student_id)}&session=${encodeURIComponent(sessionName)}&term=${encodeURIComponent(t)}`)
+            .then(r => (r.ok ? r.json() : { results: [] }))
+            .catch(() => ({ results: [] }))
+        );
+        const responses = await Promise.all(requests);
+        const points: number[] = [];
+        const toPoint = (grade: string): number => {
+          if (!grade) return 0;
+          if (grade.startsWith('A')) return 5.0;
+          if (grade === 'B2') return 4.5;
+          if (grade === 'B3') return 4.0;
+          if (grade === 'C4') return 3.5;
+          if (grade === 'C5') return 3.0;
+          if (grade === 'C6') return 2.5;
+          if (grade === 'D7') return 2.0;
+          if (grade === 'E8') return 1.0;
+          return 0.0;
+        };
+        responses.forEach(r => {
+          const rows = (r?.results || []) as Array<{ grade: string }>;
+          rows.forEach(row => points.push(toPoint(row.grade)));
+        });
+        if (points.length === 0) {
+          setCurrentSessionCgpa('0.00');
+          return;
+        }
+        const cg = points.reduce((a, b) => a + b, 0) / points.length;
+        setCurrentSessionCgpa(cg.toFixed(2));
+      } catch {
+        setCurrentSessionCgpa('0.00');
+      }
+    };
+    computeSessionCgpa();
+  }, [academicContext.session, studentId]);
+
   // Helper functions for term information
   const getNextTerm = (currentTerm: string): string => {
     switch (currentTerm) {
@@ -313,8 +361,8 @@ export default function StudentDashboard() {
             {
               href: "/dashboard/student/grades",
               icon: faChartBar,
-              title: "Current GPA",
-              value: calculateGPA(),
+              title: "Current CGPA",
+              value: currentSessionCgpa,
               color: "green",
               bgColor: "bg-green-50",
               iconColor: "text-green-600",
