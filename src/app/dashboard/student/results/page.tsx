@@ -39,6 +39,7 @@ export default function FullResultsPage() {
 	const [termFilter, setTermFilter] = useState<string>('All');
 	const [studentName, setStudentName] = useState<string>('');
 	const [studentId, setStudentId] = useState<string>('');
+	const [allSessions, setAllSessions] = useState<Array<{ name: string }>>([]);
 
 	useEffect(() => {
 		const s = getStudentSession();
@@ -54,6 +55,8 @@ export default function FullResultsPage() {
 				const sessResp = await fetch('/api/settings/academic-context?action=sessions');
 				const sessJson = await sessResp.json();
 				const sessions: Array<{ name: string }> = sessJson.sessions || [];
+				setAllSessions(sessions); // Store all sessions for dropdown
+				
 				const terms = ['First Term', 'Second Term', 'Third Term'];
 				const requests: Promise<any>[] = [];
 				sessions.forEach(sessItem => {
@@ -119,7 +122,7 @@ export default function FullResultsPage() {
 		(termFilter === 'All' || r.term === termFilter)
 	), [rows, sessionFilter, termFilter]);
 
-	const sessions = useMemo(() => ['All', ...Array.from(new Set(rows.map(r => r.session)))], [rows]);
+	const sessions = useMemo(() => ['All', ...allSessions.map(s => s.name)], [allSessions]);
 	const terms = useMemo(() => ['All', 'First Term', 'Second Term', 'Third Term'], []);
 
 	const termGpa = useMemo(() => {

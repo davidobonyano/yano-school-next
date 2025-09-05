@@ -5,7 +5,7 @@ import { verifyTeacherSessionToken } from './src/lib/teacher-session';
 const ADMIN_PATH_PREFIX = '/dashboard/admin';
 const TEACHER_PATH_PREFIX = '/dashboard/teacher';
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
 	const { pathname } = request.nextUrl;
 	
 	// Handle admin routes
@@ -18,7 +18,7 @@ export function middleware(request: NextRequest) {
 			return NextResponse.redirect(url);
 		}
 
-		const session = verifyAdminSessionToken(cookie);
+		const session = await verifyAdminSessionToken(cookie);
 		if (!session) {
 			const url = request.nextUrl.clone();
 			url.pathname = '/login/admin';
@@ -39,7 +39,7 @@ export function middleware(request: NextRequest) {
 			return NextResponse.redirect(url);
 		}
 
-		const session = verifyTeacherSessionToken(cookie);
+		const session = await verifyTeacherSessionToken(cookie);
 		if (!session) {
 			const url = request.nextUrl.clone();
 			url.pathname = '/login/teacher';

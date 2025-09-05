@@ -3,7 +3,7 @@ import { clearAdminSessionCookie } from '@/lib/admin-session';
 
 export async function POST() {
   try {
-    clearAdminSessionCookie();
+    await clearAdminSessionCookie();
     return NextResponse.json({ success: true });
   } catch (err: any) {
     return NextResponse.json({ error: err?.message || 'Unexpected error' }, { status: 500 });

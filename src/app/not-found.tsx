@@ -10,6 +10,7 @@ export default function NotFound() {
         width={180}
         height={80}
         className="mb-6"
+        style={{ height: 'auto' }}
         priority
       />
 

@@ -31,6 +31,13 @@ export default function StudentDashboard() {
   const [upcomingExams, setUpcomingExams] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentSessionCgpa, setCurrentSessionCgpa] = useState<string>('0.00');
+  const [paymentStatus, setPaymentStatus] = useState<{
+    status: 'PAID' | 'OUTSTANDING' | 'PENDING';
+    amount: number;
+    displayText: string;
+  }>({ status: 'PENDING', amount: 0, displayText: 'PENDING ₦0' });
+  const [timetableItems, setTimetableItems] = useState<any[]>([]);
+  const [currentDay, setCurrentDay] = useState<string>('');
   
   type Announcement = {
     id: string;
@@ -83,6 +90,12 @@ export default function StudentDashboard() {
       setStudentStream(s.stream || '');
       setIsActive(typeof s.is_active === 'boolean' ? s.is_active : true);
     }
+    
+    // Set current day
+    const today = new Date();
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    setCurrentDay(dayNames[today.getDay()]);
+    
     loadStudentData();
   }, []);
 
@@ -100,6 +113,66 @@ export default function StudentDashboard() {
       console.error('Error loading student data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Fetch payment status using the same method as payments page
+  const fetchPaymentStatus = async () => {
+    if (!studentId || !academicContext?.sessionId || !academicContext?.termId) {
+      setPaymentStatus({ status: 'PENDING', amount: 0, displayText: 'PENDING ₦0' });
+      return;
+    }
+
+    try {
+      const url = new URL('/api/students/payment-history', window.location.origin);
+      // Accept studentId or code; pass code for convenience if it looks non-UUID
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (uuidRegex.test(studentId)) {
+        url.searchParams.set('studentId', studentId);
+      } else {
+        url.searchParams.set('studentCode', studentId);
+      }
+      url.searchParams.set('sessionId', academicContext.sessionId);
+      url.searchParams.set('termId', academicContext.termId);
+      
+      const response = await fetch(url.toString(), { cache: 'no-store' });
+      
+      if (!response.ok) {
+        setPaymentStatus({ status: 'PENDING', amount: 0, displayText: 'PENDING ₦0' });
+        return;
+      }
+
+      const data = await response.json();
+      const ledger = data.ledger || [];
+
+      if (ledger.length === 0) {
+        setPaymentStatus({ status: 'PENDING', amount: 0, displayText: 'PENDING ₦0' });
+        return;
+      }
+
+      // Calculate total balance across all purposes
+      const totalBalance = ledger.reduce((sum: number, item: any) => sum + Number(item.balance || 0), 0);
+      const totalCharged = ledger.reduce((sum: number, item: any) => sum + Number(item.total_charged || 0), 0);
+      const totalPaid = ledger.reduce((sum: number, item: any) => sum + Number(item.total_paid || 0), 0);
+
+      let status: 'PAID' | 'OUTSTANDING' | 'PENDING';
+      let displayText: string;
+
+      if (totalPaid >= totalCharged && totalCharged > 0) {
+        status = 'PAID';
+        displayText = 'PAID';
+      } else if (totalPaid > 0 && totalPaid < totalCharged) {
+        status = 'OUTSTANDING';
+        displayText = `OUTSTANDING ₦${totalBalance.toLocaleString()}`;
+      } else {
+        status = 'PENDING';
+        displayText = `PENDING ₦${totalCharged.toLocaleString()}`;
+      }
+
+      setPaymentStatus({ status, amount: totalBalance, displayText });
+    } catch (error) {
+      console.error('Error fetching payment status:', error);
+      setPaymentStatus({ status: 'PENDING', amount: 0, displayText: 'PENDING ₦0' });
     }
   };
 
@@ -129,6 +202,11 @@ export default function StudentDashboard() {
     };
     fetchApprovedCourses();
   }, [studentId, academicContext?.term, academicContext?.session]);
+
+  // Fetch payment status when academic context changes
+  useEffect(() => {
+    fetchPaymentStatus();
+  }, [studentId, academicContext?.sessionId, academicContext?.termId]);
 
   useEffect(() => {
     (async () => {
@@ -175,9 +253,21 @@ export default function StudentDashboard() {
     }
   };
 
-  const pendingPayments = payments.filter(
-    (p: any) => p.status === "Pending" || p.status === "Partial"
-  ).length;
+  // Use the new payment status instead of counting payments
+  const pendingPayments = paymentStatus.displayText;
+
+  const getTodaysClassCount = () => {
+    if (!currentDay || currentDay === 'Sunday' || currentDay === 'Saturday') return 0;
+    
+    const todaysItems = timetableItems.filter(item => 
+      item.day === currentDay && 
+      item.subject && 
+      item.subject.toLowerCase() !== 'break' &&
+      item.subject.trim() !== ''
+    );
+    
+    return todaysItems.length;
+  };
 
   // Compute CGPA for current session
   useEffect(() => {
@@ -225,6 +315,53 @@ export default function StudentDashboard() {
     };
     computeSessionCgpa();
   }, [academicContext.session, studentId]);
+
+  // Fetch timetable data for today's classes count
+  useEffect(() => {
+    const fetchTimetable = async () => {
+      if (!academicContext.sessionId || !academicContext.termId || !studentClass) return;
+      
+      try {
+        const s = getStudentSession();
+        const level = s?.class_level || '';
+        const stream = s?.stream;
+        
+        // Normalize stream
+        const normalizedStream = stream ? 
+          (stream.toLowerCase() === 'art' || stream.toLowerCase() === 'arts' ? 'Art' :
+           stream.toLowerCase() === 'commercial' || stream.toLowerCase() === 'commerce' ? 'Commercial' :
+           stream.toLowerCase() === 'science' || stream.toLowerCase() === 'sciences' ? 'Science' : stream) 
+          : null;
+        
+        const effectiveClass = level && level.startsWith('SS') && normalizedStream ? 
+          `${level} ${normalizedStream}` : level;
+        
+        const params = new URLSearchParams({
+          action: 'by_student',
+          session_id: academicContext.sessionId,
+          term_id: academicContext.termId,
+        });
+        if (effectiveClass) params.set('class', effectiveClass);
+        
+        const res = await fetch(`/api/timetables?${params.toString()}`, { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          setTimetableItems(data.items || []);
+        } else {
+          setTimetableItems([]);
+        }
+      } catch {
+        setTimetableItems([]);
+      }
+    };
+    
+    fetchTimetable();
+    
+    // Listen for timetable updates
+    const handler = () => fetchTimetable();
+    window.addEventListener('timetableUpdated', handler as EventListener);
+    return () => window.removeEventListener('timetableUpdated', handler as EventListener);
+  }, [academicContext.sessionId, academicContext.termId, studentClass]);
 
   // Helper functions for term information
   const getNextTerm = (currentTerm: string): string => {
@@ -371,18 +508,20 @@ export default function StudentDashboard() {
             {
               href: "/dashboard/student/payments",
               icon: faCreditCard,
-              title: "Pending Payments",
-              value: pendingPayments,
-              color: "orange",
-              bgColor: "bg-orange-50",
-              iconColor: "text-orange-600",
-              valueColor: "text-orange-600",
+              title: "Payment Status",
+              value: paymentStatus.displayText,
+              color: paymentStatus.status === 'PAID' ? 'green' : paymentStatus.status === 'OUTSTANDING' ? 'orange' : 'red',
+              bgColor: paymentStatus.status === 'PAID' ? 'bg-green-50' : paymentStatus.status === 'OUTSTANDING' ? 'bg-orange-50' : 'bg-red-50',
+              iconColor: paymentStatus.status === 'PAID' ? 'text-green-600' : paymentStatus.status === 'OUTSTANDING' ? 'text-orange-600' : 'text-red-600',
+              valueColor: paymentStatus.status === 'PAID' ? 'text-green-600' : paymentStatus.status === 'OUTSTANDING' ? 'text-orange-600' : 'text-red-600',
+              status: paymentStatus.status,
+              amount: paymentStatus.amount,
             },
             {
-              href: "/dashboard/student/schedule",
+              href: "/dashboard/student/timetable",
               icon: faCalendarAlt,
               title: "Today's Classes",
-              value: courses.length > 0 ? Math.min(courses.length, 5) : 0,
+              value: getTodaysClassCount(),
               color: "purple",
               bgColor: "bg-purple-50",
               iconColor: "text-purple-600",
@@ -408,11 +547,11 @@ export default function StudentDashboard() {
                       className={`${stat.iconColor} text-2xl`}
                     />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <h3 className="font-medium text-gray-600 text-sm">
                       {stat.title}
                     </h3>
-                    <p className={`text-3xl font-bold ${stat.valueColor}`}>
+                    <p className={`${stat.title === "Payment Status" ? 'text-lg' : 'text-3xl'} font-bold ${stat.valueColor}`}>
                       {stat.value}
                     </p>
                   </div>

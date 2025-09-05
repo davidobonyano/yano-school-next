@@ -5,7 +5,7 @@ import { requireAdmin } from '@/lib/authz';
 export async function GET(request: Request) {
   try {
     // Check admin authorization
-    const authCheck = requireAdmin(request);
+    const authCheck = await requireAdmin(request);
     if (!authCheck.ok) {
       return authCheck.error!;
     }

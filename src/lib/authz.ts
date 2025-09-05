@@ -8,14 +8,14 @@ export function getRequestRole(request: Request): RequestRole {
   return 'anonymous';
 }
 
-export function requireAdmin(request: Request): { ok: boolean; error?: Response } {
+export async function requireAdmin(request: Request): Promise<{ ok: boolean; error?: Response }> {
   // Accept either explicit header x-role: admin or a valid admin session cookie
   const role = getRequestRole(request);
   if (role === 'admin') return { ok: true };
   try {
     // Lazy import to avoid circular deps in edge
     const { readAdminSession } = require('./admin-session');
-    const session = readAdminSession?.();
+    const session = await readAdminSession?.();
     if (session?.adminId) return { ok: true };
   } catch {}
   return { ok: false, error: new Response(JSON.stringify({ error: 'Forbidden: admin only' }), { status: 403 }) };

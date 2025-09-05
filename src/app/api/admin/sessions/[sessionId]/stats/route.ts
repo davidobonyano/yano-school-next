@@ -7,7 +7,7 @@ export async function GET(
   context: { params: Promise<{ sessionId: string }> }
 ) {
   try {
-    const gate = requireAdmin(request);
+    const gate = await requireAdmin(request);
     if (!gate.ok) return gate.error as Response;
 
     const { sessionId } = await context.params;

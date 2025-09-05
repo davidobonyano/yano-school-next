@@ -34,7 +34,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const gate = requireAdmin(request);
+  const gate = await requireAdmin(request);
   if (!gate.ok) return gate.error as Response;
   try {
     const raw = await request.json();
@@ -111,7 +111,7 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  const gate = requireAdmin(request);
+  const gate = await requireAdmin(request);
   if (!gate.ok) return gate.error as Response;
   try {
     const schema = baseSchema.extend({ id: z.union([z.string().min(1), z.number()]) });
@@ -164,7 +164,7 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const gate = requireAdmin(request);
+  const gate = await requireAdmin(request);
   if (!gate.ok) return gate.error as Response;
   try {
     const { searchParams } = new URL(request.url);

@@ -6,7 +6,7 @@ export async function GET(request: Request) {
   try {
     console.log('Admin dashboard stats API called');
     
-    const gate = requireAdmin(request);
+    const gate = await requireAdmin(request);
     if (!gate.ok) {
       console.log('Admin authorization failed');
       return gate.error as Response;

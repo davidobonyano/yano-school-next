@@ -11,6 +11,7 @@ export default function StudentCoursesPage() {
 
   useEffect(() => {
     const s = getStudentSession();
+    console.log('Student session data:', s);
     setStudentId(s?.student_id);
     setStudentClassLevel(s?.class_level || undefined);
     setStudentStream(s?.stream || undefined);

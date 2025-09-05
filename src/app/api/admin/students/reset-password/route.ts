@@ -4,7 +4,7 @@ import { requireAdmin } from '@/lib/authz';
 
 export async function POST(request: Request) {
   try {
-    const gate = requireAdmin(request);
+    const gate = await requireAdmin(request);
     if (!gate.ok) return gate.error as Response;
 
     const { studentId } = await request.json();

@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faBookOpen,
-  faUsers,
   faCalendarAlt,
   faChartBar,
   faBell,
@@ -18,9 +17,10 @@ import {
 export default function TeacherDashboardPage() {
   const [teacher, setTeacher] = useState<any>(null);
   const [assignedCourses, setAssignedCourses] = useState<any[]>([]);
-  const [processingStudents, setProcessingStudents] = useState<any[]>([]);
   const [upcomingExams, setUpcomingExams] = useState<any[]>([]);
   const [studentsWithResults, setStudentsWithResults] = useState<number>(0);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [todaySchedule, setTodaySchedule] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   type Announcement = {
@@ -34,38 +34,55 @@ export default function TeacherDashboardPage() {
   };
 
   useEffect(() => {
-    // TODO: Replace with real API calls
     const fetchDashboardData = async () => {
       try {
         // Fetch teacher data
-        // const teacherResponse = await fetch('/api/teachers/me');
-        // const teacherData = await teacherResponse.json();
-        // setTeacher(teacherData);
+        const teacherResponse = await fetch('/api/teachers/me');
+        if (teacherResponse.ok) {
+          const teacherData = await teacherResponse.json();
+          setTeacher(teacherData.teacher);
+        }
 
-        // Fetch assigned courses
-        // const coursesResponse = await fetch('/api/teachers/courses');
-        // const coursesData = await coursesResponse.json();
-        // setAssignedCourses(coursesData.courses || []);
+        // Fetch all dashboard data from the new teacher dashboard API
+        const dashboardResponse = await fetch('/api/teachers/dashboard');
+        if (dashboardResponse.ok) {
+          const dashboardData = await dashboardResponse.json();
+          setAssignedCourses(Array(dashboardData.assignedCourses).fill({})); // Convert count to array for display
+          setStudentsWithResults(dashboardData.studentsWithResults);
+          setUpcomingExams(Array(dashboardData.upcomingExams).fill({})); // Convert count to array for display
+          setTodaySchedule(dashboardData.todaySchedule || []);
+          setAnnouncements(dashboardData.announcements || []);
+        } else {
+          // Fallback to individual API calls if the new endpoint fails
+          console.warn('Teacher dashboard API failed, using fallback');
+          
+          // Fetch assigned courses (fallback)
+          const coursesResponse = await fetch('/api/courses?limit=50');
+          if (coursesResponse.ok) {
+            const coursesData = await coursesResponse.json();
+            setAssignedCourses(coursesData.courses || []);
+          }
 
-        // Fetch processing students
-        // const studentsResponse = await fetch('/api/teachers/processing-students');
-        // const studentsData = await studentsResponse.json();
-        // setProcessingStudents(studentsData.students || []);
+          // Fetch students with results count (fallback)
+          const resultsResponse = await fetch('/api/students');
+          if (resultsResponse.ok) {
+            const studentsData = await resultsResponse.json();
+            setStudentsWithResults(studentsData.students?.length || 0);
+          }
 
-        // Fetch upcoming exams
-        // const examsResponse = await fetch('/api/teachers/upcoming-exams');
-        // const examsData = await examsResponse.json();
-        // setUpcomingExams(examsData.exams || []);
-
-        // Fetch students with results count
-        // const resultsResponse = await fetch('/api/teachers/students-with-results');
-        // const resultsData = await resultsResponse.json();
-        // setStudentsWithResults(resultsData.count || 0);
-
-        // Fetch announcements
-        // const announcementsResponse = await fetch('/api/announcements?audience=teachers');
-        // const announcementsData = await announcementsResponse.json();
-        // setAnnouncements(announcementsData.announcements || []);
+          // Fetch announcements (fallback)
+          const announcementsResponse = await fetch('/api/announcements');
+          if (announcementsResponse.ok) {
+            const announcementsData = await announcementsResponse.json();
+            const teacherAnnouncements = (announcementsData.announcements || []).filter(
+              (ann: Announcement) => 
+                ann.audience === 'teachers' || 
+                ann.audience === 'all' || 
+                ann.audience_role === 'teacher'
+            );
+            setAnnouncements(teacherAnnouncements);
+          }
+        }
 
         setLoading(false);
       } catch (error) {
@@ -86,13 +103,6 @@ export default function TeacherDashboardPage() {
       href: '/dashboard/teacher/courses'
     },
     {
-      title: 'Pending Student IDs',
-      value: processingStudents.length,
-      icon: faUsers, // Changed from faUserCheck
-      color: 'bg-orange-500',
-      href: '/dashboard/teacher/students'
-    },
-    {
       title: 'Upcoming Exams',
       value: upcomingExams.length,
       icon: faCalendarAlt, // Changed from faClipboardList
@@ -108,19 +118,14 @@ export default function TeacherDashboardPage() {
     }
   ];
 
-  const todaySchedule = [
-    { time: '8:00-8:45', subject: 'Mathematics', class: 'JSS2A', room: 'Room 101' },
-    { time: '10:30-11:15', subject: 'Mathematics', class: 'JSS2B', room: 'Room 101' },
-    { time: '2:00-2:45', subject: 'Mathematics', class: 'JSS3A', room: 'Room 101' },
-  ];
 
   if (loading) {
     return (
       <div className="p-6">
         <div className="animate-pulse">
           <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {[...Array(4)].map((_, i) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            {[...Array(3)].map((_, i) => (
               <div key={i} className="bg-gray-200 rounded-lg h-24"></div>
             ))}
           </div>
@@ -144,7 +149,7 @@ export default function TeacherDashboardPage() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         {stats.map((stat, index) => (
           <a
             key={index}
@@ -183,19 +188,19 @@ export default function TeacherDashboardPage() {
               {todaySchedule.map((schedule, index) => (
                 <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center space-x-4">
-                    <div className="text-sm font-medium text-gray-900 w-20">{schedule.time}</div>
+                    <div className="text-sm font-medium text-gray-900 w-20">{schedule.period || 'N/A'}</div>
                     <div>
-                      <div className="font-medium text-gray-900">{schedule.subject}</div>
-                      <div className="text-sm text-gray-600">{schedule.class}</div>
+                      <div className="font-medium text-gray-900">{schedule.subject || 'Subject'}</div>
+                      <div className="text-sm text-gray-600">{schedule.class || 'Class'}</div>
                     </div>
                   </div>
-                  <div className="text-sm text-gray-600">{schedule.room}</div>
+                  <div className="text-sm text-gray-600">{schedule.teacher_name || 'Teacher'}</div>
                 </div>
               ))}
             </div>
           ) : (
             <div className="text-center py-8 text-gray-500">
-              <FontAwesomeIcon icon={faCalendarAlt} className="h-12 w-12 text-gray-300 mb-4" /> {/* Changed from faClock */}
+              <FontAwesomeIcon icon={faCalendarAlt} className="h-12 w-12 text-gray-300 mb-4" />
               <p>No classes scheduled for today</p>
             </div>
           )}
@@ -213,7 +218,7 @@ export default function TeacherDashboardPage() {
             </a>
           </div>
           
-          {/* announcements.length > 0 ? ( // Removed announcements state usage
+          {announcements.length > 0 ? (
             <div className="space-y-4">
               {announcements.slice(0, 3).map((announcement) => (
                 <div key={announcement.id} className="border-l-4 border-orange-500 pl-4">
@@ -225,12 +230,12 @@ export default function TeacherDashboardPage() {
                 </div>
               ))}
             </div>
-          ) : ( */}
+          ) : (
             <div className="text-center py-8 text-gray-500">
               <FontAwesomeIcon icon={faClipboardList} className="h-12 w-12 text-gray-300 mb-4" />
               <p>No recent announcements</p>
             </div>
-          {/* )} */}
+          )}
         </div>
       </div>
 
@@ -268,20 +273,6 @@ export default function TeacherDashboardPage() {
             </div>
           </a>
           
-          <a
-            href="/dashboard/teacher/students"
-            className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow duration-200"
-          >
-            <div className="flex items-center space-x-3">
-              <div className="bg-orange-100 rounded-lg p-2">
-                <FontAwesomeIcon icon={faUsers} className="h-5 w-5 text-orange-600" /> {/* Changed from faUserCheck */}
-              </div>
-              <div>
-                <h3 className="font-medium text-gray-900">Manage Students</h3>
-                <p className="text-sm text-gray-600">View and manage students</p>
-              </div>
-            </div>
-          </a>
         </div>
       </div>
     </div>

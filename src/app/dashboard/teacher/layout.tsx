@@ -11,7 +11,6 @@ import { useDashboardRefresh } from '@/lib/use-dashboard-refresh';
 
 import { 
   faHome, 
-  faUserCheck,
   faClipboardList,
   faBookOpen,
   faCalendarAlt,
@@ -20,7 +19,8 @@ import {
   faChalkboardTeacher,
   faFileExport,
   faTimes,
-  faChartBar
+  faChartBar,
+  faBars
 } from '@fortawesome/free-solid-svg-icons';
 
 export default function TeacherLayout({ children }: { children: ReactNode }) {
@@ -28,6 +28,7 @@ export default function TeacherLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [teacher, setTeacher] = useState<any>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number>(0);
   const touchCurrentX = useRef<number>(0);
@@ -84,6 +85,7 @@ export default function TeacherLayout({ children }: { children: ReactNode }) {
 
   // Fetch teacher data
   useEffect(() => {
+    setIsMounted(true);
     const fetchTeacherData = async () => {
       try {
         // Session is now handled by middleware and cookies
@@ -132,14 +134,6 @@ export default function TeacherLayout({ children }: { children: ReactNode }) {
       bgColor: 'bg-gradient-to-r from-indigo-600 to-indigo-700',
       hoverColor: 'hover:from-indigo-700 hover:to-indigo-800',
       iconColor: 'text-indigo-100'
-    },
-    { 
-      href: '/dashboard/teacher/students', 
-      icon: faUserCheck, 
-      label: 'Students',
-      bgColor: 'bg-gradient-to-r from-green-600 to-green-700',
-      hoverColor: 'hover:from-green-700 hover:to-green-800',
-      iconColor: 'text-green-100'
     },
     { 
       href: '/dashboard/teacher/exams', 
@@ -200,44 +194,20 @@ export default function TeacherLayout({ children }: { children: ReactNode }) {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-      {/* Mobile/Tablet Icon Sidebar - Always visible */}
-      <aside className="lg:hidden fixed left-0 top-0 bottom-0 w-16 bg-gray-900 z-40 flex flex-col py-4">
-        <div className="flex flex-col space-y-4 flex-1">
-          {navItems.map((item) => (
-            <motion.button
-              key={item.href}
-              onClick={() => setSidebarOpen(true)}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
-              className={`
-                p-3 mx-2 rounded-xl transition-all duration-300
-                ${pathname === item.href ? item.bgColor : 'bg-gray-800 hover:bg-gray-700'}
-                group relative
-              `}
-            >
-              <FontAwesomeIcon 
-                icon={item.icon} 
-                className={`w-5 h-5 ${pathname === item.href ? 'text-white' : 'text-gray-300'}`} 
-              />
-              
-              {/* Tooltip */}
-              <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 bg-gray-900 text-white px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                {item.label}
-              </div>
-            </motion.button>
-          ))}
-        </div>
-        
-        <button 
-          onClick={handleLogout}
-          className="p-3 mx-2 bg-red-600 hover:bg-red-700 rounded-xl transition-colors group relative"
-        >
-          <FontAwesomeIcon icon={faSignOutAlt} className="w-5 h-5 text-white" />
-          <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 bg-gray-900 text-white px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-            Logout
-          </div>
-        </button>
-      </aside>
+      {/* Mobile Top Nav with Hamburger (client-only to avoid SSR mismatch) */}
+      {isMounted && (
+        <header className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-white border-b z-40 flex items-center justify-between px-4">
+          <button 
+            aria-label="Open menu"
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 rounded-lg hover:bg-gray-100 active:bg-gray-200"
+          >
+            <FontAwesomeIcon icon={faBars} className="w-5 h-5 text-gray-700" />
+          </button>
+          <div className="text-sm font-medium text-gray-700">Menu</div>
+          <div className="w-9" />
+        </header>
+      )}
 
       {/* Desktop Sidebar - Full width with colors */}
       <aside className="hidden lg:flex lg:flex-col lg:w-80 bg-white shadow-xl border-r">
@@ -313,6 +283,7 @@ export default function TeacherLayout({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Mobile Expanded Sidebar */}
+      {isMounted && (
       <AnimatePresence>
         {sidebarOpen && (
           <>
@@ -325,11 +296,11 @@ export default function TeacherLayout({ children }: { children: ReactNode }) {
             />
             <motion.aside
               ref={sidebarRef}
-              initial={{ x: -320 }}
+              initial={{ x: '-60%' }}
               animate={{ x: 0 }}
-              exit={{ x: -320 }}
+              exit={{ x: '-60%' }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="lg:hidden fixed left-16 top-0 bottom-0 w-80 bg-white shadow-2xl z-50 flex flex-col"
+              className="lg:hidden fixed left-0 top-0 bottom-0 w-[60vw] max-w-xs bg-white shadow-2xl z-50 flex flex-col"
             >
               {/* Close Button */}
               <button
@@ -396,9 +367,10 @@ export default function TeacherLayout({ children }: { children: ReactNode }) {
           </>
         )}
       </AnimatePresence>
+      )}
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-auto bg-gray-50 lg:ml-0 pl-16 lg:pl-0">
+      <main className="flex-1 overflow-auto bg-gray-50 lg:ml-0 pt-14 lg:pt-0">
         <div className="sticky top-0 z-30 bg-gray-50/80 backdrop-blur supports-[backdrop-filter]:bg-gray-50/60 border-b border-gray-200">
           <div className="px-4 py-3">
             <AcademicContextDisplay showControls={false} className="!mb-0" />

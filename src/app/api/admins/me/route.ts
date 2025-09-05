@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 
 export async function GET() {
   try {
-    const session = readAdminSession();
+    const session = await readAdminSession();
     if (!session?.adminId) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }

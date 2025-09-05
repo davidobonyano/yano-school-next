@@ -28,8 +28,8 @@ export async function POST(request: Request) {
 		}
 
 		// Create session and set cookie
-		const token = createAdminSessionToken({ adminId: admin.id, email: admin.email, name: admin.name || undefined });
-		setAdminSessionCookie(token);
+		const token = await createAdminSessionToken({ adminId: admin.id, email: admin.email, name: admin.name || undefined });
+		await setAdminSessionCookie(token);
 
 		return NextResponse.json({ success: true, admin: { id: admin.id, name: admin.name, email: admin.email } });
 	} catch (err: any) {

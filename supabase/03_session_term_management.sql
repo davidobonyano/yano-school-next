@@ -134,10 +134,11 @@ select
   t.is_active
 from public.academic_sessions s
 cross join (values
-  ('1st Term', '2025-09-01', '2025-12-20', true),
-  ('2nd Term', '2026-01-05', '2026-04-10', false),
-  ('3rd Term', '2026-04-21', '2026-07-31', false)
+  ('1st Term', '2025-09-01'::date, '2025-12-20'::date, true),
+  ('2nd Term', '2026-01-05'::date, '2026-04-10'::date, false),
+  ('3rd Term', '2026-04-21'::date, '2026-07-31'::date, false)
 ) as t(name, start_date, end_date, is_active)
+
 where s.name = '2025/2026'
 on conflict (session_id, name) do update set
   start_date = excluded.start_date,
@@ -267,3 +268,14 @@ begin
       updated_at = now();
 end;
 $$ language plpgsql security definer;
+
+
+
+
+
+
+
+
+
+
+

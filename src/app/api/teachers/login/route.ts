@@ -121,12 +121,12 @@ export async function POST(request: Request) {
     }
 
     // Create session and set cookie
-    const newSessionToken = createTeacherSessionToken({ 
+    const newSessionToken = await createTeacherSessionToken({ 
       teacherId: teacher.id, 
       email: teacher.email, 
       name: teacher.full_name 
     });
-    setTeacherSessionCookie(newSessionToken);
+    await setTeacherSessionCookie(newSessionToken);
 
     return NextResponse.json({ 
       success: true, 

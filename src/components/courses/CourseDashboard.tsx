@@ -65,6 +65,7 @@ export function CourseDashboard({
 
       // For students, filter by their class level and stream
       if (userRole === 'student' && userClassLevel) {
+        console.log('Student filtering by class level:', userClassLevel, 'stream:', userStream);
         url += `class_level=${userClassLevel}&`;
         if (userStream) {
           url += `stream=${userStream}&`;
@@ -75,8 +76,12 @@ export function CourseDashboard({
       const data = await response.json();
 
       if (response.ok) {
-        setCourses(data.courses || []);
-        setFilteredCourses(data.courses || []);
+        const receivedCourses = data.courses || [];
+        console.log('Received courses:', receivedCourses.length, 'Class levels:', 
+          receivedCourses.map((c: Course) => c.class_level).filter((v: string, i: number, a: string[]) => a.indexOf(v) === i)
+        );
+        setCourses(receivedCourses);
+        setFilteredCourses(receivedCourses);
         setPagination(data.pagination || pagination);
       } else {
         console.error('Failed to fetch courses:', data.error);

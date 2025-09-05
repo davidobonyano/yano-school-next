@@ -5,7 +5,7 @@ import { readTeacherSession } from '@/lib/teacher-session';
 export async function GET(request: Request) {
   try {
     // First try to get session from cookie (new method)
-    const session = readTeacherSession();
+    const session = await readTeacherSession();
     
     if (session) {
       // Get teacher profile from the teachers table using session data

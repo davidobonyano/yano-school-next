@@ -5,7 +5,7 @@ import bcrypt from 'bcryptjs';
 
 export async function POST(request: Request) {
   try {
-    const gate = requireAdmin(request);
+    const gate = await requireAdmin(request);
     if (!gate.ok) return gate.error as Response;
 
     const { email, password, studentId } = await request.json();

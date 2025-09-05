@@ -32,6 +32,7 @@ export default function StudentGrades() {
   const [cgpa, setCgpa] = useState<string>('0.00');
   const [position, setPosition] = useState<string>('N/A');
   const [overallCgpa, setOverallCgpa] = useState<string>('0.00');
+  const [allSessions, setAllSessions] = useState<Array<{ name: string }>>([]);
 
   useEffect(() => {
     const s = getStudentSession();
@@ -39,6 +40,19 @@ export default function StudentGrades() {
     setStudentId(s?.student_id || '');
     setStudentClassLevel(s?.class_level || '');
     setStudentStream(s?.stream || undefined);
+    
+    // Fetch all available sessions
+    const fetchSessions = async () => {
+      try {
+        const sessResp = await fetch('/api/settings/academic-context?action=sessions');
+        const sessJson = await sessResp.json();
+        const sessions: Array<{ name: string }> = sessJson.sessions || [];
+        setAllSessions(sessions);
+      } catch (error) {
+        console.error('Error fetching sessions:', error);
+      }
+    };
+    fetchSessions();
   }, []);
 
   useEffect(() => {
@@ -182,8 +196,11 @@ export default function StudentGrades() {
               onChange={(e) => setSelectedSession(e.target.value)}
               className="w-full p-2 border rounded-md"
             >
-              <option value={academicContext.session || '2025/2026'}>{academicContext.session || '2025/2026'}</option>
-              <option value="2022/2023">2022/2023</option>
+              {allSessions.map(session => (
+                <option key={session.name} value={session.name}>
+                  {session.name}
+                </option>
+              ))}
             </select>
           </div>
           <div className="flex flex-col justify-end">

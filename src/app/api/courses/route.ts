@@ -22,11 +22,25 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = (page - 1) * limit;
 
+    // Debug logging
+    console.log('Course API called with params:', {
+      classLevel,
+      term,
+      stream,
+      category,
+      search
+    });
+
     const buildQuery = () => {
       let q = supabase
         .from('courses')
         .select('*', { count: 'exact' });
-      if (classLevel) q = q.eq('class_level', classLevel);
+      
+      // Apply filters - handle both old and new table structures
+      if (classLevel) {
+        console.log('Filtering by class_level:', classLevel);
+        q = q.eq('class_level', classLevel);
+      }
       if (term) q = q.eq('term', term);
       if (sessionId) q = q.eq('session_id', sessionId);
       if (termId) q = q.eq('term_id', termId);
@@ -34,6 +48,7 @@ export async function GET(request: NextRequest) {
       if (stream) q = q.eq('stream', stream);
       if (subjectType) q = q.eq('subject_type', subjectType);
       if (search) q = q.or(`name.ilike.%${search}%,code.ilike.%${search}%,description.ilike.%${search}%`);
+      
       q = q.range(offset, offset + limit - 1);
       q = q.order('class_level', { ascending: true });
       q = q.order('term', { ascending: true });
@@ -41,11 +56,20 @@ export async function GET(request: NextRequest) {
       return q;
     };
 
-    // First try filtering active-only; if that errors (e.g., column missing), fallback without it
-    let { data: courses, error, count } = await buildQuery().eq('is_active', true);
-    if (error) {
-      console.warn('Active filter failed, retrying without is_active filter:', error.message || error);
-      ({ data: courses, error, count } = await buildQuery());
+    // Try to filter by is_active if the column exists, otherwise fetch all courses
+    let { data: courses, error, count } = await buildQuery();
+    
+    // Check if is_active column exists by trying to filter by it
+    try {
+      const testQuery = supabase.from('courses').select('id').eq('is_active', true).limit(1);
+      const { error: testError } = await testQuery;
+      if (!testError) {
+        // is_active column exists, so apply the filter
+        ({ data: courses, error, count } = await buildQuery().eq('is_active', true));
+      }
+    } catch (e) {
+      // is_active column doesn't exist, use the query without the filter
+      console.warn('is_active column not found, fetching all courses');
     }
 
     if (error) {
@@ -55,6 +79,11 @@ export async function GET(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    // Debug logging for returned courses
+    console.log(`Returning ${courses?.length || 0} courses. Class levels found:`, 
+      courses?.map(c => c.class_level).filter((v, i, a) => a.indexOf(v) === i) || []
+    );
 
     return NextResponse.json({
       courses,

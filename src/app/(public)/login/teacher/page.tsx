@@ -181,12 +181,7 @@ export default function TeacherLogin() {
           )}
         </motion.div>
 
-        {/* Footer */}
-        <div className="text-center mt-8">
-          <p className="text-sm text-gray-500">
-            © 2024 Yano School. All rights reserved.
-          </p>
-        </div>
+        {/* Footer intentionally removed; global footer handles copyright */}
       </motion.div>
     </div>
   );

@@ -8,6 +8,7 @@ export async function GET() {
       .select(`
         id, 
         name, 
+        session_id,
         is_active, 
         start_date, 
         end_date,
