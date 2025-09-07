@@ -116,97 +116,134 @@ export default function StudentDashboard() {
     }
   };
 
-  // Fetch payment status using the same method as payments page
-  const fetchPaymentStatus = async () => {
-    if (!studentId || !academicContext?.sessionId || !academicContext?.termId) {
-      setPaymentStatus({ status: 'PENDING', amount: 0, displayText: 'PENDING ₦0' });
-      return;
-    }
-
-    try {
-      const url = new URL('/api/students/payment-history', window.location.origin);
-      // Accept studentId or code; pass code for convenience if it looks non-UUID
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-      if (uuidRegex.test(studentId)) {
-        url.searchParams.set('studentId', studentId);
-      } else {
-        url.searchParams.set('studentCode', studentId);
-      }
-      url.searchParams.set('sessionId', academicContext.sessionId);
-      url.searchParams.set('termId', academicContext.termId);
-      
-      const response = await fetch(url.toString(), { cache: 'no-store' });
-      
-      if (!response.ok) {
-        setPaymentStatus({ status: 'PENDING', amount: 0, displayText: 'PENDING ₦0' });
-        return;
-      }
-
-      const data = await response.json();
-      const ledger = data.ledger || [];
-
-      if (ledger.length === 0) {
-        setPaymentStatus({ status: 'PENDING', amount: 0, displayText: 'PENDING ₦0' });
-        return;
-      }
-
-      // Calculate total balance across all purposes
-      const totalBalance = ledger.reduce((sum: number, item: any) => sum + Number(item.balance || 0), 0);
-      const totalCharged = ledger.reduce((sum: number, item: any) => sum + Number(item.total_charged || 0), 0);
-      const totalPaid = ledger.reduce((sum: number, item: any) => sum + Number(item.total_paid || 0), 0);
-
-      let status: 'PAID' | 'OUTSTANDING' | 'PENDING';
-      let displayText: string;
-
-      if (totalPaid >= totalCharged && totalCharged > 0) {
-        status = 'PAID';
-        displayText = 'PAID';
-      } else if (totalPaid > 0 && totalPaid < totalCharged) {
-        status = 'OUTSTANDING';
-        displayText = `OUTSTANDING ₦${totalBalance.toLocaleString()}`;
-      } else {
-        status = 'PENDING';
-        displayText = `PENDING ₦${totalCharged.toLocaleString()}`;
-      }
-
-      setPaymentStatus({ status, amount: totalBalance, displayText });
-    } catch (error) {
-      console.error('Error fetching payment status:', error);
-      setPaymentStatus({ status: 'PENDING', amount: 0, displayText: 'PENDING ₦0' });
-    }
-  };
-
-  // Fetch approved registrations for current term/session and set as current courses
+  // Unified fast fetch for cards: courses, CGPA, payments, today's classes
   useEffect(() => {
-    const fetchApprovedCourses = async () => {
-      if (!studentId || !academicContext?.term || !academicContext?.session) return;
+    const controller = new AbortController();
+    const signal = controller.signal;
+
+    const loadCards = async () => {
+      if (!studentId || !academicContext?.sessionId || !academicContext?.termId) return;
       try {
-        const params = new URLSearchParams();
-        params.append('student_id', studentId);
-        params.append('term', academicContext.term);
-        params.append('session', academicContext.session);
-        params.append('status', 'approved');
-        params.append('limit', '200');
-        const res = await fetch(`/api/courses/registrations?${params.toString()}`, { cache: 'no-store' });
-        if (!res.ok) {
-          setCourses([]);
-          return;
-        }
-        const data = await res.json();
-        const regs = Array.isArray(data.registrations) ? data.registrations : [];
+        // Build requests (endpoints unchanged)
+        const regsParams = new URLSearchParams();
+        regsParams.append('student_id', studentId);
+        if (academicContext?.term) regsParams.append('term', academicContext.term);
+        if (academicContext?.session) regsParams.append('session', academicContext.session);
+        regsParams.append('status', 'approved');
+        regsParams.append('limit', '200');
+        const regsReq = fetch(`/api/courses/registrations?${regsParams.toString()}`, { cache: 'no-store', signal })
+          .then(r => r.ok ? r.json() : { registrations: [] })
+          .catch(() => ({ registrations: [] }));
+
+        const payUrl = new URL('/api/students/payment-history', window.location.origin);
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        if (uuidRegex.test(studentId)) payUrl.searchParams.set('studentId', studentId);
+        else payUrl.searchParams.set('studentCode', studentId);
+        payUrl.searchParams.set('sessionId', academicContext.sessionId);
+        payUrl.searchParams.set('termId', academicContext.termId);
+        const payReq = fetch(payUrl.toString(), { cache: 'no-store', signal })
+          .then(r => r.ok ? r.json() : { ledger: [] })
+          .catch(() => ({ ledger: [] }));
+
+        // CGPA: fetch results for 3 terms in parallel
+        const sessionName = academicContext.session;
+        const terms = ['First Term', 'Second Term', 'Third Term'];
+        const resultsReq = Promise.allSettled(
+          terms.map(t => fetch(`/api/results?student_id=${encodeURIComponent(studentId)}&session=${encodeURIComponent(sessionName)}&term=${encodeURIComponent(t)}`, { signal })
+            .then(r => r.ok ? r.json() : { results: [] })
+            .catch(() => ({ results: [] })))
+        );
+
+        // Timetable for today's classes
+        const s = getStudentSession();
+        const level = s?.class_level || '';
+        const streamVal = s?.stream;
+        const normalizedStream = streamVal ? 
+          (streamVal.toLowerCase() === 'art' || streamVal.toLowerCase() === 'arts' ? 'Art' :
+           streamVal.toLowerCase() === 'commercial' || streamVal.toLowerCase() === 'commerce' ? 'Commercial' :
+           streamVal.toLowerCase() === 'science' || streamVal.toLowerCase() === 'sciences' ? 'Science' : streamVal)
+          : null;
+        const effectiveClass = level && level.startsWith('SS') && normalizedStream ? `${level} ${normalizedStream}` : level;
+        const ttParams = new URLSearchParams({
+          action: 'by_student',
+          session_id: academicContext.sessionId,
+          term_id: academicContext.termId,
+        });
+        if (effectiveClass) ttParams.set('class', effectiveClass);
+        const timetableReq = fetch(`/api/timetables?${ttParams.toString()}`, { cache: 'no-store', signal })
+          .then(r => r.ok ? r.json() : { items: [] })
+          .catch(() => ({ items: [] }));
+
+        const [regsRes, payRes, resultsRes, ttRes] = await Promise.all([
+          regsReq,
+          payReq,
+          resultsReq,
+          timetableReq,
+        ]);
+
+        // Courses
+        const regs = Array.isArray(regsRes.registrations) ? regsRes.registrations : [];
         setCourses(regs);
-      } catch (e) {
-        console.error('Failed to fetch approved courses', e);
+
+        // Payment status
+        const ledger = Array.isArray(payRes.ledger) ? payRes.ledger : [];
+        if (ledger.length === 0) {
+          setPaymentStatus({ status: 'PENDING', amount: 0, displayText: 'PENDING ₦0' });
+        } else {
+          const totalBalance = ledger.reduce((sum: number, item: any) => sum + Number(item.balance || 0), 0);
+          const totalCharged = ledger.reduce((sum: number, item: any) => sum + Number(item.total_charged || 0), 0);
+          const totalPaid = ledger.reduce((sum: number, item: any) => sum + Number(item.total_paid || 0), 0);
+          let status: 'PAID' | 'OUTSTANDING' | 'PENDING';
+          let displayText: string;
+          if (totalPaid >= totalCharged && totalCharged > 0) {
+            status = 'PAID';
+            displayText = 'PAID';
+          } else if (totalPaid > 0 && totalPaid < totalCharged) {
+            status = 'OUTSTANDING';
+            displayText = `OUTSTANDING ₦${totalBalance.toLocaleString()}`;
+          } else {
+            status = 'PENDING';
+            displayText = `PENDING ₦${totalCharged.toLocaleString()}`;
+          }
+          setPaymentStatus({ status, amount: totalBalance, displayText });
+        }
+
+        // CGPA
+        const settled = Array.isArray(resultsRes) ? resultsRes : [];
+        const points: number[] = [];
+        const toPoint = (grade: string): number => {
+          if (!grade) return 0;
+          if (grade.startsWith('A')) return 5.0;
+          if (grade === 'B2') return 4.5;
+          if (grade === 'B3') return 4.0;
+          if (grade === 'C4') return 3.5;
+          if (grade === 'C5') return 3.0;
+          if (grade === 'C6') return 2.5;
+          if (grade === 'D7') return 2.0;
+          if (grade === 'E8') return 1.0;
+          return 0.0;
+        };
+        settled.forEach((res: any) => {
+          const rows = (res?.value?.results || []) as Array<{ grade: string }>;
+          rows.forEach(row => points.push(toPoint(row.grade)));
+        });
+        if (points.length === 0) setCurrentSessionCgpa('0.00');
+        else setCurrentSessionCgpa((points.reduce((a, b) => a + b, 0) / points.length).toFixed(2));
+
+        // Timetable
+        setTimetableItems(Array.isArray(ttRes.items) ? ttRes.items : []);
+      } catch (err) {
+        // Fail-soft defaults
         setCourses([]);
+        setPaymentStatus({ status: 'PENDING', amount: 0, displayText: 'PENDING ₦0' });
+        setCurrentSessionCgpa('0.00');
+        setTimetableItems([]);
       }
     };
-    fetchApprovedCourses();
-  }, [studentId, academicContext?.term, academicContext?.session]);
 
-  // Fetch payment status when academic context changes
-  useEffect(() => {
-    fetchPaymentStatus();
-  }, [studentId, academicContext?.sessionId, academicContext?.termId]);
+    loadCards();
+    return () => controller.abort();
+  }, [studentId, academicContext?.sessionId, academicContext?.termId, academicContext?.session, academicContext?.term]);
 
   useEffect(() => {
     (async () => {
@@ -269,99 +306,15 @@ export default function StudentDashboard() {
     return todaysItems.length;
   };
 
-  // Compute CGPA for current session
+  // Retain timetable live updates listener
   useEffect(() => {
-    const computeSessionCgpa = async () => {
-      const s = getStudentSession();
-      const sessionName = academicContext.session;
-      if (!s?.student_id || !sessionName) {
-        setCurrentSessionCgpa('0.00');
-        return;
-      }
-      try {
-        const terms = ['First Term', 'Second Term', 'Third Term'];
-        const requests = terms.map(t =>
-          fetch(`/api/results?student_id=${encodeURIComponent(s.student_id)}&session=${encodeURIComponent(sessionName)}&term=${encodeURIComponent(t)}`)
-            .then(r => (r.ok ? r.json() : { results: [] }))
-            .catch(() => ({ results: [] }))
-        );
-        const responses = await Promise.all(requests);
-        const points: number[] = [];
-        const toPoint = (grade: string): number => {
-          if (!grade) return 0;
-          if (grade.startsWith('A')) return 5.0;
-          if (grade === 'B2') return 4.5;
-          if (grade === 'B3') return 4.0;
-          if (grade === 'C4') return 3.5;
-          if (grade === 'C5') return 3.0;
-          if (grade === 'C6') return 2.5;
-          if (grade === 'D7') return 2.0;
-          if (grade === 'E8') return 1.0;
-          return 0.0;
-        };
-        responses.forEach(r => {
-          const rows = (r?.results || []) as Array<{ grade: string }>;
-          rows.forEach(row => points.push(toPoint(row.grade)));
-        });
-        if (points.length === 0) {
-          setCurrentSessionCgpa('0.00');
-          return;
-        }
-        const cg = points.reduce((a, b) => a + b, 0) / points.length;
-        setCurrentSessionCgpa(cg.toFixed(2));
-      } catch {
-        setCurrentSessionCgpa('0.00');
-      }
+    const handler = () => {
+      // trigger unified loader by toggling state dependencies via noop set
+      setTimetableItems(prev => [...prev]);
     };
-    computeSessionCgpa();
-  }, [academicContext.session, studentId]);
-
-  // Fetch timetable data for today's classes count
-  useEffect(() => {
-    const fetchTimetable = async () => {
-      if (!academicContext.sessionId || !academicContext.termId || !studentClass) return;
-      
-      try {
-        const s = getStudentSession();
-        const level = s?.class_level || '';
-        const stream = s?.stream;
-        
-        // Normalize stream
-        const normalizedStream = stream ? 
-          (stream.toLowerCase() === 'art' || stream.toLowerCase() === 'arts' ? 'Art' :
-           stream.toLowerCase() === 'commercial' || stream.toLowerCase() === 'commerce' ? 'Commercial' :
-           stream.toLowerCase() === 'science' || stream.toLowerCase() === 'sciences' ? 'Science' : stream) 
-          : null;
-        
-        const effectiveClass = level && level.startsWith('SS') && normalizedStream ? 
-          `${level} ${normalizedStream}` : level;
-        
-        const params = new URLSearchParams({
-          action: 'by_student',
-          session_id: academicContext.sessionId,
-          term_id: academicContext.termId,
-        });
-        if (effectiveClass) params.set('class', effectiveClass);
-        
-        const res = await fetch(`/api/timetables?${params.toString()}`, { cache: 'no-store' });
-        if (res.ok) {
-          const data = await res.json();
-          setTimetableItems(data.items || []);
-        } else {
-          setTimetableItems([]);
-        }
-      } catch {
-        setTimetableItems([]);
-      }
-    };
-    
-    fetchTimetable();
-    
-    // Listen for timetable updates
-    const handler = () => fetchTimetable();
     window.addEventListener('timetableUpdated', handler as EventListener);
     return () => window.removeEventListener('timetableUpdated', handler as EventListener);
-  }, [academicContext.sessionId, academicContext.termId, studentClass]);
+  }, []);
 
   // Helper functions for term information
   const getNextTerm = (currentTerm: string): string => {

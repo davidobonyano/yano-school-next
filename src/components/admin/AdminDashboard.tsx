@@ -51,7 +51,11 @@ export default function AdminDashboard() {
   const fetchDashboardStats = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/admin/dashboard/stats');
+      const params = new URLSearchParams();
+      if (selectedSession) params.set('sessionId', selectedSession);
+      if (selectedTerm) params.set('termId', selectedTerm);
+      const url = `/api/admin/dashboard/stats${params.toString() ? `?${params.toString()}` : ''}`;
+      const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
         setStats(data.stats);
@@ -103,6 +107,8 @@ export default function AdminDashboard() {
   // Change session
   const changeSession = async (sessionId: string) => {
     try {
+      // Reset revenue immediately on context change request
+      setStats(prev => prev ? { ...prev, total_revenue: 0 } : prev);
       const response = await fetch('/api/settings/academic-context', {
         method: 'POST',
         headers: {
@@ -135,6 +141,8 @@ export default function AdminDashboard() {
   // Change term
   const changeTerm = async (termId: string) => {
     try {
+      // Reset revenue immediately on context change request
+      setStats(prev => prev ? { ...prev, total_revenue: 0 } : prev);
       const response = await fetch('/api/settings/academic-context', {
         method: 'POST',
         headers: {
@@ -168,6 +176,13 @@ export default function AdminDashboard() {
     fetchDashboardStats();
     fetchSessionsAndTerms();
   }, []);
+
+  // Refetch when filters change
+  useEffect(() => {
+    if (selectedSession || selectedTerm) {
+      fetchDashboardStats();
+    }
+  }, [selectedSession, selectedTerm]);
 
   // Filter terms for selected session
   const filteredTerms = terms.filter(term => {

@@ -19,7 +19,8 @@ import {
   faReceipt,
   faChartBar,
   faTimes,
-  faInfoCircle
+  faInfoCircle,
+  faSpinner
 } from '@fortawesome/free-solid-svg-icons';
 
 type FeeItem = {
@@ -78,7 +79,7 @@ type Student = {
 
 export default function AdminPaymentsPage() {
   const { academicContext, isLoading: contextLoading } = useGlobalAcademicContext();
-  const [activeTab, setActiveTab] = useState<'fees' | 'payments' | 'consolidated' | 'summary' | 'history'>('consolidated');
+  const [activeTab, setActiveTab] = useState<'fees' | 'payments' | 'consolidated' | 'summary'>('consolidated');
 
   // Use global academic context
   const sessionId = academicContext.sessionId;
@@ -105,6 +106,9 @@ export default function AdminPaymentsPage() {
     message: '',
     type: 'success'
   });
+
+  // Local loading state for sync action
+  const [syncingCharges, setSyncingCharges] = useState(false);
 
   // Consolidated payment view state
   const [consolidatedData, setConsolidatedData] = useState<any>(null);
@@ -174,6 +178,7 @@ export default function AdminPaymentsPage() {
   async function syncStudentCharges() {
     if (!canQuery) return;
     try {
+      setSyncingCharges(true);
       const res = await fetch('/api/admin/update-student-charges', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -194,6 +199,8 @@ export default function AdminPaymentsPage() {
       }
     } catch (e) {
       showToast((e as Error).message, 'error');
+    } finally {
+      setSyncingCharges(false);
     }
   }
 
@@ -214,6 +221,33 @@ export default function AdminPaymentsPage() {
       
       setConsolidatedData(json);
       setSelectedStudentForConsolidated(student);
+    } catch (e) {
+      showToast((e as Error).message, 'error');
+    } finally {
+      setLoadingConsolidated(false);
+    }
+  }
+
+  // Load consolidated payment data by student id (without manual selection)
+  async function loadConsolidatedByStudentId(studentId: string) {
+    if (!canQuery || !studentId) return;
+    setLoadingConsolidated(true);
+    try {
+      const params = new URLSearchParams({
+        studentId,
+        sessionId: academicContext.sessionId!,
+        termId: academicContext.termId!
+      });
+
+      const res = await fetch(`/api/admin/student-payment-summary?${params.toString()}`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || 'Failed to load payment summary');
+
+      // Use returned student payload to set selection, and set consolidated data
+      const returnedStudent = json.student as Student;
+      setSelectedStudentForConsolidated(returnedStudent);
+      setConsolidatedData(json);
+      setActiveTab('consolidated');
     } catch (e) {
       showToast((e as Error).message, 'error');
     } finally {
@@ -390,6 +424,12 @@ export default function AdminPaymentsPage() {
       // Show success toast
       showToast('Payment recorded successfully!', 'success');
       
+      // Auto-show consolidated summary for the recorded student
+      const studentIdForSummary = recordForm.studentId;
+      if (studentIdForSummary) {
+        loadConsolidatedByStudentId(studentIdForSummary);
+      }
+
       // Reset form and reload data
       setRecordForm({ studentId: '', studentName: '', purpose: 'Tuition', amount: '', paidOn: new Date().toISOString().split('T')[0], reference: '' });
       await loadSummary();
@@ -488,11 +528,20 @@ export default function AdminPaymentsPage() {
                 <div className="flex gap-2">
                   <button
                     onClick={syncStudentCharges}
-                    disabled={!canQuery}
+                    disabled={!canQuery || syncingCharges}
                     className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
                   >
-                    <FontAwesomeIcon icon={faCheckCircle} />
-                    Sync Student Charges
+                    {syncingCharges ? (
+                      <>
+                        <FontAwesomeIcon icon={faSpinner} className="animate-spin" />
+                        Syncing...
+                      </>
+                    ) : (
+                      <>
+                        <FontAwesomeIcon icon={faCheckCircle} />
+                        Sync Student Charges
+                      </>
+                    )}
                   </button>
                   <button
                     onClick={loadFees}
@@ -956,16 +1005,7 @@ export default function AdminPaymentsPage() {
             </div>
           )}
 
-          {/* Payment History Tab */}
-          {activeTab === 'history' && (
-            <div className="space-y-6">
-              <h3 className="text-lg font-semibold">Payment History</h3>
-              <div className="bg-white border border-gray-200 rounded-lg p-6">
-                <p className="text-gray-600">Payment history across all sessions and terms will be displayed here.</p>
-                <p className="text-sm text-gray-500 mt-2">This feature allows admins to view historical payment data and generate reports.</p>
-              </div>
-            </div>
-          )}
+          
         </div>
       </div>
 

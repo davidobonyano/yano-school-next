@@ -3,6 +3,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faSearch, faFilter, faTrash, faGraduationCap } from '@fortawesome/free-solid-svg-icons';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { supabase, StudentRow } from '@/lib/supabase';
 
 type ClassLevel =
@@ -25,6 +36,8 @@ export default function StudentsPage() {
   const [existingIds, setExistingIds] = useState<string[]>([]);
   const [allowReassignId, setAllowReassignId] = useState(false);
   const [selectedCustomId, setSelectedCustomId] = useState<string>('');
+  const [deleteTarget, setDeleteTarget] = useState<StudentRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     const fetchStudents = async () => {
@@ -62,10 +75,13 @@ export default function StudentsPage() {
     });
   }, [students, searchTerm, classFilter, streamFilter, statusFilter]);
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this student?')) return;
-    await supabase.from('school_students').delete().eq('id', id);
-    setStudents(prev => prev.filter(s => s.id !== id));
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    await supabase.from('school_students').delete().eq('id', deleteTarget.id);
+    setStudents(prev => prev.filter(s => s.id !== deleteTarget.id));
+    setDeleting(false);
+    setDeleteTarget(null);
   };
 
   const openEdit = (s: StudentRow) => {
@@ -262,13 +278,32 @@ export default function StudentsPage() {
                       >
                         Edit
                       </button>
-                      <button
-                        onClick={() => handleDelete(student.id)}
-                        className="text-red-600 hover:text-red-900"
-                        title="Delete"
-                      >
-                        <FontAwesomeIcon icon={faTrash} className="w-4 h-4" />
-                      </button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <button
+                            onClick={() => setDeleteTarget(student)}
+                            className="text-red-600 hover:text-red-900"
+                            title="Delete"
+                          >
+                            <FontAwesomeIcon icon={faTrash} className="w-4 h-4" />
+                          </button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete student?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action cannot be undone. This will permanently delete
+                              {` ${deleteTarget?.full_name || 'this student'}`} and remove their data.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel onClick={() => setDeleteTarget(null)}>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={confirmDelete} disabled={deleting}>
+                              {deleting ? 'Deleting…' : 'Delete'}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </td>
                 </tr>

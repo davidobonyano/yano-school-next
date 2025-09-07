@@ -15,16 +15,17 @@ export async function GET(request: Request) {
   // Aggregate expected vs collected per class level
   const { data: students, error: studentsErr } = await supabase
     .from('school_students')
-    .select('id, student_id, full_name, class_level');
+    .select('id, student_id, full_name, class_level, stream');
   if (studentsErr) return NextResponse.json({ error: studentsErr.message }, { status: 500 });
 
-  // charges per student
-  const { data: charges, error: chargesErr } = await supabase
-    .from('student_charges')
-    .select('student_id, purpose, amount')
+  // Expected per student from fee_structures (no dependency on student_charges)
+  const { data: feeStructures, error: feeErr } = await supabase
+    .from('fee_structures')
+    .select('purpose, amount, class_level, stream, is_active')
     .eq('session_id', sessionId)
-    .eq('term_id', termId);
-  if (chargesErr) return NextResponse.json({ error: chargesErr.message }, { status: 500 });
+    .eq('term_id', termId)
+    .eq('is_active', true);
+  if (feeErr) return NextResponse.json({ error: feeErr.message }, { status: 500 });
 
   // payments per student
   const { data: payments, error: paymentsErr } = await supabase
@@ -34,19 +35,33 @@ export async function GET(request: Request) {
     .eq('term_id', termId);
   if (paymentsErr) return NextResponse.json({ error: paymentsErr.message }, { status: 500 });
 
-  const byStudent = new Map<string, { classLevel: string | null; studentId: string; studentName: string; expected: number; paid: number }>();
+  const byStudent = new Map<string, { classLevel: string | null; stream: string | null; studentId: string; studentName: string; expected: number; paid: number }>();
   for (const s of students ?? []) {
-    byStudent.set(s.id, { 
-      classLevel: s.class_level ?? null, 
-      studentId: s.student_id,
-      studentName: s.full_name,
-      expected: 0, 
-      paid: 0 
+    byStudent.set(s.id, {
+      classLevel: (s as any).class_level ?? null,
+      stream: (s as any).stream ?? null,
+      studentId: (s as any).student_id,
+      studentName: (s as any).full_name,
+      expected: 0,
+      paid: 0
     });
   }
-  for (const c of charges ?? []) {
-    const entry = byStudent.get(c.student_id);
-    if (entry) entry.expected += Number(c.amount || 0);
+  // Compute expected by matching fee structures to each student
+  for (const [sid, entry] of byStudent.entries()) {
+    const feesForStudent = (feeStructures ?? []).filter(f => {
+      const fClassRaw = (f as any).class_level as string | null | undefined;
+      const fStreamRaw = (f as any).stream as string | null | undefined;
+      const studentClassRaw = entry.classLevel as string | null | undefined;
+      const studentStreamRaw = entry.stream as string | null | undefined;
+
+      const norm = (v: string | null | undefined) => (v ?? '').toString().trim().toLowerCase();
+      const matchesClass = norm(fClassRaw) === norm(studentClassRaw);
+      const matchesStream = fStreamRaw == null || norm(fStreamRaw) === norm(studentStreamRaw);
+      return matchesClass && matchesStream;
+    });
+    const expectedSum = feesForStudent.reduce((acc, f: any) => acc + Number(f.amount || 0), 0);
+    entry.expected += expectedSum;
+    byStudent.set(sid, entry);
   }
   for (const p of payments ?? []) {
     const entry = byStudent.get(p.student_id);

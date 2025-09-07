@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 
 export default function StudentRegister() {
+  const router = useRouter();
   const [studentId, setStudentId] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -80,9 +82,8 @@ export default function StudentRegister() {
         setMessage(data.error || 'Registration failed');
         return;
       }
-      setMessage('Password set successfully. You can now log in.');
-      setPassword('');
-      setConfirmPassword('');
+      setMessage('Password set successfully. Redirecting to login...');
+      setTimeout(() => router.push('/login'), 1000);
     } catch (err: any) {
       setMessage(err?.message || 'Registration error');
     }

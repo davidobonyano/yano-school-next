@@ -112,16 +112,45 @@ begin
     select session_id into prev_session from public.academic_terms where id = prev_term;
   end if;
 
-  -- Insert carry-over charges for balances > 0 (only unpaid amounts)
+  -- Insert carry-over charges for balances > 0 (only unpaid amounts),
+  -- computed directly from student_charges minus payment_records
   insert into student_charges (student_id, session_id, term_id, term_name, purpose, description, amount, carried_over)
-  select pl.student_id, target_session, target_term, current_term_name, pl.purpose, 
-         'Previous Balance (' || (select name from public.academic_terms where id = prev_term) || ')', 
-         pl.balance, true
-  from payment_ledgers pl
-  where pl.session_id = prev_session and pl.term_id = prev_term and pl.balance > 0
+  select
+    sc.student_id,
+    target_session,
+    target_term,
+    current_term_name,
+    sc.purpose,
+    'Previous Balance (' || (select name from public.academic_terms where id = prev_term) || ')',
+    balance_due,
+    true
+  from (
+    select
+      sc.student_id,
+      sc.purpose,
+      greatest(sum(sc.amount) - coalesce((
+        select sum(pr.amount)
+        from payment_records pr
+        where pr.student_id = sc.student_id
+          and pr.session_id = prev_session
+          and pr.term_id = prev_term
+          and pr.purpose = sc.purpose
+      ), 0), 0) as balance_due
+    from student_charges sc
+    where sc.session_id = prev_session
+      and sc.term_id = prev_term
+    group by sc.student_id, sc.purpose
+    having greatest(sum(sc.amount) - coalesce((
+      select sum(pr.amount)
+      from payment_records pr
+      where pr.student_id = sc.student_id
+        and pr.session_id = prev_session
+        and pr.term_id = prev_term
+        and pr.purpose = sc.purpose
+    ), 0), 0) > 0
+  ) balances
+  join student_charges sc on sc.student_id = balances.student_id and sc.purpose = balances.purpose
   on conflict do nothing;
-
-  refresh materialized view concurrently payment_ledgers;
 end $$;
 
 -- Helper function to refresh payment ledgers after payments

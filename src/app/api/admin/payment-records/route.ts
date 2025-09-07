@@ -8,6 +8,7 @@ export async function GET(request: Request) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { searchParams } = new URL(request.url);
   const studentId = searchParams.get('studentId');
+  const studentCode = searchParams.get('studentCode');
   const sessionId = searchParams.get('sessionId');
   const termId = searchParams.get('termId');
   const purpose = searchParams.get('purpose');
@@ -21,6 +22,7 @@ export async function GET(request: Request) {
       academic_terms!inner(name)
     `);
   if (studentId) query = query.eq('student_id', studentId);
+  if (studentCode) query = query.eq('school_students.student_id', studentCode);
   if (sessionId) query = query.eq('session_id', sessionId);
   if (termId) query = query.eq('term_id', termId);
   if (purpose) query = query.eq('purpose', purpose);

@@ -1,109 +1,138 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
-// Read-only: returns charges, payments, and balances for a student across session/term, including carried-over items
+// GET /api/students/payment-history?studentId=<uuid>|&studentCode=<text>&sessionId=<uuid>&termId=<uuid>
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const rawStudent = searchParams.get('studentId') || searchParams.get('studentCode');
-  const sessionId = searchParams.get('sessionId') || undefined;
-  const termId = searchParams.get('termId') || undefined;
-  if (!rawStudent) return NextResponse.json({ error: 'studentId (uuid) or studentCode required' }, { status: 400 });
+  try {
+    const { searchParams } = new URL(request.url);
 
-  // Accept either UUID or student code (e.g., YAN006). If not a UUID, resolve to uuid.
-  let studentUuid = rawStudent;
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  if (!uuidRegex.test(rawStudent)) {
-    const { data: studentRec, error: stuErr } = await supabase
-      .from('school_students')
-      .select('id')
-      .eq('student_id', rawStudent)
-      .maybeSingle();
-    if (stuErr) return NextResponse.json({ error: stuErr.message }, { status: 500 });
-    if (!studentRec) return NextResponse.json({ error: 'Student not found' }, { status: 404 });
-    studentUuid = studentRec.id as unknown as string;
+    const studentIdParam = searchParams.get('studentId');
+    const studentCodeParam = searchParams.get('studentCode');
+    const sessionId = searchParams.get('sessionId');
+    const termId = searchParams.get('termId');
+
+    if (!studentIdParam && !studentCodeParam) {
+      return NextResponse.json({ error: 'studentId or studentCode is required' }, { status: 400 });
+    }
+
+    // Resolve student UUID from either direct id or student code
+    let studentUuid: string | null = studentIdParam;
+    if (!studentUuid && studentCodeParam) {
+      const { data: studentRow, error: studentErr } = await supabase
+        .from('school_students')
+        .select('id')
+        .eq('student_id', studentCodeParam)
+        .maybeSingle();
+      if (studentErr) {
+        return NextResponse.json({ error: studentErr.message }, { status: 500 });
+      }
+      if (!studentRow?.id) {
+        return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+      }
+      studentUuid = studentRow.id as string;
+    }
+
+    // Fetch student charges
+    let chargesQuery = supabase
+      .from('student_charges')
+      .select('*')
+      .eq('student_id', studentUuid as string);
+    if (sessionId) chargesQuery = chargesQuery.eq('session_id', sessionId);
+    if (termId) chargesQuery = chargesQuery.eq('term_id', termId);
+    const { data: charges, error: chargesError } = await chargesQuery.order('created_at', { ascending: true });
+    if (chargesError) {
+      return NextResponse.json({ error: chargesError.message }, { status: 500 });
+    }
+
+    // Fetch payment records with enriched term/session names
+    let paymentsQuery = supabase
+      .from('payment_records')
+      .select('*, academic_terms:term_id(name), academic_sessions:session_id(name)')
+      .eq('student_id', studentUuid as string);
+    if (sessionId) paymentsQuery = paymentsQuery.eq('session_id', sessionId);
+    if (termId) paymentsQuery = paymentsQuery.eq('term_id', termId);
+    const { data: rawPayments, error: paymentsError } = await paymentsQuery.order('paid_on', { ascending: false });
+    if (paymentsError) {
+      return NextResponse.json({ error: paymentsError.message }, { status: 500 });
+    }
+    const payments = (rawPayments || []).map((p: any) => ({
+      ...p,
+      term_name: p.academic_terms?.name || null,
+      session_name: p.academic_sessions?.name || null
+    }));
+
+    // Compute ledger summary from charges and payments (no dependency on materialized view)
+    type LedgerAccumulator = Record<string, {
+      student_id: string;
+      session_id: string;
+      term_id: string;
+      term_name?: string | null;
+      purpose: string;
+      total_charged: number;
+      total_paid: number;
+      balance: number;
+    }>;
+
+    const ledgerAccumulator: LedgerAccumulator = {};
+
+    // Seed from charges
+    (charges || []).forEach((c: any) => {
+      const key = `${c.session_id}|${c.term_id}|${c.purpose}`;
+      if (!ledgerAccumulator[key]) {
+        ledgerAccumulator[key] = {
+          student_id: studentUuid as string,
+          session_id: c.session_id,
+          term_id: c.term_id,
+          term_name: c.term_name ?? null,
+          purpose: c.purpose,
+          total_charged: 0,
+          total_paid: 0,
+          balance: 0,
+        };
+      }
+      ledgerAccumulator[key].total_charged += Number(c.amount || 0);
+    });
+
+    // Add payments
+    (payments || []).forEach((p: any) => {
+      const key = `${p.session_id}|${p.term_id}|${p.purpose}`;
+      if (!ledgerAccumulator[key]) {
+        ledgerAccumulator[key] = {
+          student_id: studentUuid as string,
+          session_id: p.session_id,
+          term_id: p.term_id,
+          term_name: null,
+          purpose: p.purpose,
+          total_charged: 0,
+          total_paid: 0,
+          balance: 0,
+        };
+      }
+      ledgerAccumulator[key].total_paid += Number(p.amount || 0);
+    });
+
+    // Finalize balance
+    const computedLedger = Object.values(ledgerAccumulator).map(item => ({
+      ...item,
+      balance: Number(item.total_charged) - Number(item.total_paid)
+    }));
+
+    return NextResponse.json({
+      charges: charges || [],
+      payments: payments || [],
+      ledger: computedLedger
+    });
+  } catch (err: any) {
+    return NextResponse.json({ error: err?.message || 'Unexpected error' }, { status: 500 });
   }
-
-  // Get charges with term names
-  let chargesQuery = supabase
-    .from('student_charges')
-    .select(`
-      *,
-      academic_terms!inner(name)
-    `)
-    .eq('student_id', studentUuid);
-  if (sessionId) chargesQuery = chargesQuery.eq('session_id', sessionId);
-  if (termId) chargesQuery = chargesQuery.eq('term_id', termId);
-  const { data: charges, error: chargesErr } = await chargesQuery.order('created_at', { ascending: true });
-  if (chargesErr) return NextResponse.json({ error: chargesErr.message }, { status: 500 });
-
-  // Get payments with term names
-  let paymentsQuery = supabase
-    .from('payment_records')
-    .select(`
-      *,
-      academic_terms!inner(name)
-    `)
-    .eq('student_id', studentUuid);
-  if (sessionId) paymentsQuery = paymentsQuery.eq('session_id', sessionId);
-  if (termId) paymentsQuery = paymentsQuery.eq('term_id', termId);
-  const { data: payments, error: paymentsErr } = await paymentsQuery.order('paid_on', { ascending: true });
-  if (paymentsErr) return NextResponse.json({ error: paymentsErr.message }, { status: 500 });
-
-  // Aggregate balances by session/term/purpose on the fly (no dependency on materialized view)
-  type Key = string;
-  const makeKey = (s: string, t: string, p: string): Key => `${s}::${t}::${p}`;
-  const parsedCharges = (charges ?? []) as Array<{ session_id: string; term_id: string; purpose: string; amount: number; academic_terms: { name: string } }>; 
-  const parsedPayments = (payments ?? []) as Array<{ session_id: string; term_id: string; purpose: string; amount: number; academic_terms: { name: string } }>;
-  const ledgerMap = new Map<Key, { student_id: string; session_id: string; term_id: string; purpose: string; term_name: string; total_charged: number; total_paid: number; }>();
-  
-  for (const c of parsedCharges) {
-    const k = makeKey(c.session_id, c.term_id, c.purpose);
-    const row = ledgerMap.get(k) || { 
-      student_id: studentUuid, 
-      session_id: c.session_id, 
-      term_id: c.term_id, 
-      purpose: c.purpose, 
-      term_name: c.academic_terms?.name || '',
-      total_charged: 0, 
-      total_paid: 0 
-    };
-    row.total_charged += Number(c.amount || 0);
-    ledgerMap.set(k, row);
-  }
-  
-  for (const p of parsedPayments) {
-    const k = makeKey(p.session_id, p.term_id, p.purpose);
-    const row = ledgerMap.get(k) || { 
-      student_id: studentUuid, 
-      session_id: p.session_id, 
-      term_id: p.term_id, 
-      purpose: p.purpose, 
-      term_name: p.academic_terms?.name || '',
-      total_charged: 0, 
-      total_paid: 0 
-    };
-    row.total_paid += Number(p.amount || 0);
-    ledgerMap.set(k, row);
-  }
-  
-  const computedLedger = Array.from(ledgerMap.values()).map(r => ({ ...r, balance: Math.max(0, r.total_charged - r.total_paid) }));
-
-  // Flatten charges and payments to include term names
-  const flattenedCharges = (charges ?? []).map(c => ({
-    ...c,
-    term_name: c.academic_terms?.name || ''
-  }));
-  
-  const flattenedPayments = (payments ?? []).map(p => ({
-    ...p,
-    term_name: p.academic_terms?.name || ''
-  }));
-
-  return NextResponse.json({ 
-    charges: flattenedCharges, 
-    payments: flattenedPayments, 
-    ledger: computedLedger 
-  });
 }
 
- 
+// Support HEAD to avoid 405s from HEAD requests
+export async function HEAD() {
+  return new NextResponse(null, { status: 200 });
+}
+
+// Support OPTIONS for CORS/preflight and generic clients
+export async function OPTIONS() {
+  return NextResponse.json({}, { status: 200 });
+}

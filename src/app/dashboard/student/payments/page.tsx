@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { getStudentSession } from '@/lib/student-session';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
@@ -86,6 +86,7 @@ export default function StudentPaymentsPage() {
   const session = mounted ? getStudentSession() : null;
   const studentId = session?.student_id || '';
   const canQuery = useMemo(() => mounted && Boolean(studentId), [mounted, studentId]);
+  const didAutoSelectRef = useRef(false);
 
   // Load academic context
   async function loadAcademicContext() {
@@ -180,32 +181,33 @@ export default function StudentPaymentsPage() {
     loadAcademicContext();
   }, []);
 
-  // Auto-select current session/term when available
+  // Auto-select current session/term ONCE when available
   useEffect(() => {
-    if (sessions.length > 0 && terms.length > 0) {
-      const currentSession = sessions.find(s => s.is_active);
-      const currentTerm = terms.find(t => t.is_active);
-      
-      if (currentSession && !sessionId) {
-        setSessionId(currentSession.id);
-        console.log('Auto-selected session:', currentSession.name);
-      }
-      
-      if (currentTerm && !termId) {
-        setTermId(currentTerm.id);
-        console.log('Auto-selected term:', currentTerm.name);
-      }
+    if (didAutoSelectRef.current) return;
+    if (sessions.length === 0 || terms.length === 0) return;
+    const currentSession = sessions.find(s => s.is_active);
+    const currentTerm = terms.find(t => t.is_active);
+    if (currentSession && !sessionId) {
+      setSessionId(currentSession.id);
+      console.log('Auto-selected session:', currentSession.name);
     }
-  }, [sessions, terms, sessionId, termId]);
+    if (currentTerm && !termId) {
+      setTermId(currentTerm.id);
+      console.log('Auto-selected term:', currentTerm.name);
+    }
+    didAutoSelectRef.current = true;
+  }, [sessions, terms]);
 
   // Reset term when session changes
   useEffect(() => {
-    if (sessionId && terms.length > 0) {
-      const sessionTerms = terms.filter(t => t.session_id === sessionId);
-      const currentTerm = sessionTerms.find(t => t.is_active);
-      if (currentTerm && termId !== currentTerm.id) {
-        setTermId(currentTerm.id);
-      }
+    if (!sessionId || terms.length === 0) return;
+    const sessionTerms = terms.filter(t => t.session_id === sessionId);
+    // If user chose All Terms (termId === ''), keep it; don't auto-select
+    if (termId === '') return;
+    // If the currently selected term does not belong to the selected session, clear it (to All)
+    const termStillValid = sessionTerms.some(t => t.id === termId);
+    if (!termStillValid) {
+      setTermId('');
     }
   }, [sessionId, terms, termId]);
 
@@ -373,23 +375,44 @@ export default function StudentPaymentsPage() {
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {charges.map((charge) => (
-                          <tr key={charge.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{charge.purpose}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{charge.description || '-'}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{charge.term_name || '-'}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">₦{Number(charge.amount).toLocaleString()}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-center">
-                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                charge.carried_over 
-                                  ? 'bg-orange-100 text-orange-800' 
-                                  : 'bg-blue-100 text-blue-800'
-                              }`}>
-                                {charge.carried_over ? 'Previous Balance' : 'Current Term'}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
+                        {(() => {
+                          // Group charges by purpose for the selected term, showing current fee and previous debt
+                          const byPurpose: Record<string, { termName: string; currentAmount: number; debtAmount: number }>
+                            = {};
+                          const filtered = charges.filter(c => !termId || c.term_id === termId);
+                          filtered.forEach(c => {
+                            const key = c.purpose;
+                            if (!byPurpose[key]) {
+                              byPurpose[key] = { termName: c.term_name || '-', currentAmount: 0, debtAmount: 0 };
+                            }
+                            if (c.carried_over) byPurpose[key].debtAmount += Number(c.amount || 0);
+                            else byPurpose[key].currentAmount += Number(c.amount || 0);
+                          });
+                          const rows = Object.entries(byPurpose);
+                          if (rows.length === 0) {
+                            return (
+                              <tr>
+                                <td className="px-6 py-4 text-sm text-gray-500" colSpan={5}>No charges for selected filters</td>
+                              </tr>
+                            );
+                          }
+                          return rows.map(([purpose, info]) => (
+                            <tr key={purpose} className="hover:bg-gray-50">
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{purpose}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{info.termName ? `${info.termName} Fee` : '-'}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{info.termName || '-'}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                                {`₦${info.currentAmount.toLocaleString()}`}
+                                {info.debtAmount > 0 ? (
+                                  <span className="text-gray-500"> {` (debt ₦${info.debtAmount.toLocaleString()} from last term)`}</span>
+                                ) : null}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-center">
+                                <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">Summary</span>
+                              </td>
+                            </tr>
+                          ));
+                        })()}
                       </tbody>
                     </table>
                   </div>

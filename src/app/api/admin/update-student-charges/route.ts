@@ -14,6 +14,15 @@ export async function POST(request: Request) {
   }
 
   try {
+    // Resolve term name once
+    const { data: termRow, error: termErr } = await supabase
+      .from('academic_terms')
+      .select('name')
+      .eq('id', termId)
+      .maybeSingle();
+    if (termErr) throw termErr;
+    const termName = termRow?.name || null;
+
     // Get all fee structures for this session/term
     const { data: feeStructures, error: feeError } = await supabase
       .from('fee_structures')
@@ -24,54 +33,95 @@ export async function POST(request: Request) {
 
     if (feeError) throw feeError;
 
-    let updatedCount = 0;
+    if (!feeStructures || feeStructures.length === 0) {
+      return NextResponse.json({ message: 'No active fee structures to sync', updatedCount: 0 });
+    }
 
-    // Update student charges for each fee structure
+    // Build distinct class_level/stream keys to minimize student queries
+    const feeKeys = Array.from(new Set(
+      feeStructures.map(f => `${String(f.class_level)}||${f.stream === null ? 'NULL' : String(f.stream)}`)
+    ));
+
+    // Fetch students for each key in parallel
+    const studentsByKey = new Map<string, { id: string }[]>();
+    await Promise.all(
+      feeKeys.map(async (key) => {
+        const [classLevel, streamRaw] = key.split('||');
+        let studentsQuery = supabase
+          .from('school_students')
+          .select('id')
+          .eq('class_level', classLevel);
+        if (streamRaw === 'NULL') {
+          studentsQuery = studentsQuery.is('stream', null);
+        } else {
+          studentsQuery = studentsQuery.eq('stream', streamRaw);
+        }
+        const { data, error } = await studentsQuery;
+        if (error) throw error;
+        studentsByKey.set(key, data ?? []);
+      })
+    );
+
+    // Build all upsert rows in memory, combining duplicates on conflict key by summing amount
+    const combinedByKey = new Map<string, any>();
+    const nowIso = new Date().toISOString();
     for (const fee of feeStructures) {
-      // First, get all students matching this fee structure
-      const { data: students, error: studentsError } = await supabase
-        .from('school_students')
-        .select('id')
-        .eq('class_level', fee.class_level)
-        .or(`stream.is.null,stream.eq.${fee.stream || 'null'}`);
-
-      if (studentsError) throw studentsError;
-
-      if (students && students.length > 0) {
-        const studentIds = students.map(s => s.id);
-        
-        // Update student charges for these students
-        const { error: updateError } = await supabase
-          .from('student_charges')
-          .update({ 
-            amount: fee.amount,
-            updated_at: new Date().toISOString()
-          })
-          .eq('session_id', sessionId)
-          .eq('term_id', termId)
-          .eq('purpose', fee.purpose)
-          .in('student_id', studentIds);
-
-        if (updateError) throw updateError;
-        
-        // Count affected rows
-        const { count } = await supabase
-          .from('student_charges')
-          .select('*', { count: 'exact', head: true })
-          .eq('session_id', sessionId)
-          .eq('term_id', termId)
-          .eq('purpose', fee.purpose)
-          .in('student_id', studentIds);
-
-        updatedCount += count || 0;
+      const key = `${String(fee.class_level)}||${fee.stream === null ? 'NULL' : String(fee.stream)}`;
+      const students = studentsByKey.get(key) ?? [];
+      if (students.length === 0) continue;
+      for (const s of students) {
+        const conflictKey = `${s.id}||${sessionId}||${termId}||${fee.purpose}||false||Current Term Fee`;
+        const existing = combinedByKey.get(conflictKey);
+        if (existing) {
+          existing.amount = Number(existing.amount) + Number(fee.amount);
+          existing.updated_at = nowIso;
+        } else {
+          combinedByKey.set(conflictKey, {
+            student_id: s.id,
+            session_id: sessionId,
+            term_id: termId,
+            term_name: termName,
+            purpose: fee.purpose,
+            description: 'Current Term Fee',
+            amount: Number(fee.amount),
+            carried_over: false,
+            updated_at: nowIso
+          });
+        }
       }
     }
 
-    // Refresh payment ledgers to reflect changes
-    await supabase.rpc('refresh_payment_ledgers');
+    const allRows = Array.from(combinedByKey.values());
+
+    // No rows to upsert
+    if (allRows.length === 0) {
+      return NextResponse.json({ message: 'No matching students for fee structures', updatedCount: 0 });
+    }
+
+    // Upsert in chunks to reduce round trips and payload size
+    const chunkSize = 1000;
+    for (let i = 0; i < allRows.length; i += chunkSize) {
+      const chunk = allRows.slice(i, i + chunkSize);
+      const { error: upsertErr } = await supabase
+        .from('student_charges')
+        .upsert(chunk, {
+          onConflict: 'student_id,session_id,term_id,purpose,carried_over,description'
+        });
+      if (upsertErr) throw upsertErr;
+    }
+
+    // After syncing current term charges, also carry over unpaid balances
+    // from the previous term/session into this term as separate charge rows.
+    const { error: carryErr } = await supabase.rpc('carry_over_unpaid_balances', {
+      target_session: sessionId,
+      target_term: termId
+    });
+    if (carryErr) throw carryErr;
+
+    const updatedCount = allRows.length;
 
     return NextResponse.json({ 
-      message: `Updated ${updatedCount} student charges to match current fee structures`,
+      message: `Updated ${updatedCount} student charges and carried over previous balances`,
       updatedCount 
     });
 
