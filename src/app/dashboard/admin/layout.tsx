@@ -337,7 +337,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               </div>
               
               {/* Navigation */}
-              <nav className="flex-1 p-4 space-y-2">
+              <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
                 {navItems.map((item, index) => (
                   <motion.a
                     key={item.href}

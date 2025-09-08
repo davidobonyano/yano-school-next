@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Search, Eye, EyeOff, RefreshCw, Key } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Search, Eye, EyeOff, RefreshCw, Key, Copy } from 'lucide-react';
 
 interface StudentPassword {
   id: string;
@@ -27,6 +28,11 @@ export default function PasswordsPage() {
   const [showPasswords, setShowPasswords] = useState(false);
   const [resettingPassword, setResettingPassword] = useState<string | null>(null);
   const [message, setMessage] = useState('');
+  const [passwordModal, setPasswordModal] = useState<{isOpen: boolean, password: string, studentName: string}>({
+    isOpen: false,
+    password: '',
+    studentName: ''
+  });
 
   // Show message function
   const showMessage = (text: string, type: 'success' | 'error' = 'success') => {
@@ -67,7 +73,16 @@ export default function PasswordsPage() {
 
       if (response.ok) {
         const data = await response.json();
-        showMessage(`Password reset successfully. New password: ${data.newPassword}`, 'success');
+        const student = students.find(s => s.student_id === studentId);
+        const studentName = student ? `${student.first_name} ${student.last_name}` : studentId;
+        
+        setPasswordModal({
+          isOpen: true,
+          password: data.newPassword,
+          studentName: studentName
+        });
+        
+        showMessage('Password reset successfully!', 'success');
         // Refresh the list
         fetchStudents();
       } else {
@@ -79,6 +94,16 @@ export default function PasswordsPage() {
       showMessage('Error resetting password', 'error');
     } finally {
       setResettingPassword(null);
+    }
+  };
+
+  // Copy password to clipboard
+  const copyPassword = async () => {
+    try {
+      await navigator.clipboard.writeText(passwordModal.password);
+      showMessage('Password copied to clipboard!', 'success');
+    } catch (err) {
+      showMessage('Failed to copy password', 'error');
     }
   };
 
@@ -286,6 +311,45 @@ export default function PasswordsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Password Reset Modal */}
+      <Dialog open={passwordModal.isOpen} onOpenChange={(open) => 
+        setPasswordModal(prev => ({ ...prev, isOpen: open }))
+      }>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Key className="w-5 h-5 text-green-600" />
+              Password Reset Successful
+            </DialogTitle>
+            <DialogDescription>
+              New password for {passwordModal.studentName}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <div className="text-sm text-gray-600 mb-2">New Password:</div>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 p-2 bg-white border rounded font-mono text-sm">
+                  {passwordModal.password}
+                </code>
+                <Button size="sm" onClick={copyPassword}>
+                  <Copy className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="text-sm text-gray-600">
+              Please share this password securely with the student. They can change it after their first login.
+            </div>
+            <Button 
+              className="w-full" 
+              onClick={() => setPasswordModal(prev => ({ ...prev, isOpen: false }))}
+            >
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
