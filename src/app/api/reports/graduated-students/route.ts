@@ -13,74 +13,66 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const session = searchParams.get('session');
 
-    // Build the query for graduated students
-    let query = supabase
-      .from('school_students')
-      .select(`
-        student_id,
-        full_name,
-        class_level,
-        stream,
-        updated_at
-      `)
-      .eq('lifecycle_status', 'Graduated')
-      .order('updated_at', { ascending: false });
-
-    const { data: graduatedStudents, error } = await query;
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    // Get student transitions to find graduation details
-    const studentIds = (graduatedStudents || []).map(s => s.student_id);
-    
+    // Derive graduates from transitions to avoid relying on lifecycle_status column.
+    // Avoid schema relationships; fetch raw rows then enrich separately.
     let transitionsQuery = supabase
       .from('student_transitions')
-      .select(`
-        student_transitions.student_id,
-        action,
-        session_id,
-        term_id,
-        created_at,
-        academic_sessions!inner(name)
-      `)
+      .select('student_id, action, created_at, session_id')
       .eq('action', 'Graduate')
-      .in('student_transitions.student_id', studentIds)
       .order('created_at', { ascending: false });
 
+    // Filter by session name if provided: resolve session id first
+    let sessionId: string | null = null;
     if (session) {
-      transitionsQuery = transitionsQuery.eq('academic_sessions.name', session);
+      const { data: srow, error: serr } = await supabase
+        .from('academic_sessions')
+        .select('id')
+        .eq('name', session)
+        .maybeSingle();
+      if (serr) return NextResponse.json({ error: serr.message }, { status: 500 });
+      sessionId = srow?.id ?? null;
+      if (!sessionId) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+      transitionsQuery = transitionsQuery.eq('session_id', sessionId);
     }
 
-    const { data: transitions, error: transitionsError } = await transitionsQuery;
+    const { data: transitions, error } = await transitionsQuery;
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    if (transitionsError) {
-      console.error('Error fetching transitions:', transitionsError);
+    // Enrich with student info
+    const studentIds = Array.from(new Set((transitions || []).map((t: any) => t.student_id)));
+    let studentsMap: Record<string, any> = {};
+    if (studentIds.length) {
+      const { data: students, error: sErr } = await supabase
+        .from('school_students')
+        .select('id, student_id, full_name, class_level, stream')
+        .in('id', studentIds);
+      if (sErr) return NextResponse.json({ error: sErr.message }, { status: 500 });
+      studentsMap = (students || []).reduce((acc: any, s: any) => { acc[s.id] = s; return acc; }, {});
     }
 
-    // Combine student data with graduation details
-    const studentsWithGraduationDetails = (graduatedStudents || []).map(student => {
-      const graduationTransition = (transitions || []).find(t => t.student_id === student.student_id);
-      
-      return {
-        student_id: student.student_id,
-        full_name: student.full_name,
-        class_level: student.class_level,
-        stream: student.stream,
-        graduation_date: graduationTransition?.created_at || student.updated_at,
-        session: graduationTransition?.academic_sessions?.name || 'Unknown'
-      };
-    });
+    // Resolve session name if id is available
+    let sessionName = session || '';
+    if (!sessionName && transitions?.length && transitions[0]?.session_id) {
+      const { data: srow, error: serr } = await supabase
+        .from('academic_sessions')
+        .select('id, name')
+        .eq('id', transitions[0].session_id)
+        .maybeSingle();
+      if (!serr && srow?.name) sessionName = srow.name;
+    }
 
-    // Filter by session if specified
-    const filteredStudents = session 
-      ? studentsWithGraduationDetails.filter(s => s.session === session)
-      : studentsWithGraduationDetails;
+    const studentsWithGraduationDetails = (transitions || []).map((t: any) => ({
+      student_id: studentsMap[t.student_id]?.student_id || '',
+      full_name: studentsMap[t.student_id]?.full_name || 'Unknown',
+      class_level: studentsMap[t.student_id]?.class_level || 'Unknown',
+      stream: studentsMap[t.student_id]?.stream || null,
+      graduation_date: t.created_at,
+      session: sessionName || ''
+    }));
 
     return NextResponse.json({ 
-      students: filteredStudents,
-      total: filteredStudents.length,
+      students: studentsWithGraduationDetails,
+      total: studentsWithGraduationDetails.length,
       filters: { session }
     });
 

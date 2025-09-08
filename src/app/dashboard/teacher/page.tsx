@@ -22,6 +22,8 @@ export default function TeacherDashboardPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [todaySchedule, setTodaySchedule] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [approvedStudents, setApprovedStudents] = useState<number>(0);
+  const [approvedCourses, setApprovedCourses] = useState<number>(0);
 
   type Announcement = {
     id: string;
@@ -47,11 +49,13 @@ export default function TeacherDashboardPage() {
         const dashboardResponse = await fetch('/api/teachers/dashboard');
         if (dashboardResponse.ok) {
           const dashboardData = await dashboardResponse.json();
-          setAssignedCourses(Array(dashboardData.assignedCourses).fill({})); // Convert count to array for display
+          setAssignedCourses(Array(dashboardData.approvedCourses || dashboardData.assignedCourses || 0).fill({})); // Display approved courses count
           setStudentsWithResults(dashboardData.studentsWithResults);
-          setUpcomingExams(Array(dashboardData.upcomingExams).fill({})); // Convert count to array for display
+          setUpcomingExams(Array(dashboardData.upcomingExams || 0).fill({})); // Convert count to array for display
           setTodaySchedule(dashboardData.todaySchedule || []);
           setAnnouncements(dashboardData.announcements || []);
+          setApprovedStudents(dashboardData.approvedStudents || 0);
+          setApprovedCourses(dashboardData.approvedCourses || 0);
         } else {
           // Fallback to individual API calls if the new endpoint fails
           console.warn('Teacher dashboard API failed, using fallback');
@@ -96,7 +100,7 @@ export default function TeacherDashboardPage() {
 
   const stats = [
     {
-      title: 'Assigned Courses',
+      title: 'Approved Courses',
       value: assignedCourses.length,
       icon: faBookOpen,
       color: 'bg-blue-500',
@@ -236,6 +240,18 @@ export default function TeacherDashboardPage() {
               <p>No recent announcements</p>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Summary Footer */}
+      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-white rounded-lg shadow-md p-4">
+          <div className="text-sm text-gray-600">Approved Students</div>
+          <div className="text-2xl font-bold">{approvedStudents}</div>
+        </div>
+        <div className="bg-white rounded-lg shadow-md p-4">
+          <div className="text-sm text-gray-600">Approved Courses</div>
+          <div className="text-2xl font-bold">{approvedCourses}</div>
         </div>
       </div>
 

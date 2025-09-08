@@ -196,6 +196,7 @@ export function generateCourseCode(subject: string, classLevel: string, term: st
   
   // Map class levels to numbers
   const classLevelMap: Record<string, string> = {
+    'NUR1': '00', 'NUR2': '00',
     'KG1': '01', 'KG2': '02',
     'PRI1': '11', 'PRI2': '12', 'PRI3': '13', 'PRI4': '14', 'PRI5': '15', 'PRI6': '16',
     'JSS1': '21', 'JSS2': '22', 'JSS3': '23',

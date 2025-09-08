@@ -7,6 +7,13 @@ export async function POST(request: Request) {
     const gate = await requireAdmin(request);
     if (!gate.ok) return gate.error as Response;
 
+    // Basic runtime checks to avoid opaque 500s
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+    if (!supabaseUrl || !serviceKey) {
+      return NextResponse.json({ error: 'Supabase service credentials are not configured on the server.' }, { status: 500 });
+    }
+
     const { studentId } = await request.json();
 
     if (!studentId) {
@@ -27,22 +34,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }
 
-    // Check if user exists in auth.users
-    const { data: authUser, error: authError } = await supabaseService.auth.admin.getUserByEmail(
-      student.email || `${student.student_id}@school.local`
-    );
-
-    if (authError && authError.message !== 'User not found') {
-      console.error('Error checking auth user:', authError);
-      return NextResponse.json({ error: 'Error checking user authentication' }, { status: 500 });
-    }
+    // Ensure user exists in auth.users (list and match by email)
+    const fallbackDomain = process.env.SCHOOL_EMAIL_DOMAIN || 'school.local';
+    const targetEmail = (student.email && String(student.email).trim()) || `${student.student_id}@${fallbackDomain}`;
+    const { data: listData, error: listErr } = await supabaseService.auth.admin.listUsers({ page: 1, perPage: 200 });
+    if (listErr) return NextResponse.json({ error: 'Error listing auth users' }, { status: 500 });
+    const existing = listData.users.find(u => (u.email || '').toLowerCase() === targetEmail.toLowerCase());
 
     let userId: string;
 
-    if (authUser?.user) {
+    if (existing) {
       // Update existing user's password
       const { error: updateError } = await supabaseService.auth.admin.updateUserById(
-        authUser.user.id,
+        existing.id,
         { password: newPassword }
       );
 
@@ -51,11 +55,11 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Failed to update password' }, { status: 500 });
       }
 
-      userId = authUser.user.id;
+      userId = existing.id;
     } else {
       // Create new user
       const { data: newUser, error: createError } = await supabaseService.auth.admin.createUser({
-        email: student.email || `${student.student_id}@school.local`,
+        email: targetEmail,
         password: newPassword,
         email_confirm: true,
         user_metadata: {

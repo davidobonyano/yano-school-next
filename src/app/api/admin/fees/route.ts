@@ -60,15 +60,71 @@ export async function DELETE(request: Request) {
   const termId = searchParams.get('termId');
   const purpose = searchParams.get('purpose');
   const stream = searchParams.get('stream');
+  const confirm = searchParams.get('confirm') === 'true';
   if (!classLevel || !sessionId || !termId || !purpose) {
     return NextResponse.json({ error: 'classLevel, sessionId, termId, purpose required' }, { status: 400 });
   }
-  const { error } = await supabase
+  const filter: any = { 
+    class_level: classLevel, 
+    session_id: sessionId, 
+    term_id: termId, 
+    purpose 
+  };
+  
+  // Handle stream filtering properly
+  if (stream === 'null') {
+    // Use is() for null values in Supabase
+    filter.stream = null;
+  } else if (stream && stream !== 'undefined' && stream !== 'null') {
+    filter.stream = stream;
+  }
+  // If stream is undefined or empty, don't include it in the filter
+
+  // Build query manually to handle null stream properly
+  let query = supabase
+    .from('fee_structures')
+    .select('id, class_level, stream, session_id, term_id, purpose, amount, is_active')
+    .eq('class_level', classLevel)
+    .eq('session_id', sessionId)
+    .eq('term_id', termId)
+    .eq('purpose', purpose);
+
+  // Handle stream filtering properly
+  if (stream === 'null') {
+    query = query.is('stream', null);
+  } else if (stream && stream !== 'undefined' && stream !== 'null') {
+    query = query.eq('stream', stream);
+  }
+
+  // If not confirmed, show what would be deleted for client-side confirmation UX
+  if (!confirm) {
+    const { data: matches, error: findError } = await query;
+    if (findError) return NextResponse.json({ error: findError.message, stage: 'preview' }, { status: 500 });
+    return NextResponse.json({ confirmRequired: true, matches: matches || [] });
+  }
+
+  // For deletion, we need to get the IDs first, then delete by ID
+  const { data: toDelete, error: findError } = await query;
+  if (findError) return NextResponse.json({ error: findError.message, stage: 'find' }, { status: 500 });
+  
+  if (!toDelete || toDelete.length === 0) {
+    return NextResponse.json({ success: false, message: 'No matching fee structure found to delete' }, { status: 404 });
+  }
+
+  // Delete by IDs - filter out any undefined IDs
+  const validIds = toDelete.map(item => item.id).filter(id => id && id !== 'undefined');
+  
+  if (validIds.length === 0) {
+    return NextResponse.json({ success: false, message: 'No valid IDs found for deletion' }, { status: 400 });
+  }
+  
+  const { data: deleted, error } = await supabase
     .from('fee_structures')
     .delete()
-    .match({ class_level: classLevel, session_id: sessionId, term_id: termId, purpose, stream: stream === 'null' ? null : stream ?? undefined });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ success: true });
+    .in('id', validIds);
+    
+  if (error) return NextResponse.json({ error: error.message, stage: 'delete' }, { status: 500 });
+  return NextResponse.json({ success: true, deletedCount: validIds.length, deleted: toDelete });
 }
 
 

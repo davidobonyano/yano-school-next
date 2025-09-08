@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { CLASS_LEVELS as SHARED_CLASS_LEVELS } from '@/types/courses';
 
 type Announcement = {
   id: string;
@@ -15,7 +16,7 @@ type Announcement = {
   attachments?: { name: string; url: string; type?: string; size?: number }[];
 };
 
-const CLASS_LEVELS = ['KG1','KG2','PRI1','PRI2','PRI3','PRI4','PRI5','PRI6','JSS1','JSS2','JSS3','SS1','SS2','SS3'];
+const CLASS_LEVELS = SHARED_CLASS_LEVELS as unknown as string[];
 
 export default function AdminAnnouncementsPage() {
   const [items, setItems] = useState<Announcement[]>([]);
@@ -144,7 +145,7 @@ export default function AdminAnnouncementsPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Stream (optional)</label>
-                <input className="w-full border rounded px-3 py-2" value={form.audience_stream || ''} onChange={(e) => setForm(f => ({ ...f, audience_stream: e.target.value || null }))} placeholder="Science/Commercial/Art" />
+                <input className="w-full border rounded px-3 py-2" value={form.audience_stream || ''} onChange={(e) => setForm(f => ({ ...f, audience_stream: e.target.value || null }))} placeholder="Science/Commercial/Arts" />
               </div>
             </>
           )}

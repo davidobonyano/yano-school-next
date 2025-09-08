@@ -27,9 +27,10 @@ export async function GET(request: NextRequest) {
 		const stream = searchParams.get('stream');
 		const term = searchParams.get('term');
 		const session = searchParams.get('session');
+		const courseId = searchParams.get('course_id');
 
-		if (!term || !session) {
-			return NextResponse.json({ error: 'term and session are required' }, { status: 400 });
+		if (!term || !session || !courseId) {
+			return NextResponse.json({ error: 'term, session and course_id are required' }, { status: 400 });
 		}
 
 		// Resolve session and term ids
@@ -71,38 +72,37 @@ export async function GET(request: NextRequest) {
 
 		if (studentIds.length === 0) return NextResponse.json({ rankings: [] });
 
-		// Aggregate totals in student_results for the period and selected students
-		const { data: aggregates, error: aggErr } = await supabase
+		// Fetch per-subject results for selected course in period and selected students
+		const { data: results, error: resErr } = await supabase
 			.from('student_results')
 			.select('student_id, total_score')
 			.eq('session_id', sessionRow.id)
 			.eq('term_id', termRow.id)
+			.eq('course_id', courseId)
 			.in('student_id', studentIds);
-		if (aggErr) return NextResponse.json({ error: aggErr.message }, { status: 500 });
+		if (resErr) return NextResponse.json({ error: resErr.message }, { status: 500 });
 
-		// Sum totals per student
+		// Build ranking list for this subject
 		const totalsMap = new Map<string, number>();
-		for (const row of aggregates || []) {
+		for (const row of results || []) {
 			const sid = (row as any).student_id as string;
 			const tot = Number((row as any).total_score || 0);
 			totalsMap.set(sid, (totalsMap.get(sid) || 0) + tot);
 		}
 
-		// Build ranking list
 		const list = studentIds.map(sid => ({
 			studentId: sid,
 			fullName: idToName[sid] || sid,
-			aggregate: totalsMap.get(sid) || 0
+			score: totalsMap.get(sid) || 0
 		}));
-		list.sort((a, b) => b.aggregate - a.aggregate);
+		list.sort((a, b) => b.score - a.score);
 
-		// Dense ranking
 		let currentRank = 0;
 		let lastAggregate: number | null = null;
 		const rankings = list.map(item => {
-			if (lastAggregate === null || item.aggregate < lastAggregate) {
+			if (lastAggregate === null || item.score < lastAggregate) {
 				currentRank += 1;
-				lastAggregate = item.aggregate;
+				lastAggregate = item.score;
 			}
 			return { ...item, rank: currentRank };
 		});
@@ -111,6 +111,4 @@ export async function GET(request: NextRequest) {
 	} catch (err: any) {
 		return NextResponse.json({ error: err?.message || 'Unexpected error' }, { status: 500 });
 	}
-}
-
-
+} 

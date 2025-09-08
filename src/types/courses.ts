@@ -118,6 +118,8 @@ export const COURSE_TERMS = [
 export const CLASS_LEVELS = [
   'KG1',
   'KG2',
+  'NUR1',
+  'NUR2',
   'PRI1',
   'PRI2',
   'PRI3',

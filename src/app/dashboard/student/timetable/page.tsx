@@ -26,7 +26,7 @@ const TIMES = [
 function normalizeStream(stream?: string | null): string | null {
   if (!stream) return null;
   const s = String(stream).toLowerCase().trim();
-  if (s === 'art' || s === 'arts') return 'Art';
+  if (s === 'art' || s === 'arts') return 'Arts';
   if (s === 'commercial' || s === 'commerce') return 'Commercial';
   if (s === 'science' || s === 'sciences') return 'Science';
   return stream as string;

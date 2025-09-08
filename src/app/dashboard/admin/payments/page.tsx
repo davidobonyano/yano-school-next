@@ -118,7 +118,7 @@ export default function AdminPaymentsPage() {
   // New/Update fee form
   const [feeForm, setFeeForm] = useState({
     classLevel: '',
-    stream: '' as '' | 'Science' | 'Commercial' | 'Art',
+    stream: '' as '' | 'Science' | 'Commercial' | 'Arts',
     purpose: 'Tuition' as FeeItem['purpose'],
     amount: '' as string | number,
   });
@@ -270,7 +270,7 @@ export default function AdminPaymentsPage() {
   ], []);
 
   const streamOptions = useMemo(() => [
-    'All', 'Art', 'Science', 'Commercial', 'General'
+    'All', 'Arts', 'Science', 'Commercial', 'General'
   ], []);
 
   // Load payment records
@@ -340,20 +340,68 @@ export default function AdminPaymentsPage() {
 
   async function deleteFee(item: FeeItem) {
     if (!canQuery) return;
+    
+    // Show confirmation dialog
+    const confirmed = window.confirm(
+      `Are you sure you want to delete this fee structure?\n\n` +
+      `Class: ${item.class_level}\n` +
+      `Stream: ${item.stream || 'None'}\n` +
+      `Purpose: ${item.purpose}\n` +
+      `Amount: ₦${Number(item.amount).toLocaleString()}`
+    );
+    
+    if (!confirmed) return;
+    
     try {
-      const url = new URL('/api/admin/fees', window.location.origin);
-      url.searchParams.set('classLevel', item.class_level);
-      url.searchParams.set('sessionId', item.session_id);
-      url.searchParams.set('termId', item.term_id);
-      url.searchParams.set('purpose', item.purpose);
-      url.searchParams.set('stream', String(item.stream));
-      const res = await fetch(url.toString(), { method: 'DELETE' });
+      // First, preview what will be deleted
+      const previewUrl = new URL('/api/admin/fees', window.location.origin);
+      previewUrl.searchParams.set('classLevel', item.class_level);
+      previewUrl.searchParams.set('sessionId', item.session_id);
+      previewUrl.searchParams.set('termId', item.term_id);
+      previewUrl.searchParams.set('purpose', item.purpose);
+      previewUrl.searchParams.set('stream', String(item.stream));
+      previewUrl.searchParams.set('confirm', 'false');
+      
+      const previewRes = await fetch(previewUrl.toString(), { method: 'DELETE' });
+      const previewJson = await previewRes.json();
+      
+      if (!previewRes.ok) {
+        throw new Error(previewJson?.error || 'Failed to preview deletion');
+      }
+      
+      if (previewJson.confirmRequired) {
+        // Show what will be deleted and ask for final confirmation
+        const finalConfirm = window.confirm(
+          `This will delete ${previewJson.matches.length} fee structure(s):\n\n` +
+          previewJson.matches.map((match: any) => 
+            `${match.class_level} ${match.stream || ''} - ${match.purpose}: ₦${Number(match.amount).toLocaleString()}`
+          ).join('\n') +
+          `\n\nProceed with deletion?`
+        );
+        
+        if (!finalConfirm) return;
+      }
+      
+      // Execute the actual deletion
+      const deleteUrl = new URL('/api/admin/fees', window.location.origin);
+      deleteUrl.searchParams.set('classLevel', item.class_level);
+      deleteUrl.searchParams.set('sessionId', item.session_id);
+      deleteUrl.searchParams.set('termId', item.term_id);
+      deleteUrl.searchParams.set('purpose', item.purpose);
+      deleteUrl.searchParams.set('stream', String(item.stream));
+      deleteUrl.searchParams.set('confirm', 'true');
+      
+      const res = await fetch(deleteUrl.toString(), { method: 'DELETE' });
       const json = await res.json();
-      if (!res.ok) throw new Error(json?.error || 'Failed to delete fee');
+      
+      if (!res.ok) {
+        throw new Error(json?.error || 'Failed to delete fee');
+      }
+      
+      showToast(`Successfully deleted ${json.deletedCount || 1} fee structure(s)`, 'success');
       await loadFees();
     } catch (e) {
-      // eslint-disable-next-line no-alert
-      alert((e as Error).message);
+      showToast((e as Error).message, 'error');
     }
   }
 
@@ -571,13 +619,17 @@ export default function AdminPaymentsPage() {
               <div className="bg-gray-50 rounded-lg p-4">
                 <h4 className="font-medium mb-3">Add/Update Fee Structure</h4>
                 <form onSubmit={upsertFee} className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                  <input
-                    placeholder="Class Level (e.g., JSS1, SS2)"
+                  <select
                     value={feeForm.classLevel}
                     onChange={(e) => setFeeForm({ ...feeForm, classLevel: e.target.value })}
                     className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
-                  />
+                  >
+                    <option value="">Select Class Level</option>
+                    {CLASS_LEVELS.map(level => (
+                      <option key={level} value={level}>{level}</option>
+                    ))}
+                  </select>
                   <select
                     value={feeForm.stream}
                     onChange={(e) => setFeeForm({ ...feeForm, stream: e.target.value as any })}
@@ -586,7 +638,7 @@ export default function AdminPaymentsPage() {
             <option value="">Stream (optional)</option>
             <option value="Science">Science</option>
             <option value="Commercial">Commercial</option>
-            <option value="Art">Art</option>
+            <option value="Arts">Arts</option>
           </select>
                   <select
                     value={feeForm.purpose}

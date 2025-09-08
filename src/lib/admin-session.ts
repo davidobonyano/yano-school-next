@@ -19,12 +19,31 @@ export type AdminSessionPayload = {
 	exp: number; // epoch seconds
 };
 
-function base64url(input: Buffer | string): string {
-	return Buffer.from(input)
-		.toString('base64')
-		.replace(/=/g, '')
-		.replace(/\+/g, '-')
-		.replace(/\//g, '_');
+function base64urlEncodeString(input: string): string {
+	// Edge-safe: prefer btoa if available, fallback to Buffer in Node
+	const utf8 = new TextEncoder().encode(input);
+	let binary = '';
+	for (let i = 0; i < utf8.length; i++) binary += String.fromCharCode(utf8[i]);
+	// @ts-ignore
+	const base64 = (typeof btoa !== 'undefined') ? btoa(binary) : Buffer.from(input, 'utf8').toString('base64');
+	return base64.replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+}
+
+function base64urlEncodeBytes(bytes: Uint8Array): string {
+	let binary = '';
+	for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+	// @ts-ignore
+	const base64 = (typeof btoa !== 'undefined') ? btoa(binary) : Buffer.from(bytes).toString('base64');
+	return base64.replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+}
+
+function base64urlDecodeToString(b64url: string): string {
+	const base64 = b64url.replace(/-/g, '+').replace(/_/g, '/');
+	// @ts-ignore
+	const binary = (typeof atob !== 'undefined') ? atob(base64) : Buffer.from(base64, 'base64').toString('binary');
+	const bytes = new Uint8Array(binary.length);
+	for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+	return new TextDecoder().decode(bytes);
 }
 
 async function sign(data: string, secret: string): Promise<string> {
@@ -41,7 +60,7 @@ async function sign(data: string, secret: string): Promise<string> {
 	);
 	
 	const signature = await crypto.subtle.sign('HMAC', cryptoKey, dataBuffer);
-	return base64url(new Uint8Array(signature));
+	return base64urlEncodeBytes(new Uint8Array(signature));
 }
 
 export async function createAdminSessionToken(payload: Omit<AdminSessionPayload, 'exp'>, ttlSeconds = DEFAULT_TTL_SECONDS): Promise<string> {
@@ -49,8 +68,8 @@ export async function createAdminSessionToken(payload: Omit<AdminSessionPayload,
 	const exp = Math.floor(Date.now() / 1000) + ttlSeconds;
 	const fullPayload: AdminSessionPayload = { ...payload, exp };
 	const secret = getSecret();
-	const headerB64 = base64url(JSON.stringify(header));
-	const payloadB64 = base64url(JSON.stringify(fullPayload));
+	const headerB64 = base64urlEncodeString(JSON.stringify(header));
+	const payloadB64 = base64urlEncodeString(JSON.stringify(fullPayload));
 	const signature = await sign(`${headerB64}.${payloadB64}`, secret);
 	return `${headerB64}.${payloadB64}.${signature}`;
 }
@@ -62,7 +81,7 @@ export async function verifyAdminSessionToken(token: string): Promise<AdminSessi
 		const secret = getSecret();
 		const expected = await sign(`${headerB64}.${payloadB64}`, secret);
 		if (expected !== signature) return null;
-		const json = JSON.parse(Buffer.from(payloadB64.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString());
+		const json = JSON.parse(base64urlDecodeToString(payloadB64));
 		if (!json?.exp || Date.now() / 1000 > json.exp) return null;
 		return json as AdminSessionPayload;
 	} catch {

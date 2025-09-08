@@ -17,6 +17,7 @@ import {
 import { supabase, StudentRow } from '@/lib/supabase';
 
 type ClassLevel =
+  | 'NUR1' | 'NUR2'
   | 'KG1' | 'KG2'
   | 'PRI1' | 'PRI2' | 'PRI3' | 'PRI4' | 'PRI5' | 'PRI6'
   | 'JSS1' | 'JSS2' | 'JSS3'
@@ -119,7 +120,7 @@ export default function StudentsPage() {
           : (/^commercial$/i.test(normalizedStream)
               ? 'Commercial'
               : (/^arts?$/i.test(normalizedStream)
-                  ? 'Art'
+                  ? 'Arts'
                   : normalizedStream)))
       : '';
     if (allowReassignId && selectedCustomId) {
@@ -400,12 +401,17 @@ export default function StudentsPage() {
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Class Level</label>
                 <select value={form.class_level} onChange={e => setForm({ ...form, class_level: e.target.value as ClassLevel })} className="w-full border rounded-lg px-3 py-2">
-                  {(['KG1','KG2','PRI1','PRI2','PRI3','PRI4','PRI5','PRI6','JSS1','JSS2','JSS3','SS1','SS2','SS3'] as ClassLevel[]).map(l => <option key={l} value={l}>{l}</option>)}
+                  {(['NUR1','NUR2','KG1','KG2','PRI1','PRI2','PRI3','PRI4','PRI5','PRI6','JSS1','JSS2','JSS3','SS1','SS2','SS3'] as ClassLevel[]).map(l => <option key={l} value={l}>{l}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Stream (SS only)</label>
-                <input value={form.stream} onChange={e => setForm({ ...form, stream: e.target.value })} placeholder="Science / Arts / Commercial" className="w-full border rounded-lg px-3 py-2" />
+                <select value={form.stream} onChange={e => setForm({ ...form, stream: e.target.value })} className="w-full border rounded-lg px-3 py-2">
+                  <option value="">Select Stream</option>
+                  <option value="Science">Science</option>
+                  <option value="Arts">Arts</option>
+                  <option value="Commercial">Commercial</option>
+                </select>
               </div>
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Parent Name</label>

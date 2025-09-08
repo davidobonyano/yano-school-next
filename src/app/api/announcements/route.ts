@@ -12,7 +12,7 @@ const baseSchema = z.object({
   attachments: z.array(z.object({ name: z.string(), url: z.string().url(), type: z.string().optional(), size: z.number().optional() })).optional(),
   // class targeting
   audience_class_level: z.union([
-    z.enum(['KG1','KG2','PRI1','PRI2','PRI3','PRI4','PRI5','PRI6','JSS1','JSS2','JSS3','SS1','SS2','SS3']),
+    z.enum(['NUR1','NUR2','KG1','KG2','PRI1','PRI2','PRI3','PRI4','PRI5','PRI6','JSS1','JSS2','JSS3','SS1','SS2','SS3']),
     z.null()
   ]).optional(),
   audience_stream: z.string().nullable().optional(),

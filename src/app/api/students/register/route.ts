@@ -36,7 +36,7 @@ export async function POST(request: Request) {
           : (/^commercial$/i.test(normalizedStreamInput)
               ? 'Commercial'
               : (/^arts?$/i.test(normalizedStreamInput)
-                  ? 'Art'
+                  ? 'Arts'
                   : undefined)))
       : undefined;
     if (isSS) {

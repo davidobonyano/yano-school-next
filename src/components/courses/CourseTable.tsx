@@ -49,7 +49,7 @@ export function CourseTable({
 
   // Sort class levels in logical order
   const sortedLevels = Object.keys(groupedCourses).sort((a, b) => {
-    const levelOrder = ['KG1', 'KG2', 'PRI1', 'PRI2', 'PRI3', 'PRI4', 'PRI5', 'PRI6', 'JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3'];
+    const levelOrder = ['KG1', 'KG2', 'NUR1', 'NUR2', 'PRI1', 'PRI2', 'PRI3', 'PRI4', 'PRI5', 'PRI6', 'JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3'];
     return levelOrder.indexOf(a) - levelOrder.indexOf(b);
   });
 

@@ -33,13 +33,14 @@ export default function CreateStudentPage() {
   const [selectedCustomId, setSelectedCustomId] = useState<string>('');
 
   type ClassLevel =
+    | 'NUR1' | 'NUR2'
     | 'KG1' | 'KG2'
     | 'PRI1' | 'PRI2' | 'PRI3' | 'PRI4' | 'PRI5' | 'PRI6'
     | 'JSS1' | 'JSS2' | 'JSS3'
     | 'SS1' | 'SS2' | 'SS3';
 
   const classes: ClassLevel[] = useMemo(() => (
-    ['KG1','KG2','PRI1','PRI2','PRI3','PRI4','PRI5','PRI6','JSS1','JSS2','JSS3','SS1','SS2','SS3'] as ClassLevel[]
+    ['KG1','KG2','NUR1','NUR2','PRI1','PRI2','PRI3','PRI4','PRI5','PRI6','JSS1','JSS2','JSS3','SS1','SS2','SS3'] as ClassLevel[]
   ), []);
 
   const isSS1 = useMemo(() => (formData.class_level || '') === 'SS1', [formData.class_level]);
@@ -281,15 +282,18 @@ export default function CreateStudentPage() {
                     <label htmlFor="stream" className="block text-sm font-medium text-gray-700 mb-1">
                       Stream (SS1 only)
                     </label>
-                    <input
-                      type="text"
+                    <select
                       id="stream"
                       name="stream"
                       value={formData.stream}
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Science / Arts / Commercial"
-                    />
+                    >
+                      <option value="">Select Stream</option>
+                      <option value="Science">Science</option>
+                      <option value="Arts">Arts</option>
+                      <option value="Commercial">Commercial</option>
+                    </select>
                   </div>
                 )}
               </div>
@@ -344,8 +348,7 @@ export default function CreateStudentPage() {
               <p className="text-sm text-gray-600">ID is auto-generated (YAN001, YAN002, ...) unless you choose a specific available ID above.</p>
             </div>
 
-            {/* Additional Information Notice */
-            }
+            {/* Additional Information Notice */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <h3 className="text-sm font-medium text-blue-900 mb-2">Note:</h3>
               <p className="text-sm text-blue-700">

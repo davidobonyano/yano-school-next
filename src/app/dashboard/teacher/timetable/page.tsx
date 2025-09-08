@@ -37,7 +37,7 @@ function buildClassOptions(): string[] {
   const kg = ['KG1', 'KG2', 'KG3'];
   const pr = ['PR1', 'PR2', 'PR3', 'PR4', 'PR5', 'PR6'];
   const jss = ['JSS1', 'JSS2', 'JSS3'];
-  const ssStreams = ['Art', 'Commercial', 'Science'];
+  const ssStreams = ['Arts', 'Commercial', 'Science'];
   const ss: string[] = [];
   ['SS1','SS2','SS3'].forEach(level => {
     ssStreams.forEach(stream => ss.push(`${level} ${stream}`));

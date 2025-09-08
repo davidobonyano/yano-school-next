@@ -32,6 +32,7 @@ begin
   perform 1 from pg_type where typname = 'class_level';
   if not found then
     create type public.class_level as enum (
+      'NUR1','NUR2',
       'KG1','KG2',
       'PRI1','PRI2','PRI3','PRI4','PRI5','PRI6',
       'JSS1','JSS2','JSS3',
@@ -47,6 +48,12 @@ declare v_exists boolean; begin
   -- helper to add value if missing
   perform 1 from pg_type where typname = 'class_level';
   -- Add values idempotently
+  begin
+    alter type public.class_level add value if not exists 'NUR1';
+  exception when duplicate_object then null; end;
+  begin
+    alter type public.class_level add value if not exists 'NUR2';
+  exception when duplicate_object then null; end;
   begin
     alter type public.class_level add value if not exists 'KG1';
   exception when duplicate_object then null; end;
@@ -417,6 +424,8 @@ create index if not exists idx_fee_structures_class_text on public.fee_structure
 
 -- Sample fee structures for current term/session
 insert into public.fee_structures (class_level_text, class_level_code, term, session, tuition_fee, development_levy, examination_fee, sports_fee, pta_fee, total_fee) values
+('Nursery 1', 'NUR1', 'First Term', '2024/2025', 30000, 5000, 5000, 3000, 2000, 45000),
+('Nursery 2', 'NUR2', 'First Term', '2024/2025', 32000, 5000, 5000, 3000, 2000, 47000),
 ('JSS 1', 'JSS1', 'First Term', '2024/2025', 50000, 10000, 15000, 5000, 3000, 83000),
 ('JSS 2', 'JSS2', 'First Term', '2024/2025', 55000, 10000, 15000, 5000, 3000, 88000),
 ('SS1', 'SS1', 'First Term', '2024/2025', 60000, 12000, 18000, 5000, 3000, 98000),
@@ -694,6 +703,7 @@ begin
   -- Derive a human class text from student's class_level and stream
   select
     case
+      when ss.class_level in ('NUR1','NUR2') then replace(ss.class_level, 'NUR', 'Nursery ')
       when ss.class_level in ('PRI1','PRI2','PRI3','PRI4','PRI5','PRI6') then 'Primary ' || substring(ss.class_level from 4)
       when ss.class_level like 'JSS%' then replace(ss.class_level, 'JSS', 'JSS ')
       when ss.class_level like 'SS%' then replace(ss.class_level, 'SS', 'SS') || substring(ss.class_level from 3)
@@ -779,7 +789,8 @@ begin
     on fs.term = p_term and fs.session = p_session
    and (
      -- map enum to human class text
-     (ss.class_level in ('PRI1','PRI2','PRI3','PRI4','PRI5','PRI6') and fs.class_level_text = concat('Primary ', substring(ss.class_level, 4)))
+     (ss.class_level in ('NUR1','NUR2') and fs.class_level_text = replace(ss.class_level, 'NUR', 'Nursery '))
+     or (ss.class_level in ('PRI1','PRI2','PRI3','PRI4','PRI5','PRI6') and fs.class_level_text = concat('Primary ', substring(ss.class_level, 4)))
      or (ss.class_level like 'JSS%' and fs.class_level_text = replace(ss.class_level, 'JSS', 'JSS '))
      or (ss.class_level like 'SS%' and (fs.class_level_text = ss.class_level or fs.class_level_text = replace(ss.class_level, 'SS', 'SS ')))
    )

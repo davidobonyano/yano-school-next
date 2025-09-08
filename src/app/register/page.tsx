@@ -137,7 +137,7 @@ export default function StudentRegister() {
         >
           <option value="">Select Stream (SS only)</option>
           <option value="Science">Science</option>
-          <option value="Art">Art</option>
+          <option value="Arts">Arts</option>
           <option value="Commercial">Commercial</option>
         </select>
         <input

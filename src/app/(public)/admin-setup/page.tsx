@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
 
 type Admin = {
 	id: string;
@@ -66,14 +67,26 @@ export default function AdminSetupPage() {
 		e.preventDefault();
 		setMessage(null);
 		try {
-			const res = await fetch('/api/admins/login', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+			// 1) Sign in with Supabase Auth
+			const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
+				email: loginEmail,
+				password: loginPassword,
 			});
-			const data = await res.json();
-			if (!res.ok) throw new Error(data.error || 'Login failed');
-			setMessage(`Welcome, ${data.admin.name}`);
+			if (authErr || !authData?.session?.access_token) {
+				throw new Error(authErr?.message || 'Login failed');
+			}
+
+			// 2) Mint legacy admin_session cookie for compatibility
+			const mintRes = await fetch('/api/admins/session/mint', {
+				method: 'POST',
+				headers: { Authorization: `Bearer ${authData.session.access_token}` },
+			});
+			const mintJson = await mintRes.json();
+			if (!mintRes.ok) {
+				throw new Error(mintJson?.error || 'Failed to establish admin session');
+			}
+
+			setMessage('Login successful');
 			setLoginEmail('');
 			setLoginPassword('');
 		} catch (err: any) {

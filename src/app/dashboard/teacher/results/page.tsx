@@ -80,7 +80,7 @@ export default function ResultsManagementPage() {
 	], []);
 
 	const streamOptions = useMemo(() => [
-		'All', 'Art', 'Science', 'Commercial', 'General'
+		'All', 'Arts', 'Science', 'Commercial', 'General'
 	], []);
 
 	// Load students when class/stream selected

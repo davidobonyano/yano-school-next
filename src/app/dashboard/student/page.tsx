@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { getStudentSession } from "@/lib/student-session";
 import { useGlobalAcademicContext } from "@/contexts/GlobalAcademicContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { supabase } from "@/lib/supabase";
 
 import {
   faBook,
@@ -99,6 +100,64 @@ export default function StudentDashboard() {
     loadStudentData();
   }, []);
 
+  // Load upcoming exams from the exams portal (Supabase) filtered by class level only
+  useEffect(() => {
+    const controller = new AbortController();
+    const loadUpcoming = async () => {
+      try {
+        const baseClassLevel = (studentClass || '').trim().split(' ')[0];
+        if (!baseClassLevel) {
+          setUpcomingExams([]);
+          return;
+        }
+        const nowIso = new Date().toISOString();
+        const { data, error } = await supabase
+          .from('exam_sessions')
+          .select(`
+            id,
+            session_code,
+            session_name,
+            class_level,
+            starts_at,
+            ends_at,
+            status,
+            max_students,
+            instructions,
+            exam:exams ( id, title, duration_minutes )
+          `)
+          .eq('class_level', baseClassLevel)
+          .eq('status', 'active')
+          .gte('ends_at', nowIso)
+          .order('starts_at', { ascending: true })
+          .limit(8);
+        if (error) {
+          // eslint-disable-next-line no-console
+          console.error('Failed to load upcoming exam sessions', error);
+          setUpcomingExams([]);
+          return;
+        }
+        const mapped = (data || []).map((s: any) => ({
+          id: s.id,
+          name: s.session_name,
+          status: 'Upcoming',
+          date: s.starts_at,
+          time: new Date(s.starts_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+          duration: s.exam?.duration_minutes ?? undefined,
+          venue: 'TBA',
+          courseName: s.exam?.title ?? 'Exam',
+          sessionCode: s.session_code,
+        }));
+        setUpcomingExams(mapped);
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error('Error loading upcoming exams', e);
+        setUpcomingExams([]);
+      }
+    };
+    loadUpcoming();
+    return () => controller.abort();
+  }, [studentClass]);
+
   const loadStudentData = async () => {
     try {
       setLoading(true);
@@ -107,7 +166,7 @@ export default function StudentDashboard() {
       setCourses([]);
       setGrades([]);
       setPayments([]);
-      setUpcomingExams([]);
+      // do not reset upcomingExams here; a dedicated loader handles it
       
     } catch (error) {
       console.error('Error loading student data:', error);
@@ -159,7 +218,7 @@ export default function StudentDashboard() {
         const level = s?.class_level || '';
         const streamVal = s?.stream;
         const normalizedStream = streamVal ? 
-          (streamVal.toLowerCase() === 'art' || streamVal.toLowerCase() === 'arts' ? 'Art' :
+          (streamVal.toLowerCase() === 'art' || streamVal.toLowerCase() === 'arts' ? 'Arts' :
            streamVal.toLowerCase() === 'commercial' || streamVal.toLowerCase() === 'commerce' ? 'Commercial' :
            streamVal.toLowerCase() === 'science' || streamVal.toLowerCase() === 'sciences' ? 'Science' : streamVal)
           : null;

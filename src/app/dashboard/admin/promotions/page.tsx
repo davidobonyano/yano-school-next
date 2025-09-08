@@ -13,7 +13,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { supabase } from '@/lib/supabase';
 
-type ClassLevel = 'KG1' | 'KG2' | 'PRI1' | 'PRI2' | 'PRI3' | 'PRI4' | 'PRI5' | 'PRI6' | 'JSS1' | 'JSS2' | 'JSS3' | 'SS1' | 'SS2' | 'SS3';
+type ClassLevel = 'NUR1' | 'NUR2' | 'KG1' | 'KG2' | 'PRI1' | 'PRI2' | 'PRI3' | 'PRI4' | 'PRI5' | 'PRI6' | 'JSS1' | 'JSS2' | 'JSS3' | 'SS1' | 'SS2' | 'SS3';
 
 interface Student {
   id: string;
@@ -34,14 +34,17 @@ interface PromotionRecord {
 
 const CLASS_HIERARCHY: Record<ClassLevel, number> = {
   'KG1': 1, 'KG2': 2,
-  'PRI1': 3, 'PRI2': 4, 'PRI3': 5, 'PRI4': 6, 'PRI5': 7, 'PRI6': 8,
-  'JSS1': 9, 'JSS2': 10, 'JSS3': 11,
-  'SS1': 12, 'SS2': 13, 'SS3': 14
+  'NUR1': 3, 'NUR2': 4,
+  'PRI1': 5, 'PRI2': 6, 'PRI3': 7, 'PRI4': 8, 'PRI5': 9, 'PRI6': 10,
+  'JSS1': 11, 'JSS2': 12, 'JSS3': 13,
+  'SS1': 14, 'SS2': 15, 'SS3': 16
 };
 
 const NEXT_CLASS: Record<ClassLevel, ClassLevel | 'GRADUATED'> = {
   'KG1': 'KG2',
-  'KG2': 'PRI1',
+  'KG2': 'NUR1',
+  'NUR1': 'NUR2',
+  'NUR2': 'PRI1',
   'PRI1': 'PRI2',
   'PRI2': 'PRI3',
   'PRI3': 'PRI4',
@@ -169,6 +172,12 @@ export default function PromotionsPage() {
     setIsProcessing(true);
     
     try {
+      // Resolve current context for logging
+      const ctxRes = await fetch('/api/settings/academic-context?action=current');
+      const ctxJson = await ctxRes.json();
+      const sessionId = ctxJson?.current?.session_id || null;
+      const termId = ctxJson?.current?.term_id || null;
+
       for (const promotion of promotions) {
         if (promotion.action === 'graduate') {
           // Mark student as graduated (inactive)
@@ -176,12 +185,36 @@ export default function PromotionsPage() {
             .from('school_students')
             .update({ is_active: false })
             .eq('id', promotion.studentId);
+
+          // Log transition row for graduation with session/term
+          await supabase
+            .from('student_transitions')
+            .insert({
+              student_id: promotion.studentId,
+              from_class: promotion.currentClass,
+              to_class: promotion.newClass,
+              action: 'Graduate',
+              session_id: sessionId,
+              term_id: termId
+            });
         } else {
           // Update class level
           await supabase
             .from('school_students')
             .update({ class_level: promotion.newClass })
             .eq('id', promotion.studentId);
+
+          // Log transition for promote/demote
+          await supabase
+            .from('student_transitions')
+            .insert({
+              student_id: promotion.studentId,
+              from_class: promotion.currentClass,
+              to_class: promotion.newClass,
+              action: promotion.action === 'promote' ? 'Promote' : 'Demote',
+              session_id: sessionId,
+              term_id: termId
+            });
         }
       }
 

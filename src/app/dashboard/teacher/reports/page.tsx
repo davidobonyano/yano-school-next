@@ -141,7 +141,6 @@ export default function TeacherReportsPage() {
             >
               <option value="">Select Report Type</option>
               <option value="academic">Academic Performance</option>
-              <option value="attendance">Attendance Report</option>
               <option value="performance">Class Performance</option>
               <option value="comprehensive">Comprehensive Report</option>
             </select>
@@ -174,6 +173,12 @@ export default function TeacherReportsPage() {
         </div>
       </div>
 
+      {/* Academic Rankings */}
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Academic Rankings</h2>
+        <AcademicRankings />
+      </div>
+
       {/* Report Types Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
         <div className="bg-white rounded-lg shadow p-6">
@@ -185,20 +190,6 @@ export default function TeacherReportsPage() {
               <p className="text-sm font-medium text-gray-500">Academic Reports</p>
               <p className="text-2xl font-bold text-gray-900">
                 {reports.filter(r => r.type === 'academic').length}
-              </p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="bg-green-100 rounded-lg p-3 mr-4">
-              <FontAwesomeIcon icon={faUsers} className="h-6 w-6 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">Attendance Reports</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {reports.filter(r => r.type === 'attendance').length}
               </p>
             </div>
           </div>
@@ -325,6 +316,542 @@ export default function TeacherReportsPage() {
               📧 Submit Request
             </span>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+} 
+
+function AcademicRankings() {
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [terms, setTerms] = useState<any[]>([]);
+  const [courses, setCourses] = useState<any[]>([]);
+  const [selectedSession, setSelectedSession] = useState<string>('');
+  const [selectedTerm, setSelectedTerm] = useState<string>('');
+  const [selectedClassLevel, setSelectedClassLevel] = useState<string>('All');
+  const [selectedStream, setSelectedStream] = useState<string>('All');
+  const [selectedCourseId, setSelectedCourseId] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<'overall'|'subject'|'top-per-subject'|'rankings-per-subject'|'class-courses'>('overall');
+  const [loading, setLoading] = useState<boolean>(false);
+  const [overallRankings, setOverallRankings] = useState<any[]>([]);
+  const [subjectRankings, setSubjectRankings] = useState<any[]>([]);
+
+  const downloadCSV = (filename: string, rows: Array<Record<string, any>>) => {
+    if (!rows || rows.length === 0) return;
+    const headers = Object.keys(rows[0]);
+    const csv = [headers.join(','), ...rows.map(r => headers.map(h => JSON.stringify(r[h] ?? '')).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownload = () => {
+    const meta = `${selectedSession}_${selectedTerm}_${selectedClassLevel}${selectedClassLevel.startsWith('SS') && selectedStream && selectedStream !== 'All' ? '_' + selectedStream : ''}`.replace(/\s+/g,'-');
+    if (activeTab === 'overall') {
+      const rows = overallRankings.map(r => ({ Rank: r.rank, Student: r.fullName, Aggregate: r.aggregate }));
+      downloadCSV(`overall_${meta}.csv`, rows);
+    } else if (activeTab === 'subject') {
+      const rows = subjectRankings.map(r => ({ Rank: r.rank, Student: r.fullName, Score: r.score }));
+      downloadCSV(`subject_${meta}_${(courses.find(c => c.id === selectedCourseId)?.name || 'subject')}.csv`, rows);
+    }
+  };
+
+  useEffect(() => {
+    const bootstrap = async () => {
+      const [sRes, tRes, cRes] = await Promise.all([
+        fetch('/api/academic/sessions').then(r => r.json()).catch(() => ({ sessions: [] })),
+        fetch('/api/academic/terms').then(r => r.json()).catch(() => ({ terms: [] })),
+        fetch('/api/courses?limit=200').then(r => r.json()).catch(() => ({ courses: [] })),
+      ]);
+      setSessions(sRes.sessions || []);
+      setTerms(tRes.terms || []);
+      setCourses((cRes.courses || []).filter((c: any) => !!c?.id));
+      if ((sRes.sessions || []).length > 0) setSelectedSession((sRes.sessions[0].name) || '');
+      if ((tRes.terms || []).length > 0) setSelectedTerm((tRes.terms[0].name) || '');
+    };
+    bootstrap();
+  }, []);
+
+  const loadOverall = async () => {
+    if (!selectedSession || !selectedTerm) return;
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        session: selectedSession,
+        term: selectedTerm,
+        class_level: selectedClassLevel,
+      });
+      if (selectedStream && selectedStream !== 'All') params.append('stream', selectedStream);
+      const res = await fetch(`/api/reports/results?${params.toString()}`);
+      if (!res.ok) {
+        console.error('results API failed', res.status);
+        setOverallRankings([]);
+        return;
+      }
+      const data = await res.json().catch(() => ({ rankings: [] }));
+      setOverallRankings(Array.isArray(data.rankings) ? data.rankings : []);
+    } catch (e) {
+       
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadSubject = async () => {
+    if (!selectedSession || !selectedTerm || !selectedCourseId) return;
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        session: selectedSession,
+        term: selectedTerm,
+        course_id: selectedCourseId,
+        class_level: selectedClassLevel,
+      });
+      if (selectedStream && selectedStream !== 'All') params.append('stream', selectedStream);
+      const res = await fetch(`/api/reports/subject-results?${params.toString()}`);
+      if (!res.ok) {
+        console.error('subject-results API failed', res.status);
+        setSubjectRankings([]);
+        return;
+      }
+      const data = await res.json().catch(() => ({ rankings: [] }));
+      setSubjectRankings(Array.isArray(data.rankings) ? data.rankings : []);
+    } catch (e) {
+       
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadOverall();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSession, selectedTerm, selectedClassLevel, selectedStream]);
+
+  useEffect(() => {
+    if (activeTab === 'subject') loadSubject();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, selectedSession, selectedTerm, selectedCourseId, selectedClassLevel, selectedStream]);
+
+  const filteredTerms = terms.filter((t: any) => t?.academic_sessions?.name === selectedSession);
+  const classLevels = ['All', 'NUR1', 'NUR2', 'KG1', 'KG2', 'PRI1', 'PRI2', 'PRI3', 'PRI4', 'PRI5', 'PRI6', 'JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3'];
+
+  // Fetch courses when class level changes
+  useEffect(() => {
+    const fetchCourses = async () => {
+      const params = new URLSearchParams({ limit: '200' });
+      if (selectedClassLevel && selectedClassLevel !== 'All') params.append('class_level', selectedClassLevel);
+      const res = await fetch(`/api/courses?${params.toString()}`);
+      const data = await res.json().catch(() => ({ courses: [] }));
+      const list = (data.courses || []).filter((c: any) => !!c?.id && !!c?.name);
+      const seen: Record<string, boolean> = {};
+      const deduped = list.filter((c: any) => {
+        const key = String(c.name).trim().toLowerCase();
+        if (seen[key]) return false;
+        seen[key] = true;
+        return true;
+      });
+      setCourses(deduped);
+    };
+    fetchCourses();
+  }, [selectedClassLevel]);
+
+  // If not SS classes, reset stream to All
+  useEffect(() => {
+    if (!selectedClassLevel.startsWith('SS')) {
+      setSelectedStream('All');
+    }
+  }, [selectedClassLevel]);
+
+  return (
+    <div>
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-4">
+        <select value={selectedSession} onChange={e => setSelectedSession(e.target.value)} className="px-3 py-2 border rounded">
+          {sessions.map((s: any) => (
+            <option key={s.id} value={s.name}>{s.name}</option>
+          ))}
+        </select>
+        <select value={selectedTerm} onChange={e => setSelectedTerm(e.target.value)} className="px-3 py-2 border rounded">
+          {filteredTerms.map((t: any) => (
+            <option key={t.id} value={t.name}>{t.name}</option>
+          ))}
+        </select>
+        <select value={selectedClassLevel} onChange={e => setSelectedClassLevel(e.target.value)} className="px-3 py-2 border rounded">
+          {classLevels.map(l => (<option key={l} value={l}>{l}</option>))}
+        </select>
+        {selectedClassLevel.startsWith('SS') ? (
+          <select value={selectedStream} onChange={e => setSelectedStream(e.target.value)} className="px-3 py-2 border rounded">
+            {['All', 'Science', 'Arts', 'Commercial'].map(s => (<option key={s} value={s}>{s}</option>))}
+          </select>
+        ) : (
+          <div className="px-3 py-2 text-gray-500 border rounded bg-gray-50">No Stream</div>
+        )}
+        <select value={selectedCourseId} onChange={e => setSelectedCourseId(e.target.value)} className="px-3 py-2 border rounded">
+          <option value="">Select Subject/Course (optional)</option>
+          {courses.map((c: any) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="flex gap-2 mb-4">
+        <button onClick={() => setActiveTab('overall')} className={`px-3 py-2 rounded ${activeTab==='overall' ? 'bg-teal-600 text-white' : 'bg-gray-100'}`}>Overall (All Subjects)</button>
+        <button onClick={() => setActiveTab('subject')} className={`px-3 py-2 rounded ${activeTab==='subject' ? 'bg-teal-600 text-white' : 'bg-gray-100'}`}>By Subject</button>
+        <button onClick={() => setActiveTab('top-per-subject' as any)} className={`px-3 py-2 rounded ${activeTab==='top-per-subject' ? 'bg-teal-600 text-white' : 'bg-gray-100'}`}>Top per Subject</button>
+        <button onClick={() => setActiveTab('rankings-per-subject' as any)} className={`px-3 py-2 rounded ${activeTab==='rankings-per-subject' ? 'bg-teal-600 text-white' : 'bg-gray-100'}`}>Rankings per Subject</button>
+        <button onClick={() => setActiveTab('class-courses' as any)} className={`px-3 py-2 rounded ${activeTab==='class-courses' ? 'bg-teal-600 text-white' : 'bg-gray-100'}`}>Class Courses Report</button>
+        {(activeTab === 'overall' || activeTab === 'subject') && (
+          <div className="ml-auto flex gap-2">
+            <button onClick={handleDownload} className="px-3 py-2 rounded bg-gray-800 text-white">Download CSV</button>
+            <button onClick={() => window.print()} className="px-3 py-2 rounded bg-gray-200">Print</button>
+          </div>
+        )}
+      </div>
+
+      {activeTab === 'overall' && (
+        <RankingTable loading={loading} rankings={overallRankings} scoreKey="aggregate" />
+      )}
+      {activeTab === 'subject' && (
+        <RankingTable loading={loading} rankings={subjectRankings} scoreKey="score" />
+      )}
+      {activeTab === 'top-per-subject' && (
+        <TopPerSubject
+          loading={loading}
+          session={selectedSession}
+          term={selectedTerm}
+          classLevel={selectedClassLevel}
+          stream={selectedStream}
+          courses={courses}
+        />
+      )}
+      {activeTab === 'rankings-per-subject' && (
+        <PerSubjectRankings
+          loading={loading}
+          session={selectedSession}
+          term={selectedTerm}
+          classLevel={selectedClassLevel}
+          stream={selectedStream}
+          courses={courses}
+        />
+      )}
+      {activeTab === 'class-courses' && (
+        <ClassCoursesReport
+          session={selectedSession}
+          term={selectedTerm}
+          classLevel={selectedClassLevel}
+          stream={selectedStream}
+        />
+      )}
+    </div>
+  );
+}
+
+function RankingTable({ loading, rankings, scoreKey }: { loading: boolean; rankings: any[]; scoreKey: 'aggregate'|'score'; }) {
+  if (loading) return <div className="text-gray-500">Loading...</div>;
+  if (!rankings || rankings.length === 0) return <div className="text-gray-500">No data</div>;
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full divide-y divide-gray-200">
+        <thead>
+          <tr>
+            <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Rank</th>
+            <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Student</th>
+            <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Score</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100">
+          {rankings.map((r: any) => (
+            <tr key={r.studentId}>
+              <td className="px-4 py-2">{r.rank}</td>
+              <td className="px-4 py-2">{r.fullName}</td>
+              <td className="px-4 py-2">{r[scoreKey] || 0}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function TopPerSubject({ loading: parentLoading, session, term, classLevel, stream, courses }: { loading: boolean; session: string; term: string; classLevel: string; stream: string; courses: any[]; }) {
+  const [loading, setLoading] = useState<boolean>(false);
+  const [rows, setRows] = useState<any[]>([]);
+
+  useEffect(() => {
+    const run = async () => {
+      if (!session || !term) return;
+      setLoading(true);
+      try {
+        const paramsBase = new URLSearchParams({ session, term });
+        if (classLevel && classLevel !== 'All') paramsBase.append('class_level', classLevel);
+        if (classLevel.startsWith('SS') && stream && stream !== 'All') paramsBase.append('stream', stream);
+        const courseList = (courses || []).slice(0, 100);
+        const results = await Promise.all(courseList.map(async (c: any) => {
+          const params = new URLSearchParams(paramsBase.toString());
+          params.append('course_id', c.id);
+          const res = await fetch(`/api/reports/subject-results?${params.toString()}`);
+          if (!res.ok) return null;
+          const data = await res.json().catch(() => ({ rankings: [] }));
+          const top = (data.rankings || [])[0] || null;
+          return top ? { subject: c.name, student: top.fullName, score: top.score, studentId: top.studentId } : null;
+        }));
+        setRows(results.filter(Boolean));
+      } finally {
+        setLoading(false);
+      }
+    };
+    run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, term, classLevel, stream, JSON.stringify(courses)]);
+
+  if (loading || parentLoading) return <div className="text-gray-500">Loading...</div>;
+  if (!rows || rows.length === 0) return <div className="text-gray-500">No data</div>;
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full divide-y divide-gray-200">
+        <thead>
+          <tr>
+            <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Subject</th>
+            <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Top Student</th>
+            <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Score</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100">
+          {rows.map((r: any, idx: number) => (
+            <tr key={idx}>
+              <td className="px-4 py-2">{r.subject}</td>
+              <td className="px-4 py-2">{r.student}</td>
+              <td className="px-4 py-2">{r.score}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function PerSubjectRankings({ loading: parentLoading, session, term, classLevel, stream, courses }: { loading: boolean; session: string; term: string; classLevel: string; stream: string; courses: any[]; }) {
+  const [loading, setLoading] = useState<boolean>(false);
+  const [data, setData] = useState<Record<string, any[]>>({});
+
+  useEffect(() => {
+    const run = async () => {
+      if (!session || !term) return;
+      setLoading(true);
+      try {
+        const paramsBase = new URLSearchParams({ session, term });
+        if (classLevel && classLevel !== 'All') paramsBase.append('class_level', classLevel);
+        if (classLevel.startsWith('SS') && stream && stream !== 'All') paramsBase.append('stream', stream);
+        const courseList = (courses || []).slice(0, 50);
+        const pairs = await Promise.all(courseList.map(async (c: any) => {
+          const params = new URLSearchParams(paramsBase.toString());
+          params.append('course_id', c.id);
+          const res = await fetch(`/api/reports/subject-results?${params.toString()}`);
+          if (!res.ok) return [c.name, []] as [string, any[]];
+          const json = await res.json().catch(() => ({ rankings: [] }));
+          return [c.name, json.rankings || []] as [string, any[]];
+        }));
+        const obj: Record<string, any[]> = {};
+        pairs.forEach(([name, rankings]) => { obj[name] = rankings; });
+        setData(obj);
+      } finally {
+        setLoading(false);
+      }
+    };
+    run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, term, classLevel, stream, JSON.stringify(courses)]);
+
+  if (loading || parentLoading) return <div className="text-gray-500">Loading...</div>;
+  const subjectNames = Object.keys(data);
+  if (subjectNames.length === 0) return <div className="text-gray-500">No data</div>;
+
+  return (
+    <div className="space-y-8">
+      {subjectNames.map((subject) => (
+        <div key={subject} className="border rounded-lg">
+          <div className="px-4 py-2 border-b text-sm font-semibold">{subject}</div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead>
+                <tr>
+                  <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Position</th>
+                  <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Student</th>
+                  <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Score</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {(data[subject] || []).map((r: any) => (
+                  <tr key={r.studentId}>
+                    <td className="px-4 py-2">{r.rank}</td>
+                    <td className="px-4 py-2">{r.fullName}</td>
+                    <td className="px-4 py-2">{r.score}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ClassCoursesReport({ session, term, classLevel, stream }: { session: string; term: string; classLevel: string; stream: string; }) {
+  const [loading, setLoading] = useState<boolean>(false);
+  const [data, setData] = useState<{ courses: any[]; students: any[]; overall: any[] }>({ courses: [], students: [], overall: [] });
+  const [expandedCourseId, setExpandedCourseId] = useState<string | null>(null);
+
+  const buildAndDownloadCSV = () => {
+    const meta = `${session}_${term}_${classLevel}${classLevel.startsWith('SS') && stream && stream !== 'All' ? '_' + stream : ''}`.replace(/\s+/g,'-');
+    const rows: any[] = [];
+    // Overall rows
+    rows.push({ Section: 'Overall', Rank: '', Student: '', Aggregate: '' });
+    (data.overall || []).forEach((r: any) => rows.push({ Section: 'Overall', Rank: r.rank, Student: r.fullName, Aggregate: r.aggregate }));
+    // Courses rankings
+    (data.courses || []).forEach((c: any) => {
+      rows.push({ Section: `Course: ${c.courseName}`, Rank: '', Student: '', Aggregate: '' });
+      (c.rankings || []).forEach((r: any) => rows.push({ Section: `Course: ${c.courseName}`, Rank: r.rank, Student: r.fullName, Score: r.score }));
+    });
+    // GPA/CGPA
+    rows.push({ Section: 'GPA/CGPA', Student: '', GPA: '', CGPA: '' });
+    (data.students || []).forEach((s: any) => rows.push({ Section: 'GPA/CGPA', Student: s.fullName, GPA: s.gpa, CGPA: s.cgpa }));
+    const headers = Array.from(new Set(rows.flatMap(r => Object.keys(r))));
+    const csvRows = [headers.join(','), ...rows.map(r => headers.map(h => JSON.stringify(r[h] ?? '')).join(','))];
+    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `class_courses_report_${meta}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  useEffect(() => {
+    const run = async () => {
+      if (!session || !term || !classLevel || classLevel === 'All') return;
+      setLoading(true);
+      try {
+        const params = new URLSearchParams({ session, term, class_level: classLevel });
+        if (classLevel.startsWith('SS') && stream && stream !== 'All') params.append('stream', stream);
+        const res = await fetch(`/api/reports/class-courses?${params.toString()}`);
+        if (!res.ok) {
+          console.error('class-courses API failed', res.status);
+          setData({ courses: [], students: [], overall: [] });
+          return;
+        }
+        const json = await res.json().catch(() => ({ courses: [], students: [], overall: [] }));
+        setData({
+          courses: Array.isArray(json.courses) ? json.courses : [],
+          students: Array.isArray(json.students) ? json.students : [],
+          overall: Array.isArray(json.overall) ? json.overall : []
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    run();
+  }, [session, term, classLevel, stream]);
+
+  if (loading) return <div className="text-gray-500">Loading...</div>;
+  if (!data || (data.courses || []).length === 0) return <div className="text-gray-500">No data</div>;
+
+  const studentById: Record<string, any> = {};
+  (data.students || []).forEach((s: any) => { studentById[s.studentId] = s; });
+
+  return (
+    <div className="space-y-8">
+      <div className="flex justify-end gap-2">
+        <button onClick={buildAndDownloadCSV} className="px-3 py-2 rounded bg-gray-800 text-white">Download CSV</button>
+        <button onClick={() => window.print()} className="px-3 py-2 rounded bg-gray-200">Print</button>
+      </div>
+      {/* Overall best in class (aggregate) */}
+      <div className="bg-white border rounded-lg">
+        <div className="px-4 py-2 border-b font-semibold">Overall Best (All Subjects)</div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead>
+              <tr>
+                <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Rank</th>
+                <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Student</th>
+                <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Aggregate (GPA, CGPA)</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {(data.overall || []).map((r: any) => (
+                <tr key={r.studentId}>
+                  <td className="px-4 py-2">{r.rank}</td>
+                  <td className="px-4 py-2">{r.fullName}</td>
+                  <td className="px-4 py-2">
+                    {r.aggregate}
+                    {(() => { const s = studentById[r.studentId]; return s ? ` (${Number(s.gpa).toFixed(2)}, ${Number(s.cgpa).toFixed(2)})` : '' })()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Per-course tables */}
+      <div className="space-y-6">
+        {data.courses.map((c: any) => (
+          <div key={c.courseId} className="bg-white border rounded-lg">
+            <div className="px-4 py-2 border-b flex items-center justify-between">
+              <div className="font-semibold">{c.courseName}</div>
+              <div className="text-sm text-gray-600">Top: {c.topStudent ? `${c.topStudent.fullName} (${c.topStudent.score})` : 'N/A'}</div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Position</th>
+                    <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Student</th>
+                    <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Score</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {(c.rankings || []).map((r: any) => (
+                    <tr key={r.studentId}>
+                      <td className="px-4 py-2">{r.rank}</td>
+                      <td className="px-4 py-2">{r.fullName}</td>
+                      <td className="px-4 py-2">{r.score}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Per-student GPA/CGPA */}
+      <div className="bg-white border rounded-lg">
+        <div className="px-4 py-2 border-b font-semibold">GPA (this term/session) and CGPA (overall)</div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead>
+              <tr>
+                <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Student</th>
+                <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">GPA</th>
+                <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">CGPA</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {(data.students || []).map((s: any) => (
+                <tr key={s.studentId}>
+                  <td className="px-4 py-2">{s.fullName}</td>
+                  <td className="px-4 py-2">{s.gpa}</td>
+                  <td className="px-4 py-2">{s.cgpa}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
