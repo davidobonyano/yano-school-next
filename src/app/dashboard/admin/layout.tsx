@@ -206,7 +206,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     <AcademicContextProvider>
       <GlobalAcademicSync />
       <div 
-        className="flex h-screen bg-gray-100 relative"
+        className="flex h-screen bg-gray-100 relative overflow-hidden"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -229,7 +229,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       {/* Guard: show nothing until admin loads */}
       {admin && (
       /* Desktop Sidebar - Full width with colors */
-      <aside className="hidden lg:flex lg:flex-col lg:w-80 bg-white shadow-xl border-r">
+      <aside className="hidden lg:flex lg:flex-col lg:w-80 bg-white shadow-xl border-r h-full overflow-hidden">
         {/* Profile Section */}
         <div className="p-6 bg-gradient-to-r from-green-900 to-green-800 text-white">
           <div className="flex items-center gap-4">
@@ -247,7 +247,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         </div>
         
         {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-3">
+        <nav className="flex-1 p-4 space-y-3 overflow-y-auto">
           {navItems.map((item, index) => (
             <motion.a
               key={item.href}
@@ -398,7 +398,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       )}
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-auto bg-gray-50 lg:ml-0 pt-14 lg:pt-0">
+      <main className="flex-1 bg-gray-50 lg:ml-0 pt-14 lg:pt-0 h-full overflow-y-auto">
         {children}
       </main>
       </div>
