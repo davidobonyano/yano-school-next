@@ -132,49 +132,49 @@ export default function StudentLayout({ children }: { children: ReactNode }) {
       href: '/dashboard/student', 
       icon: faHome, 
       label: 'Dashboard',
-      bgColor: 'bg-gradient-to-r from-blue-600 to-blue-700',
-      hoverColor: 'hover:from-blue-700 hover:to-blue-800',
+      bgColor: 'bg-gradient-to-r from-blue-900 to-blue-800',
+      hoverColor: 'hover:from-blue-800 hover:to-blue-700',
       iconColor: 'text-blue-100'
     },
     { 
       href: '/dashboard/student/courses', 
       icon: faBook, 
       label: 'Courses',
-      bgColor: 'bg-gradient-to-r from-green-600 to-green-700',
-      hoverColor: 'hover:from-green-700 hover:to-green-800',
-      iconColor: 'text-green-100'
+      bgColor: 'bg-gradient-to-r from-blue-900 to-blue-800',
+      hoverColor: 'hover:from-blue-800 hover:to-blue-700',
+      iconColor: 'text-blue-100'
     },
     { 
       href: '/dashboard/student/grades', 
       icon: faChartBar, 
       label: 'Results',
-      bgColor: 'bg-gradient-to-r from-purple-600 to-purple-700',
-      hoverColor: 'hover:from-purple-700 hover:to-purple-800',
-      iconColor: 'text-purple-100'
+      bgColor: 'bg-gradient-to-r from-blue-900 to-blue-800',
+      hoverColor: 'hover:from-blue-800 hover:to-blue-700',
+      iconColor: 'text-blue-100'
     },
     { 
       href: '/dashboard/student/timetable', 
       icon: faCalendarAlt, 
       label: 'Timetable',
-      bgColor: 'bg-gradient-to-r from-orange-600 to-orange-700',
-      hoverColor: 'hover:from-orange-700 hover:to-orange-800',
-      iconColor: 'text-orange-100'
+      bgColor: 'bg-gradient-to-r from-blue-900 to-blue-800',
+      hoverColor: 'hover:from-blue-800 hover:to-blue-700',
+      iconColor: 'text-blue-100'
     },
     { 
       href: '/dashboard/student/payments', 
       icon: faCreditCard, 
       label: 'Payments',
-      bgColor: 'bg-gradient-to-r from-red-600 to-red-700',
-      hoverColor: 'hover:from-red-700 hover:to-red-800',
-      iconColor: 'text-red-100'
+      bgColor: 'bg-gradient-to-r from-blue-900 to-blue-800',
+      hoverColor: 'hover:from-blue-800 hover:to-blue-700',
+      iconColor: 'text-blue-100'
     },
     { 
       href: '/dashboard/student/settings/change-password', 
       icon: faUserCircle, 
       label: 'Change Password',
-      bgColor: 'bg-gradient-to-r from-gray-600 to-gray-700',
-      hoverColor: 'hover:from-gray-700 hover:to-gray-800',
-      iconColor: 'text-gray-100'
+      bgColor: 'bg-gradient-to-r from-slate-600 to-slate-700',
+      hoverColor: 'hover:from-slate-700 hover:to-slate-800',
+      iconColor: 'text-slate-100'
     },
   ];
 
@@ -208,7 +208,7 @@ export default function StudentLayout({ children }: { children: ReactNode }) {
       {/* Desktop Sidebar - Full width with colors */}
       <aside className="hidden lg:flex lg:flex-col lg:w-80 bg-white shadow-xl border-r h-full overflow-hidden">
         {/* Profile Section */}
-        <div className="p-6 bg-gradient-to-r from-gray-900 to-gray-800 text-white">
+        <div className="p-6 bg-gradient-to-r from-blue-900 to-blue-800 text-white">
           <div className="flex items-center gap-4">
             <div className="h-16 w-16 rounded-full bg-white/20 border-2 border-white/30 overflow-hidden backdrop-blur-sm">
               <div className="h-full w-full bg-white/10 flex items-center justify-center text-white text-2xl font-bold">
@@ -217,8 +217,8 @@ export default function StudentLayout({ children }: { children: ReactNode }) {
             </div>
             <div>
               <h2 className="text-xl font-bold">{studentName}</h2>
-              <p className="text-sm text-gray-300">ID: {studentId}</p>
-              <p className="text-sm text-gray-300">Class: {!isActive ? 'Graduated' : (formatClassLevel(studentClass) || 'Not Assigned')}</p>
+              <p className="text-sm text-blue-200">ID: {studentId}</p>
+              <p className="text-sm text-blue-200">Class: {!isActive ? 'Graduated' : (formatClassLevel(studentClass) || 'Not Assigned')}</p>
             </div>
           </div>
         </div>
@@ -236,22 +236,14 @@ export default function StudentLayout({ children }: { children: ReactNode }) {
                 flex items-center gap-4 p-4 rounded-xl transition-all duration-300 group
                 ${pathname === item.href 
                   ? `${item.bgColor} text-white shadow-lg transform scale-105` 
-                  : `bg-gray-50 hover:bg-gray-100 text-gray-700 ${item.hoverColor}`
+                  : `bg-blue-50 hover:bg-blue-100 text-slate-700 ${item.hoverColor}`
                 }
               `}
             >
-              <div className={`
-                p-2 rounded-lg 
-                ${pathname === item.href 
-                  ? 'bg-white/20' 
-                  : `${item.bgColor.replace('bg-gradient-to-r from-', 'bg-').replace(' to-' + item.bgColor.split('to-')[1], '')}/10`
-                }
-              `}>
-                <FontAwesomeIcon 
-                  icon={item.icon} 
-                  className={`w-5 h-5 ${pathname === item.href ? 'text-white' : item.iconColor.replace('text-', 'text-').replace('-100', '-600')}`} 
-                />
-              </div>
+              <FontAwesomeIcon 
+                icon={item.icon} 
+                className={`w-5 h-5 ${pathname === item.href ? 'text-white' : 'text-slate-600'}`} 
+              />
               <span className="font-medium">{item.label}</span>
               {pathname === item.href && (
                 <motion.div
@@ -267,16 +259,14 @@ export default function StudentLayout({ children }: { children: ReactNode }) {
         {/* Theme Toggle & Logout Section */}
         <div className="p-4 border-t border-gray-200 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-600 font-medium">Theme</span>
+            <span className="text-sm text-slate-600 font-medium">Theme</span>
             <ThemeToggle />
           </div>
           <button 
             onClick={handleLogout}
             className="flex items-center gap-4 w-full p-4 text-red-600 hover:bg-red-50 rounded-xl transition-all duration-300 group"
           >
-            <div className="p-2 rounded-lg bg-red-100 group-hover:bg-red-200">
-              <FontAwesomeIcon icon={faSignOutAlt} className="w-5 h-5" />
-            </div>
+            <FontAwesomeIcon icon={faSignOutAlt} className="w-5 h-5" />
             <span className="font-medium">Logout</span>
           </button>
         </div>

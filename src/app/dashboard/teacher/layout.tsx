@@ -132,23 +132,23 @@ export default function TeacherLayout({ children }: { children: ReactNode }) {
       href: '/dashboard/teacher', 
       icon: faHome, 
       label: 'Dashboard',
-      bgColor: 'bg-gradient-to-r from-indigo-600 to-indigo-700',
-      hoverColor: 'hover:from-indigo-700 hover:to-indigo-800',
-      iconColor: 'text-indigo-100'
+      bgColor: 'bg-gradient-to-r from-blue-900 to-blue-800',
+      hoverColor: 'hover:from-blue-700 hover:to-blue-800',
+      iconColor: 'text-blue-100'
     },
     { 
       href: '/dashboard/teacher/exams', 
       icon: faClipboardList, 
       label: 'Manage Exams',
-      bgColor: 'bg-gradient-to-r from-purple-600 to-purple-700',
-      hoverColor: 'hover:from-purple-700 hover:to-purple-800',
-      iconColor: 'text-purple-100'
+      bgColor: 'bg-gradient-to-r from-blue-900 to-blue-800',
+      hoverColor: 'hover:from-blue-700 hover:to-blue-800',
+      iconColor: 'text-blue-100'
     },
     { 
       href: '/dashboard/teacher/courses', 
       icon: faBookOpen, 
       label: 'My Courses',
-      bgColor: 'bg-gradient-to-r from-blue-600 to-blue-700',
+      bgColor: 'bg-gradient-to-r from-blue-900 to-blue-800',
       hoverColor: 'hover:from-blue-700 hover:to-blue-800',
       iconColor: 'text-blue-100'
     },
@@ -156,33 +156,33 @@ export default function TeacherLayout({ children }: { children: ReactNode }) {
       href: '/dashboard/teacher/timetable', 
       icon: faCalendarAlt, 
       label: 'Timetable',
-      bgColor: 'bg-gradient-to-r from-orange-600 to-orange-700',
-      hoverColor: 'hover:from-orange-700 hover:to-orange-800',
-      iconColor: 'text-orange-100'
+      bgColor: 'bg-gradient-to-r from-blue-900 to-blue-800',
+      hoverColor: 'hover:from-blue-700 hover:to-blue-800',
+      iconColor: 'text-blue-100'
     },
     { 
       href: '/dashboard/teacher/results', 
       icon: faChartBar, 
       label: 'Results Management',
-      bgColor: 'bg-gradient-to-r from-green-600 to-green-700',
-      hoverColor: 'hover:from-green-700 hover:to-green-800',
-      iconColor: 'text-green-100'
+      bgColor: 'bg-gradient-to-r from-blue-900 to-blue-800',
+      hoverColor: 'hover:from-blue-700 hover:to-blue-800',
+      iconColor: 'text-blue-100'
     },
     { 
       href: '/dashboard/teacher/announcements', 
       icon: faBullhorn, 
       label: 'Announcements',
-      bgColor: 'bg-gradient-to-r from-red-600 to-red-700',
-      hoverColor: 'hover:from-red-700 hover:to-red-800',
-      iconColor: 'text-red-100'
+      bgColor: 'bg-gradient-to-r from-blue-900 to-blue-800',
+      hoverColor: 'hover:from-blue-700 hover:to-blue-800',
+      iconColor: 'text-blue-100'
     },
     { 
       href: '/dashboard/teacher/reports', 
       icon: faFileExport, 
       label: 'Reports',
-      bgColor: 'bg-gradient-to-r from-teal-600 to-teal-700',
-      hoverColor: 'hover:from-teal-700 hover:to-teal-800',
-      iconColor: 'text-teal-100'
+      bgColor: 'bg-gradient-to-r from-slate-600 to-slate-700',
+      hoverColor: 'hover:from-slate-700 hover:to-slate-800',
+      iconColor: 'text-slate-100'
     },
   ];
 
@@ -190,7 +190,7 @@ export default function TeacherLayout({ children }: { children: ReactNode }) {
     <AcademicContextProvider>
       <GlobalAcademicSync />
       <div 
-        className="flex h-screen bg-gray-100 relative overflow-hidden"
+        className="flex h-screen bg-blue-50 relative overflow-hidden"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -199,13 +199,13 @@ export default function TeacherLayout({ children }: { children: ReactNode }) {
       {isMounted && (
         <header className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-white border-b z-40 flex items-center justify-between px-4">
           <button 
-            aria-label="Open menu"
-            onClick={() => setSidebarOpen(true)}
-            className="p-2 rounded-lg hover:bg-gray-100 active:bg-gray-200"
+          aria-label="Open menu"
+          onClick={() => setSidebarOpen(true)}
+          className="p-2 rounded-lg hover:bg-blue-100 active:bg-blue-200"
           >
-            <FontAwesomeIcon icon={faBars} className="w-5 h-5 text-gray-700" />
+          <FontAwesomeIcon icon={faBars} className="w-5 h-5 text-slate-700" />
           </button>
-          <div className="text-sm font-medium text-gray-700">Menu</div>
+          <div className="text-sm font-medium text-slate-700">Menu</div>
           <div className="w-9" />
         </header>
       )}
@@ -213,7 +213,7 @@ export default function TeacherLayout({ children }: { children: ReactNode }) {
       {/* Desktop Sidebar - Full width with colors */}
       <aside className="hidden lg:flex lg:flex-col lg:w-80 bg-white shadow-xl border-r h-full overflow-hidden">
         {/* Profile Section */}
-        <div className="p-6 bg-gradient-to-r from-indigo-900 to-indigo-800 text-white">
+        <div className="p-6 bg-gradient-to-r from-blue-900 to-blue-800 text-white">
           <div className="flex items-center gap-4">
             <div className="h-16 w-16 rounded-full bg-white/20 border-2 border-white/30 overflow-hidden backdrop-blur-sm">
               <div className="h-full w-full bg-white/10 flex items-center justify-center text-white text-2xl font-bold">
@@ -222,8 +222,8 @@ export default function TeacherLayout({ children }: { children: ReactNode }) {
             </div>
             <div>
               <h2 className="text-xl font-bold">{teacher?.name || 'Welcome back, Teacher!'}</h2>
-              <p className="text-sm text-indigo-300">Teacher</p>
-              <p className="text-sm text-indigo-300">ID: {teacher?.id || 'Loading...'}</p>
+              <p className="text-sm text-blue-200">Teacher</p>
+              <p className="text-sm text-blue-200">ID: {teacher?.id || 'Loading...'}</p>
             </div>
           </div>
         </div>
@@ -241,22 +241,14 @@ export default function TeacherLayout({ children }: { children: ReactNode }) {
                 flex items-center gap-4 p-4 rounded-xl transition-all duration-300 group
                 ${pathname === item.href 
                   ? `${item.bgColor} text-white shadow-lg transform scale-105` 
-                  : `bg-gray-50 hover:bg-gray-100 text-gray-700 ${item.hoverColor}`
+                  : `bg-blue-50 hover:bg-blue-100 text-slate-700 ${item.hoverColor}`
                 }
               `}
             >
-              <div className={`
-                p-2 rounded-lg 
-                ${pathname === item.href 
-                  ? 'bg-white/20' 
-                  : `${item.bgColor.replace('bg-gradient-to-r from-', 'bg-').replace(' to-' + item.bgColor.split('to-')[1], '')}/10`
-                }
-              `}>
-                <FontAwesomeIcon 
-                  icon={item.icon} 
-                  className={`w-5 h-5 ${pathname === item.href ? 'text-white' : item.iconColor.replace('text-', 'text-').replace('-100', '-600')}`} 
-                />
-              </div>
+              <FontAwesomeIcon 
+              icon={item.icon} 
+              className={`w-5 h-5 ${pathname === item.href ? 'text-white' : 'text-slate-600'}`} 
+              />
               <span className="font-medium">{item.label}</span>
               {pathname === item.href && (
                 <motion.div
@@ -272,16 +264,14 @@ export default function TeacherLayout({ children }: { children: ReactNode }) {
         {/* Theme Toggle & Logout Section */}
         <div className="p-4 border-t border-gray-200 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-600 font-medium">Theme</span>
+            <span className="text-sm text-slate-600 font-medium">Theme</span>
             <ThemeToggle />
           </div>
           <button 
             onClick={handleLogout}
             className="flex items-center gap-4 w-full p-4 text-red-600 hover:bg-red-50 rounded-xl transition-all duration-300 group"
           >
-            <div className="p-2 rounded-lg bg-red-100 group-hover:bg-red-200">
-              <FontAwesomeIcon icon={faSignOutAlt} className="w-5 h-5" />
-            </div>
+            <FontAwesomeIcon icon={faSignOutAlt} className="w-5 h-5" />
             <span className="font-medium">Logout</span>
           </button>
         </div>
@@ -310,13 +300,13 @@ export default function TeacherLayout({ children }: { children: ReactNode }) {
               {/* Close Button */}
               <button
                 onClick={() => setSidebarOpen(false)}
-                className="absolute top-4 right-4 p-2 rounded-lg hover:bg-gray-100 transition-colors z-10"
+                className="absolute top-4 right-4 p-2 rounded-lg hover:bg-blue-100 transition-colors z-10"
               >
-                <FontAwesomeIcon icon={faTimes} className="h-5 w-5 text-gray-600" />
+                <FontAwesomeIcon icon={faTimes} className="h-5 w-5 text-slate-600" />
               </button>
 
               {/* Profile Section */}
-              <div className="p-6 bg-gradient-to-r from-indigo-900 to-indigo-800 text-white">
+              <div className="p-6 bg-gradient-to-r from-blue-900 to-blue-800 text-white">
                 <div className="flex items-center gap-4">
                   <div className="h-12 w-12 rounded-full bg-white/20 border-2 border-white/30 overflow-hidden backdrop-blur-sm">
                     <div className="h-full w-full bg-white/10 flex items-center justify-center text-white text-lg font-bold">
@@ -325,8 +315,8 @@ export default function TeacherLayout({ children }: { children: ReactNode }) {
                   </div>
                   <div>
                     <h2 className="font-bold">{teacher?.name || 'Welcome back, Teacher!'}</h2>
-                    <p className="text-xs text-indigo-300">Teacher</p>
-                    <p className="text-xs text-indigo-300">ID: {teacher?.id || 'Loading...'}</p>
+                    <p className="text-xs text-blue-200">Teacher</p>
+                    <p className="text-xs text-blue-200">ID: {teacher?.id || 'Loading...'}</p>
                   </div>
                 </div>
               </div>
@@ -345,13 +335,13 @@ export default function TeacherLayout({ children }: { children: ReactNode }) {
                       flex items-center gap-3 p-3 rounded-lg transition-all duration-300
                       ${pathname === item.href 
                         ? `${item.bgColor} text-white shadow-md` 
-                        : 'hover:bg-gray-100 text-gray-700'
+                        : 'hover:bg-blue-100 text-slate-700'
                       }
                     `}
                   >
                     <FontAwesomeIcon 
                       icon={item.icon} 
-                      className={`w-5 h-5 ${pathname === item.href ? 'text-white' : item.iconColor.replace('text-', 'text-').replace('-100', '-600')}`} 
+                      className={`w-5 h-5 ${pathname === item.href ? 'text-white' : 'text-slate-600'}`} 
                     />
                     <span className="font-medium">{item.label}</span>
                   </motion.a>
@@ -361,7 +351,7 @@ export default function TeacherLayout({ children }: { children: ReactNode }) {
               {/* Theme Toggle & Logout Section */}
               <div className="p-4 border-t border-gray-200 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 font-medium">Theme</span>
+                  <span className="text-sm text-slate-600 font-medium">Theme</span>
                   <ThemeToggle />
                 </div>
                 <button 
@@ -379,8 +369,8 @@ export default function TeacherLayout({ children }: { children: ReactNode }) {
       )}
 
       {/* Main Content Area */}
-      <main className="flex-1 h-full overflow-y-auto bg-gray-50 lg:ml-0 pt-14 lg:pt-0">
-        <div className="sticky top-0 z-30 bg-gray-50/80 backdrop-blur supports-[backdrop-filter]:bg-gray-50/60 border-b border-gray-200">
+      <main className="flex-1 h-full overflow-y-auto bg-blue-50 lg:ml-0 pt-14 lg:pt-0">
+        <div className="sticky top-0 z-30 bg-blue-50/80 backdrop-blur supports-[backdrop-filter]:bg-blue-50/60 border-b border-gray-200">
           <div className="px-4 py-3">
             <AcademicContextDisplay showControls={false} className="!mb-0" />
           </div>

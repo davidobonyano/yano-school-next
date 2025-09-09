@@ -116,89 +116,89 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       href: '/dashboard/admin', 
       icon: faHome, 
       label: 'Dashboard',
-      bgColor: 'bg-gradient-to-r from-green-600 to-green-700',
-      hoverColor: 'hover:from-green-700 hover:to-green-800',
-      iconColor: 'text-green-100'
+      bgColor: 'bg-gradient-to-r from-blue-900 to-blue-800',
+      hoverColor: 'hover:from-blue-800 hover:to-blue-700',
+      iconColor: 'text-blue-100'
     },
     { 
       href: '/dashboard/admin/students', 
       icon: faUserGraduate, 
       label: 'Students',
-      bgColor: 'bg-gradient-to-r from-blue-600 to-blue-700',
-      hoverColor: 'hover:from-blue-700 hover:to-blue-800',
+      bgColor: 'bg-gradient-to-r from-blue-900 to-blue-800',
+      hoverColor: 'hover:from-blue-800 hover:to-blue-700',
       iconColor: 'text-blue-100'
     },
     { 
       href: '/dashboard/admin/teachers', 
       icon: faChalkboardTeacher, 
       label: 'Teachers',
-      bgColor: 'bg-gradient-to-r from-purple-600 to-purple-700',
-      hoverColor: 'hover:from-purple-700 hover:to-purple-800',
-      iconColor: 'text-purple-100'
+      bgColor: 'bg-gradient-to-r from-blue-900 to-blue-800',
+      hoverColor: 'hover:from-blue-800 hover:to-blue-700',
+      iconColor: 'text-blue-100'
     },
     { 
       href: '/dashboard/admin/payments', 
       icon: faCreditCard, 
       label: 'Payments',
-      bgColor: 'bg-gradient-to-r from-orange-600 to-orange-700',
-      hoverColor: 'hover:from-orange-700 hover:to-orange-800',
-      iconColor: 'text-orange-100'
+      bgColor: 'bg-gradient-to-r from-blue-900 to-blue-800',
+      hoverColor: 'hover:from-blue-800 hover:to-blue-700',
+      iconColor: 'text-blue-100'
     },
     { 
       href: '/dashboard/admin/announcements', 
       icon: faBullhorn, 
       label: 'Announcements',
-      bgColor: 'bg-gradient-to-r from-red-600 to-red-700',
-      hoverColor: 'hover:from-red-700 hover:to-red-800',
-      iconColor: 'text-red-100'
+      bgColor: 'bg-gradient-to-r from-blue-900 to-blue-800',
+      hoverColor: 'hover:from-blue-800 hover:to-blue-700',
+      iconColor: 'text-blue-100'
     },
     { 
       href: '/dashboard/admin/events', 
       icon: faCalendarAlt, 
       label: 'Events',
-      bgColor: 'bg-gradient-to-r from-pink-600 to-pink-700',
-      hoverColor: 'hover:from-pink-700 hover:to-pink-800',
-      iconColor: 'text-pink-100'
+      bgColor: 'bg-gradient-to-r from-blue-900 to-blue-800',
+      hoverColor: 'hover:from-blue-800 hover:to-blue-700',
+      iconColor: 'text-blue-100'
     },
     { 
       href: '/dashboard/admin/courses', 
       icon: faBookOpen, 
       label: 'Courses',
-      bgColor: 'bg-gradient-to-r from-indigo-600 to-indigo-700',
-      hoverColor: 'hover:from-indigo-700 hover:to-indigo-800',
-      iconColor: 'text-indigo-100'
+      bgColor: 'bg-gradient-to-r from-blue-900 to-blue-800',
+      hoverColor: 'hover:from-blue-800 hover:to-blue-700',
+      iconColor: 'text-blue-100'
     },
     { 
       href: '/dashboard/admin/results', 
       icon: faGraduationCap, 
       label: 'Results',
-      bgColor: 'bg-gradient-to-r from-blue-600 to-blue-700',
-      hoverColor: 'hover:from-blue-700 hover:to-blue-800',
+      bgColor: 'bg-gradient-to-r from-blue-900 to-blue-800',
+      hoverColor: 'hover:from-blue-800 hover:to-blue-700',
       iconColor: 'text-blue-100'
     },
     { 
       href: '/dashboard/admin/passwords', 
       icon: faUserShield, 
       label: 'Passwords',
-      bgColor: 'bg-gradient-to-r from-gray-600 to-gray-700',
-      hoverColor: 'hover:from-gray-700 hover:to-gray-800',
-      iconColor: 'text-gray-100'
+      bgColor: 'bg-gradient-to-r from-slate-600 to-slate-700',
+      hoverColor: 'hover:from-slate-700 hover:to-slate-800',
+      iconColor: 'text-slate-100'
     },
     { 
       href: '/dashboard/admin/reports', 
       icon: faFileExport, 
       label: 'Reports',
-      bgColor: 'bg-gradient-to-r from-teal-600 to-teal-700',
-      hoverColor: 'hover:from-teal-700 hover:to-teal-800',
-      iconColor: 'text-teal-100'
+      bgColor: 'bg-gradient-to-r from-slate-600 to-slate-700',
+      hoverColor: 'hover:from-slate-700 hover:to-slate-800',
+      iconColor: 'text-slate-100'
     },
     { 
       href: '/dashboard/admin/promotions', 
       icon: faGraduationCap, 
       label: 'Promotions',
-      bgColor: 'bg-gradient-to-r from-purple-600 to-purple-700',
-      hoverColor: 'hover:from-purple-700 hover:to-purple-800',
-      iconColor: 'text-purple-100'
+      bgColor: 'bg-gradient-to-r from-blue-900 to-blue-800',
+      hoverColor: 'hover:from-blue-800 hover:to-blue-700',
+      iconColor: 'text-blue-100'
     },
   ];
 
@@ -231,7 +231,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       /* Desktop Sidebar - Full width with colors */
       <aside className="hidden lg:flex lg:flex-col lg:w-80 bg-white shadow-xl border-r h-full overflow-hidden">
         {/* Profile Section */}
-        <div className="p-6 bg-gradient-to-r from-green-900 to-green-800 text-white">
+        <div className="p-6 bg-gradient-to-r from-blue-900 to-blue-800 text-white">
           <div className="flex items-center gap-4">
             <div className="h-16 w-16 rounded-full bg-white/20 border-2 border-white/30 overflow-hidden backdrop-blur-sm">
               <div className="h-full w-full bg-white/10 flex items-center justify-center text-white text-2xl font-bold">
@@ -240,8 +240,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             </div>
             <div>
               <h2 className="text-xl font-bold">{admin.name}</h2>
-              <p className="text-sm text-green-300">Administrator</p>
-              <p className="text-sm text-green-300">ID: {admin.id}</p>
+              <p className="text-sm text-blue-200">Administrator</p>
+              <p className="text-sm text-blue-200">ID: {admin.id}</p>
             </div>
           </div>
         </div>
@@ -259,22 +259,14 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                 flex items-center gap-4 p-4 rounded-xl transition-all duration-300 group
                 ${pathname === item.href 
                   ? `${item.bgColor} text-white shadow-lg transform scale-105` 
-                  : `bg-gray-50 hover:bg-gray-100 text-gray-700 ${item.hoverColor}`
+                  : `bg-blue-50 hover:bg-blue-100 text-slate-700 ${item.hoverColor}`
                 }
               `}
             >
-              <div className={`
-                p-2 rounded-lg 
-                ${pathname === item.href 
-                  ? 'bg-white/20' 
-                  : `${item.bgColor.replace('bg-gradient-to-r from-', 'bg-').replace(' to-' + item.bgColor.split('to-')[1], '')}/10`
-                }
-              `}>
-                <FontAwesomeIcon 
-                  icon={item.icon} 
-                  className={`w-5 h-5 ${pathname === item.href ? 'text-white' : item.iconColor.replace('text-', 'text-').replace('-100', '-600')}`} 
-                />
-              </div>
+              <FontAwesomeIcon 
+                icon={item.icon} 
+                className={`w-5 h-5 ${pathname === item.href ? 'text-white' : 'text-slate-600'}`} 
+              />
               <span className="font-medium">{item.label}</span>
               {pathname === item.href && (
                 <motion.div
@@ -297,9 +289,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             onClick={handleLogout}
             className="flex items-center gap-4 w-full p-4 text-red-600 hover:bg-red-50 rounded-xl transition-all duration-300 group"
           >
-            <div className="p-2 rounded-lg bg-red-100 group-hover:bg-red-200">
-              <FontAwesomeIcon icon={faSignOutAlt} className="w-5 h-5" />
-            </div>
+            <FontAwesomeIcon icon={faSignOutAlt} className="w-5 h-5" />
             <span className="font-medium">Logout</span>
           </button>
         </div>
@@ -335,7 +325,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               </button>
 
               {/* Profile Section */}
-              <div className="p-6 bg-gradient-to-r from-green-900 to-green-800 text-white">
+              <div className="p-6 bg-gradient-to-r from-blue-900 to-blue-800 text-white">
                 <div className="flex items-center gap-4">
                   <div className="h-12 w-12 rounded-full bg-white/20 border-2 border-white/30 overflow-hidden backdrop-blur-sm">
                     <div className="h-full w-full bg-white/10 flex items-center justify-center text-white text-lg font-bold">
@@ -344,8 +334,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                   </div>
                   <div>
                     <h2 className="font-bold">{admin.name}</h2>
-                    <p className="text-xs text-green-300">Administrator</p>
-                    <p className="text-xs text-green-300">ID: {admin.id}</p>
+                    <p className="text-xs text-blue-200">Administrator</p>
+                    <p className="text-xs text-blue-200">ID: {admin.id}</p>
                   </div>
                 </div>
               </div>
@@ -364,13 +354,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                       flex items-center gap-3 p-3 rounded-lg transition-all duration-300
                       ${pathname === item.href 
                         ? `${item.bgColor} text-white shadow-md` 
-                        : 'hover:bg-gray-100 text-gray-700'
+                        : 'hover:bg-blue-100 text-slate-700'
                       }
                     `}
                   >
                     <FontAwesomeIcon 
                       icon={item.icon} 
-                      className={`w-5 h-5 ${pathname === item.href ? 'text-white' : item.iconColor.replace('text-', 'text-').replace('-100', '-600')}`} 
+                      className={`w-5 h-5 ${pathname === item.href ? 'text-white' : 'text-slate-600'}`} 
                     />
                     <span className="font-medium">{item.label}</span>
                   </motion.a>

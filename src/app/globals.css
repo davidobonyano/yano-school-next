@@ -254,6 +254,27 @@ body.dark-mode .dark\:bg-neutral-800 {
   background-color: #2D2D30 !important; /* card background */
 }
 
+/* Dashboard Dark Mode Support for New Color Scheme */
+body.dark-mode .bg-blue-50 {
+  background-color: #2D2D30 !important; /* matches existing card background */
+}
+
+body.dark-mode .bg-blue-100 {
+  background-color: #3a3a3d !important; /* slightly lighter for hover states */
+}
+
+body.dark-mode .text-slate-700 {
+  color: #D4D4D4 !important; /* matches main text color */
+}
+
+body.dark-mode .text-slate-600 {
+  color: #D4D4D4 !important; /* matches main text color */
+}
+
+body.dark-mode .text-blue-200 {
+  color: #93c5fd !important; /* light blue for profile text */
+}
+
 /* Fix Select component styling */
 [data-radix-popper-content-wrapper] {
   z-index: 50 !important;
