@@ -44,7 +44,7 @@ export async function GET(request: Request) {
     if (studentIds.length) {
       const { data: students, error: sErr } = await supabase
         .from('school_students')
-        .select('id, student_id, full_name, class_level, stream')
+        .select('id, student_id, full_name, class_level, stream, is_active')
         .in('id', studentIds);
       if (sErr) return NextResponse.json({ error: sErr.message }, { status: 500 });
       studentsMap = (students || []).reduce((acc: any, s: any) => { acc[s.id] = s; return acc; }, {});
@@ -61,7 +61,13 @@ export async function GET(request: Request) {
       if (!serr && srow?.name) sessionName = srow.name;
     }
 
-    const studentsWithGraduationDetails = (transitions || []).map((t: any) => ({
+    // Only include students who are currently inactive (still graduated)
+    const filteredTransitions = (transitions || []).filter((t: any) => {
+      const s = studentsMap[t.student_id];
+      return s && s.is_active === false;
+    });
+
+    const studentsWithGraduationDetails = filteredTransitions.map((t: any) => ({
       student_id: studentsMap[t.student_id]?.student_id || '',
       full_name: studentsMap[t.student_id]?.full_name || 'Unknown',
       class_level: studentsMap[t.student_id]?.class_level || 'Unknown',

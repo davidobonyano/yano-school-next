@@ -88,6 +88,25 @@ export default function StudentPaymentsPage() {
   const canQuery = useMemo(() => mounted && Boolean(studentId), [mounted, studentId]);
   const didAutoSelectRef = useRef(false);
 
+  // Stable formatters to avoid SSR/client mismatches
+  const formatCurrency = (value: number) => {
+    if (!mounted) return `₦${Number(value ?? 0)}`;
+    try {
+      return new Intl.NumberFormat('en-NG').format(Number(value ?? 0));
+    } catch {
+      return String(Number(value ?? 0));
+    }
+  };
+
+  const formatDate = (iso: string) => {
+    if (!mounted) return iso;
+    try {
+      return new Date(iso).toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: '2-digit' });
+    } catch {
+      return iso;
+    }
+  };
+
   // Load academic context
   async function loadAcademicContext() {
     setLoadingContext(true);
@@ -337,10 +356,10 @@ export default function StudentPaymentsPage() {
                             <tr key={`${item.session_id}-${item.term_id}-${item.purpose}`} className="hover:bg-gray-50">
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.purpose}</td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.term_name || '-'}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">₦{Number(item.total_charged).toLocaleString()}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 text-right">₦{Number(item.total_paid).toLocaleString()}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">₦{formatCurrency(Number(item.total_charged))}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 text-right">₦{formatCurrency(Number(item.total_paid))}</td>
                               <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium text-right ${item.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                ₦{Number(item.balance).toLocaleString()}
+                                ₦{formatCurrency(Number(item.balance))}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-center">
                                 <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full ${statusDisplay.bgColor} ${statusDisplay.color}`}>
@@ -402,9 +421,9 @@ export default function StudentPaymentsPage() {
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{info.termName ? `${info.termName} Fee` : '-'}</td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{info.termName || '-'}</td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                                {`₦${info.currentAmount.toLocaleString()}`}
+                                {`₦${formatCurrency(info.currentAmount)}`}
                                 {info.debtAmount > 0 ? (
-                                  <span className="text-gray-500"> {` (debt ₦${info.debtAmount.toLocaleString()} from last term)`}</span>
+                                  <span className="text-gray-500"> {` (debt ₦${formatCurrency(info.debtAmount)} from last term)`}</span>
                                 ) : null}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -458,8 +477,8 @@ export default function StudentPaymentsPage() {
                         {payments.map((payment) => (
                           <tr key={payment.id} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{payment.purpose}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">₦{Number(payment.amount).toLocaleString()}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(payment.paid_on).toLocaleDateString()}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">₦{formatCurrency(Number(payment.amount))}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(payment.paid_on)}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{payment.term_name || '-'}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{payment.reference || '-'}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-center">

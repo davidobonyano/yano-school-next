@@ -184,29 +184,28 @@ export default function StudentLayout({ children }: { children: ReactNode }) {
         <GlobalAcademicSync />
       <div 
         className="flex h-screen bg-gray-100 relative overflow-hidden"
+        suppressHydrationWarning
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
 
 
-      {/* Mobile Top Nav with Hamburger (client-only to avoid SSR mismatch) */}
-      {isMounted && (
-        <header className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-white border-b z-40 flex items-center justify-between px-4">
-          <button 
-            aria-label="Open menu"
-            onClick={() => setSidebarOpen(true)}
-            className="p-2 rounded-lg hover:bg-gray-100 active:bg-gray-200"
-          >
-            <FontAwesomeIcon icon={faBars} className="w-5 h-5 text-gray-700" />
-          </button>
-          <div className="text-sm font-medium text-gray-700">Menu</div>
-          <div className="w-9" />
-        </header>
-      )}
+      {/* Mobile Top Nav with Hamburger */}
+      <header suppressHydrationWarning className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-white border-b z-40 flex items-center justify-between px-4">
+        <button 
+          aria-label="Open menu"
+          onClick={() => setSidebarOpen(true)}
+          className="p-2 rounded-lg hover:bg-gray-100 active:bg-gray-200"
+        >
+          <FontAwesomeIcon icon={faBars} className="w-5 h-5 text-gray-700" />
+        </button>
+        <div className="text-sm font-medium text-gray-700">Menu</div>
+        <div className="w-9" />
+      </header>
 
       {/* Desktop Sidebar - Full width with colors */}
-      <aside className="hidden lg:flex lg:flex-col lg:w-80 bg-white shadow-xl border-r h-full overflow-hidden">
+      <aside suppressHydrationWarning className="hidden lg:flex lg:flex-col lg:w-80 bg-white shadow-xl border-r h-full overflow-hidden">
         {/* Profile Section */}
         <div className="p-6 bg-gradient-to-r from-blue-900 to-blue-800 text-white">
           <div className="flex items-center gap-4">
@@ -273,7 +272,6 @@ export default function StudentLayout({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Mobile Expanded Sidebar */}
-      {isMounted && (
       <AnimatePresence>
         {sidebarOpen && (
           <>
@@ -361,10 +359,9 @@ export default function StudentLayout({ children }: { children: ReactNode }) {
           </>
         )}
       </AnimatePresence>
-      )}
 
       {/* Main Content Area */}
-      <main className="flex-1 h-full overflow-y-auto bg-gray-50 lg:ml-0 pt-14 lg:pt-0">
+      <main suppressHydrationWarning className="flex-1 h-full overflow-y-auto bg-gray-50 lg:ml-0 pt-14 lg:pt-0">
         {children}
       </main>
       </div>

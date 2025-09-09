@@ -683,7 +683,7 @@ export default function StudentDashboard() {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.5, delay: 0.8 + index * 0.1 }}
-                className="border-l-4 border-blue-400 pl-4 py-3 bg-gradient-to-r from-blue-50 to-transparent rounded-r-lg hover:from-blue-100 transition-all duration-300"
+                className="border-l-4 border-blue-400 pl-4 py-3 bg-blue-50 rounded-r-lg hover:bg-blue-100 transition-all duration-300"
               >
                 <div className="flex justify-between items-start mb-2">
                   <h3 className="font-semibold text-gray-800">

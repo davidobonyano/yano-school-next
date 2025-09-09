@@ -34,6 +34,7 @@ function normalizeStream(stream?: string | null): string | null {
 
 export default function StudentTimetablePage() {
   const { academicContext } = useGlobalAcademicContext();
+  const [mounted, setMounted] = useState(false);
   const [items, setItems] = useState<TimetableItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [studentClass, setStudentClass] = useState<string>('');
@@ -73,6 +74,7 @@ export default function StudentTimetablePage() {
   };
 
   useEffect(() => {
+    setMounted(true);
     const effective = computeStudentClass();
     setStudentClass(effective);
     
@@ -106,6 +108,7 @@ export default function StudentTimetablePage() {
     return todaysItems.length;
   };
 
+  if (!mounted) return null;
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="mb-6">

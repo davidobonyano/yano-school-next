@@ -33,6 +33,7 @@ function gradeToPoint(grade: string): number {
 export default function FullResultsPage() {
 	const router = useRouter();
 	const { currentContext } = useAcademicContext();
+	const [mounted, setMounted] = useState(false);
 	const [rows, setRows] = useState<Row[]>([]);
 	const [loading, setLoading] = useState<boolean>(true);
 	const [sessionFilter, setSessionFilter] = useState<string>('All');
@@ -42,6 +43,7 @@ export default function FullResultsPage() {
 	const [allSessions, setAllSessions] = useState<Array<{ name: string }>>([]);
 
 	useEffect(() => {
+		setMounted(true);
 		const s = getStudentSession();
 		if (s) {
 			setStudentName(s.full_name || '');
@@ -140,6 +142,7 @@ export default function FullResultsPage() {
 		return g.toFixed(2);
 	}, [rows]);
 
+	if (!mounted) return null;
 	return (
 		<div className="p-6">
 			<div className="flex justify-between items-center mb-6">

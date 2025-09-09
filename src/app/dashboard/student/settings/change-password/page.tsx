@@ -8,6 +8,7 @@ import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 
 export default function StudentChangePasswordPage() {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const [studentId, setStudentId] = useState<string>('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -20,6 +21,7 @@ export default function StudentChangePasswordPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     const s = getStudentSession();
     if (!s) {
       router.push('/login');
@@ -63,6 +65,8 @@ export default function StudentChangePasswordPage() {
       setLoading(false);
     }
   };
+
+  if (!mounted) return null;
 
   return (
     <div className="max-w-md mx-auto p-6">

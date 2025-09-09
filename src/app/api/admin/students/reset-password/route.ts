@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseService } from '@/lib/supabase-server';
 import { requireAdmin } from '@/lib/authz';
+import bcrypt from 'bcryptjs';
 
 export async function POST(request: Request) {
   try {
@@ -75,6 +76,20 @@ export async function POST(request: Request) {
       }
 
       userId = newUser.user.id;
+    }
+
+    // Also update local credentials table used by portal login
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    const { error: upsertCredErr } = await supabaseService
+      .from('student_credentials')
+      .upsert({
+        student_id: student.student_id,
+        password_hash: passwordHash,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'student_id' });
+    if (upsertCredErr) {
+      console.error('Error upserting student_credentials:', upsertCredErr);
+      return NextResponse.json({ error: 'Failed to persist new password' }, { status: 500 });
     }
 
     // Log the password reset

@@ -21,6 +21,7 @@ function gradeToPoint(grade: string): number {
 export default function StudentGrades() {
   const router = useRouter();
   const { academicContext } = useGlobalAcademicContext();
+  const [mounted, setMounted] = useState(false);
   const [selectedTerm, setSelectedTerm] = useState('First Term');
   const [selectedSession, setSelectedSession] = useState('');
   const [studentName, setStudentName] = useState<string>('');
@@ -35,6 +36,7 @@ export default function StudentGrades() {
   const [allSessions, setAllSessions] = useState<Array<{ name: string }>>([]);
 
   useEffect(() => {
+    setMounted(true);
     const s = getStudentSession();
     setStudentName(s?.full_name || '');
     setStudentId(s?.student_id || '');
@@ -166,6 +168,8 @@ export default function StudentGrades() {
 
   const calculateGPA = () => gpa;
   const getOverallPosition = () => position;
+
+  if (!mounted) return null;
 
   return (
     <div className="p-6">

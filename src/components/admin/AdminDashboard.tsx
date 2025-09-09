@@ -368,19 +368,19 @@ export default function AdminDashboard() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Button className="h-20 flex flex-col items-center justify-center">
+            <Button variant="soft" className="h-20 flex flex-col items-center justify-center">
               <Users className="w-6 h-6 mb-2" />
               Add New Student
             </Button>
-            <Button className="h-20 flex flex-col items-center justify-center">
+            <Button variant="soft" className="h-20 flex flex-col items-center justify-center">
               <BookOpen className="w-6 h-6 mb-2" />
               Add New Teacher
             </Button>
-            <Button className="h-20 flex flex-col items-center justify-center">
+            <Button variant="soft" className="h-20 flex flex-col items-center justify-center">
               <Calendar className="w-6 h-6 mb-2" />
               Post Announcement
             </Button>
-            <Button className="h-20 flex flex-col items-center justify-center">
+            <Button variant="soft" className="h-20 flex flex-col items-center justify-center">
               <DollarSign className="w-6 h-6 mb-2" />
               Pending Payments
             </Button>
