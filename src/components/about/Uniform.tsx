@@ -39,13 +39,13 @@ const uniforms = [
 
 export default function UniformPage() {
   return (
-    <section id="uniform" className="py-16 px-4 md:px-10 bg-white dark:bg-neutral-900">
+    <section id="uniform" className="py-16 px-4 md:px-10 bg-white">
       <div className="max-w-6xl mx-auto">
-        <h2 className="text-3xl font-bold text-gray-700 dark:text-gray-100 mb-4">Uniform Guidelines</h2>
+        <h2 className="text-3xl font-bold text-gray-700 mb-4">Uniform Guidelines</h2>
         <div className="ml-[10px] mb-4">
           <div className="w-16 h-[2px] mt-2 bg-red-400 rounded-full"></div>
         </div>
-        <p className="text-gray-700 dark:text-gray-300 mb-8 max-w-2xl">
+        <p className="text-gray-700 mb-8 max-w-2xl">
           Our students are expected to maintain a smart and modest appearance at all times.
           Below are the official uniforms for various school activities.
         </p>
@@ -54,7 +54,7 @@ export default function UniformPage() {
           {uniforms.map((item, index) => (
             <div
               key={index}
-              className="bg-white dark:bg-neutral-800 rounded-2xl shadow-md overflow-hidden"
+              className="bg-white rounded-2xl shadow-md overflow-hidden"
             >
               <div className="relative w-full h-56">
                 <Image
@@ -67,7 +67,7 @@ export default function UniformPage() {
               </div>
               <div className="p-4">
                 <h3 className={`text-xl font-semibold ${item.textColor}`}>{item.title}</h3>
-                <p className="text-gray-600 dark:text-gray-300 text-sm mt-1">
+                <p className="text-gray-600 text-sm mt-1">
                   {item.description}
                 </p>
               </div>
@@ -75,7 +75,7 @@ export default function UniformPage() {
           ))}
         </div>
 
-        <p className="mt-10 text-gray-700 dark:text-gray-300 text-sm italic">
+        <p className="mt-10 text-gray-700 text-sm italic">
           All students must wear white socks and black sandals. Grooming must be neat and appropriate.
         </p>
       </div>

@@ -44,9 +44,23 @@ body.dark-mode .text-black {
   color: #D4D4D4 !important;
 }
 
+/* Navigation Links Dark Mode */
+body.dark-mode nav a,
+body.dark-mode header a,
+body.dark-mode .nav-link,
+body.dark-mode a[href^="/"] {
+  color: #D4D4D4 !important; /* nav links use consistent color scheme */
+}
+
 /* Link hover color */
 body.dark-mode a:hover {
   color: #90cdf4 !important; /* soft blue */
+}
+
+/* Override any blue nav links specifically */
+body.dark-mode nav a:not(:hover),
+body.dark-mode header a:not(:hover) {
+  color: #D4D4D4 !important; /* ensure nav links are consistent */
 }
 
 /* Shadow override */
@@ -71,6 +85,10 @@ body.dark-mode .transparent {
 /* Uniform Section Colors */
 body.dark-mode .bg-red-50 {
   background-color: #1F222A !important; /* matches body dark background */
+}
+
+body.dark-mode .bg-gray-50 {
+  background-color: #1F222A !important; /* Student Gallery background - matches body dark background */
 }
 
 body.dark-mode .text-red-600 {
@@ -141,6 +159,99 @@ body.dark-mode .bg-gray-100 {
 
 body.dark-mode .bg-gray-700 {
   background-color: #374151 !important; /* keep as is */
+}
+
+/* Student Gallery Dark Mode - bg-gray-50 now handled above */
+
+/* Gallery section backgrounds and text colors - more specific targeting */
+body.dark-mode section h2 {
+  color: #D4D4D4 !important; /* all section titles including gallery */
+}
+
+body.dark-mode section p {
+  color: #D4D4D4 !important; /* all section paragraphs including gallery description */
+}
+
+body.dark-mode .text-3xl,
+body.dark-mode .text-4xl {
+  color: #D4D4D4 !important; /* large titles */
+}
+
+/* Gallery filter buttons */
+body.dark-mode button:not(.bg-red-600) {
+  background-color: #2D2D30 !important; /* inactive buttons - matches your card color */
+  color: #D4D4D4 !important; /* inactive button text - matches your scheme */
+  border: 1px solid #3a3a3d; /* matches your border color */
+}
+
+body.dark-mode button:not(.bg-red-600):hover {
+  background-color: #3a3a3d !important; /* button hover - slightly lighter */
+  color: #D4D4D4 !important; /* button hover text - consistent */
+}
+
+/* Gallery cards */
+body.dark-mode .aspect-square {
+  background-color: #2D2D30 !important; /* matches your card background */
+}
+
+body.dark-mode .group-hover\:opacity-100 h3 {
+  color: #D4D4D4 !important; /* card title on hover - matches your scheme */
+}
+
+/* Gallery "No photos found" message */
+body.dark-mode .text-gray-500 {
+  color: #D4D4D4 !important; /* matches your main text color */
+}
+
+/* Modal styles */
+body.dark-mode .bg-black\/80 {
+  background-color: rgba(31, 34, 42, 0.9) !important; /* matches your dark background with transparency */
+}
+
+body.dark-mode .text-gray-300 {
+  color: #D4D4D4 !important; /* matches your scheme */
+}
+
+body.dark-mode .text-gray-400 {
+  color: #D4D4D4 !important; /* matches your scheme */
+}
+
+body.dark-mode .shadow-lg {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5) !important; /* matches your existing shadow */
+}
+
+/* Leadership Team Dark Mode - Override Tailwind dark: classes */
+body.dark-mode .dark\:bg-gray-900 {
+  background-color: #1F222A !important; /* use your consistent dark bg */
+}
+
+body.dark-mode .dark\:text-white {
+  color: #f3f4f6 !important; /* gray-100 */
+}
+
+body.dark-mode .dark\:bg-gray-800 {
+  background-color: #2D2D30 !important; /* use your card background */
+}
+
+body.dark-mode .dark\:text-gray-400 {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+/* Uniform Guidelines Dark Mode - Override Tailwind dark: classes */
+body.dark-mode .dark\:bg-neutral-900 {
+  background-color: #1F222A !important; /* main dark background */
+}
+
+body.dark-mode .dark\:text-gray-100 {
+  color: #f3f4f6 !important; /* gray-100 */
+}
+
+body.dark-mode .dark\:text-gray-300 {
+  color: #d1d5db !important; /* gray-300 */
+}
+
+body.dark-mode .dark\:bg-neutral-800 {
+  background-color: #2D2D30 !important; /* card background */
 }
 
 /* Fix Select component styling */

@@ -83,8 +83,8 @@ const team: TeamMember[] = [
 
 export default function LeadershipTeam() {
   return (
-    <section className="py-16 px-4 bg-gray-100 dark:bg-gray-900">
-      <h2 className="text-center text-3xl font-bold text-gray-700 dark:text-white mb-12">
+    <section className="py-16 px-4 bg-gray-100">
+      <h2 className="text-center text-3xl font-bold text-gray-700 mb-12">
         Leadership & Team
       </h2>
 
@@ -107,7 +107,7 @@ function TeamCard({
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow hover:shadow-xl transition duration-300 overflow-hidden">
+    <div className="bg-white rounded-2xl shadow hover:shadow-xl transition duration-300 overflow-hidden">
       <div className="w-full h-64 relative">
         <Image
           src={photo}
@@ -120,8 +120,8 @@ function TeamCard({
 
       <div className="p-5 flex flex-col items-center text-center">
         <FontAwesomeIcon icon={icon} className="text-red-400 text-xl mb-2" />
-        <h3 className="text-lg font-semibold text-gray-700 dark:text-white">{name}</h3>
-        <p className="italic text-sm text-gray-600 dark:text-gray-400 mb-2">{role}</p>
+        <h3 className="text-lg font-semibold text-gray-700">{name}</h3>
+        <p className="italic text-sm text-gray-600 mb-2">{role}</p>
 
         <button
           onClick={() => setOpen(!open)}
@@ -131,7 +131,7 @@ function TeamCard({
         </button>
 
         {open && (
-          <div className="text-sm text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 rounded p-3 mt-2">
+          <div className="text-sm text-gray-700 bg-gray-100 rounded p-3 mt-2">
             <FontAwesomeIcon icon={faQuoteLeft} className="mr-2 text-red-300" />
             <p>{bio}</p>
             <p className="mt-2 text-xs italic">Fun fact: {funFact}</p>
