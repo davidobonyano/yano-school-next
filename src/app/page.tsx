@@ -6,6 +6,7 @@ import Aboutlayout from "@/components/about/AboutLayout";
 import EventsHome from "@/components/events/EventsHome";
 import Programsslider from "@/components/programs/ProgramsSlider";
 import Programslayout from "@/components/programs/ProgramsLayout";
+import UniformPreview from "@/components/uniform/UniformPreview";
 import Testimonialslider from "@/components/testimonials/TestimonialSlider";
 import { useEffect } from 'react';
 
@@ -63,6 +64,9 @@ export default function Home() {
       <section>
         <Programsslider />
         <Programslayout />
+      </section>
+      <section>
+        <UniformPreview />
       </section>
       <section>
         <Testimonialslider />

@@ -68,6 +68,81 @@ body.dark-mode .transparent {
   color: #D4D4D4 !important;
 }
 
+/* Uniform Section Colors */
+body.dark-mode .bg-red-50 {
+  background-color: #1F222A !important; /* matches body dark background */
+}
+
+body.dark-mode .text-red-600 {
+  color: #f87171 !important; /* red-400 for better dark mode contrast */
+}
+
+body.dark-mode .text-gray-900 {
+  color: #f3f4f6 !important; /* gray-100 */
+}
+
+body.dark-mode .text-gray-600 {
+  color: #d1d5db !important; /* gray-300 */
+}
+
+body.dark-mode .bg-neutral-800 {
+  background-color: #262626 !important; /* neutral-800 */
+}
+
+body.dark-mode .bg-red-600 {
+  background-color: #ef4444 !important; /* red-500 for better dark mode visibility */
+}
+
+/* Dark mode shadows for uniform cards */
+body.dark-mode .shadow-neutral-800 {
+  box-shadow: 0 4px 6px -1px rgba(38, 38, 38, 0.2) !important;
+}
+
+/* Login Pages Dark Mode */
+body.dark-mode .from-blue-50 {
+  background: linear-gradient(to bottom right, #1F222A, #1F222A) !important;
+}
+
+body.dark-mode .from-green-50 {
+  background: linear-gradient(to bottom right, #1F222A, #1F222A) !important;
+}
+
+body.dark-mode .from-red-50 {
+  background: linear-gradient(to bottom right, #1F222A, #1F222A) !important;
+}
+
+body.dark-mode .text-gray-800 {
+  color: #f3f4f6 !important; /* gray-100 */
+}
+
+body.dark-mode .shadow-xl {
+  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* Login form inputs and labels */
+body.dark-mode .text-gray-700 {
+  color: #d1d5db !important; /* gray-300 */
+}
+
+body.dark-mode .border-gray-300 {
+  border-color: #4b5563 !important; /* gray-600 */
+  background-color: #374151 !important; /* gray-700 */
+  color: #f9fafb !important; /* gray-50 */
+}
+
+body.dark-mode .text-gray-400 {
+  color: #9ca3af !important; /* gray-400 - keep same for consistency */
+}
+
+/* Theme Toggle Dark Mode */
+body.dark-mode .bg-gray-100 {
+  background-color: #4b5563 !important; /* gray-600 */
+}
+
+body.dark-mode .bg-gray-700 {
+  background-color: #374151 !important; /* keep as is */
+}
+
 /* Fix Select component styling */
 [data-radix-popper-content-wrapper] {
   z-index: 50 !important;

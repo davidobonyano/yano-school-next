@@ -4,6 +4,7 @@ import SchoolHistory from '@/components/about/SchoolHistory';
 import Mission from '@/components/mission/Mission';
 import AchievementsTimeline from '@/components/about/AchievementsTimeline';
 import LeadershipTeam from '@/components/about/LeadershipTeam';
+import StudentGallery from '@/components/gallery/StudentGallery';
 import Uniform from '@/components/about/Uniform';
 import {  useEffect } from 'react';
 
@@ -29,6 +30,10 @@ export default function AboutPage() {
 
       <section id="leadership">
         <LeadershipTeam />
+      </section>
+
+      <section id="gallery">
+        <StudentGallery />
       </section>
 
       <section id="uniform">

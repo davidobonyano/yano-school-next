@@ -46,7 +46,7 @@ export default function SecondarySchool() {
   return (
     <section className="mb-12 px-4 space-y-10">
       {/* Hero Section with Background Video */}
-      <div className="relative w-full h-64 rounded-2xl overflow-hidden shadow-lg">
+      <div className="relative w-full h-80 md:h-96 rounded-2xl overflow-hidden shadow-lg">
         <video
           autoPlay
           loop

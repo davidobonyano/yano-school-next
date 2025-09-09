@@ -8,6 +8,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { AcademicContextProvider } from '@/lib/academic-context';
 import { GlobalAcademicSync } from '@/lib/global-academic-sync';
 import { useDashboardRefresh } from '@/lib/use-dashboard-refresh';
+import ThemeToggle from '@/components/theme/ThemeToggle';
 
 import { 
   faHome, 
@@ -286,8 +287,12 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           ))}
         </nav>
 
-        {/* Logout Section */}
-        <div className="p-4 border-t border-gray-200">
+        {/* Theme Toggle & Logout Section */}
+        <div className="p-4 border-t border-gray-200 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-600 font-medium">Theme</span>
+            <ThemeToggle />
+          </div>
           <button 
             onClick={handleLogout}
             className="flex items-center gap-4 w-full p-4 text-red-600 hover:bg-red-50 rounded-xl transition-all duration-300 group"
@@ -372,8 +377,12 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                 ))}
               </nav>
 
-              {/* Logout Section */}
-              <div className="p-4 border-t border-gray-200">
+              {/* Theme Toggle & Logout Section */}
+              <div className="p-4 border-t border-gray-200 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600 font-medium">Theme</span>
+                  <ThemeToggle />
+                </div>
                 <button 
                   onClick={handleLogout}
                   className="flex items-center gap-3 w-full p-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
