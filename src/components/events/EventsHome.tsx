@@ -6,10 +6,11 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCalendarAlt, faMapMarkerAlt } from '@fortawesome/free-solid-svg-icons';
 
 type Event = {
-  id: number;
+  id: string;
   title: string;
-  date: string;
+  event_date: string;
   location: string;
+  description?: string;
 };
 
 export default function EventsHome() {
@@ -26,18 +27,18 @@ export default function EventsHome() {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-       const res = await fetch('/data/db.json');
+        const res = await fetch('/api/events?active=true');
         const data = await res.json();
         const rawEvents: Event[] = data.events || [];
         const today = new Date();
 
         const upcoming = rawEvents
-          .filter(e => isAfter(new Date(e.date), today))
-          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+          .filter(e => isAfter(new Date(e.event_date), today))
+          .sort((a, b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime());
 
         const past = rawEvents
-          .filter(e => isBefore(new Date(e.date), today))
-          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          .filter(e => isBefore(new Date(e.event_date), today))
+          .sort((a, b) => new Date(b.event_date).getTime() - new Date(a.event_date).getTime());
 
         if (upcoming.length > 0) setNextEvent(upcoming[0]);
         setEvents(past.slice(0, 3));
@@ -54,7 +55,7 @@ export default function EventsHome() {
 
     const updateCountdown = () => {
       const now = new Date();
-      const eventDate = new Date(nextEvent.date);
+      const eventDate = new Date(nextEvent.event_date);
       const diff = eventDate.getTime() - now.getTime();
 
       if (diff <= 0) {
@@ -89,7 +90,7 @@ export default function EventsHome() {
           <h3 className="text-2xl font-semibold mb-3">{nextEvent.title}</h3>
           <p className="flex items-center gap-2 text-sm mb-4 text-gray-600">
             <FontAwesomeIcon icon={faCalendarAlt} className="text-red-400" />
-            {format(new Date(nextEvent.date), 'PPP')}
+            {format(new Date(nextEvent.event_date), 'PPP')}
           </p>
 
           {countdown.ended ? (
@@ -134,7 +135,7 @@ export default function EventsHome() {
                 <h4 className="text-base font-semibold">{ev.title}</h4>
                 <p className="flex items-center gap-2 text-xs text-gray-700 mt-1">
                   <FontAwesomeIcon icon={faCalendarAlt} className="text-red-400" />
-                  {format(new Date(ev.date), 'PPP')}
+                  {format(new Date(ev.event_date), 'PPP')}
                   <span className="mx-2">•</span>
                   <FontAwesomeIcon icon={faMapMarkerAlt} className="text-red-400" />
                   {ev.location}

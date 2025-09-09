@@ -14,8 +14,9 @@ import {
 import { format, isAfter } from 'date-fns';
 
 interface EventData {
+  id: string;
   title: string;
-  date: string;
+  event_date: string;
   location: string;
   description?: string;
 }
@@ -27,16 +28,12 @@ export default function SecondarySchool() {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const res = await fetch('/data/db.json');
+        const res = await fetch('/api/events?active=true&upcoming=true');
         const data = await res.json();
+        const events = data.events || [];
 
-        const today = new Date();
-        const upcoming = (data.events || [])
-          .filter((e: EventData) => isAfter(new Date(e.date), today))
-          .sort((a: EventData, b: EventData) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-        if (upcoming.length > 0) {
-          setNextEvent(upcoming[0]);
+        if (events.length > 0) {
+          setNextEvent(events[0]);
         }
       } catch (err) {
         console.error('Failed to load events:', err);
@@ -135,7 +132,7 @@ export default function SecondarySchool() {
               <div>
                 <h5 className="font-semibold text-gray-900">Upcoming Event:</h5>
                 <p className="text-gray-900 text-sm">
-                  {nextEvent.title} — {format(new Date(nextEvent.date), 'PPP')}
+                  {nextEvent.title} — {format(new Date(nextEvent.event_date), 'PPP')}
                 </p>
                 <p className="text-sm text-gray-900 flex items-center mt-1">
                   <FontAwesomeIcon icon={faMapMarkerAlt} className="text-red-400 mr-1" />

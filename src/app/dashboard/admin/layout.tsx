@@ -21,7 +21,8 @@ import {
   faFileExport,
   faTimes,
   faGraduationCap,
-  faBars
+  faBars,
+  faCalendarAlt
 } from '@fortawesome/free-solid-svg-icons';
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
@@ -149,6 +150,14 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       bgColor: 'bg-gradient-to-r from-red-600 to-red-700',
       hoverColor: 'hover:from-red-700 hover:to-red-800',
       iconColor: 'text-red-100'
+    },
+    { 
+      href: '/dashboard/admin/events', 
+      icon: faCalendarAlt, 
+      label: 'Events',
+      bgColor: 'bg-gradient-to-r from-pink-600 to-pink-700',
+      hoverColor: 'hover:from-pink-700 hover:to-pink-800',
+      iconColor: 'text-pink-100'
     },
     { 
       href: '/dashboard/admin/courses', 

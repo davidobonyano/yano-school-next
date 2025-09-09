@@ -8,10 +8,11 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCalendarAlt, faMapMarkerAlt } from '@fortawesome/free-solid-svg-icons';
 
 type Event = {
-  id: number;
+  id: string;
   title: string;
-  date: string;
+  event_date: string;
   location: string;
+  description?: string;
 };
 
 export default function AdmissionsPage() {
@@ -20,15 +21,10 @@ export default function AdmissionsPage() {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const res = await fetch('/data/db.json');
+        const res = await fetch('/api/events?active=true&upcoming=true');
         const data = await res.json();
-        const today = new Date();
-
-        const filtered = (data.events || [])
-          .filter((e: Event) => isAfter(new Date(e.date), today))
-          .sort((a: Event, b: Event) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-        setUpcomingEvents(filtered.slice(0, 3));
+        const events = (data.events || []).slice(0, 3);
+        setUpcomingEvents(events);
       } catch (error) {
         console.error('Failed to load events:', error);
       }
@@ -96,7 +92,7 @@ export default function AdmissionsPage() {
                 <h3 className="text-xl font-semibold text-gray-700 mb-2">{event.title}</h3>
                 <p className="text-gray-600 flex items-center gap-2 mb-1">
                   <FontAwesomeIcon icon={faCalendarAlt} className="text-red-400" />
-                  {format(new Date(event.date), 'PPP')}
+                  {format(new Date(event.event_date), 'PPP')}
                 </p>
                 <p className="text-gray-600 flex items-center gap-2">
                   <FontAwesomeIcon icon={faMapMarkerAlt} className="text-red-400" />
