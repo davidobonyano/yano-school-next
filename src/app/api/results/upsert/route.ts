@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
 type UpsertBody = {
-  studentId: string;
-  courseId: string;
+  studentId: string; // YAN student code from school_students.student_id
+  courseId?: string; // optional UUID
+  courseCode?: string; // optional human course code (e.g., MTH101)
   session: string; // e.g., '2024/2025'
   term: string; // e.g., 'First Term' | 'First'
   ca: number; // out of 20
@@ -35,10 +36,10 @@ function termNamePatterns(term: 'First' | 'Second' | 'Third'): [string, string] 
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as UpsertBody;
-    const { studentId, courseId, session, term, ca, midterm, exam, uploadedBy, uploadId } = body || {} as UpsertBody;
+    const { studentId, courseId: incomingCourseId, courseCode, session, term, ca, midterm, exam, uploadedBy, uploadId } = body || {} as UpsertBody;
 
-    if (!studentId || !courseId || !session || !term) {
-      return NextResponse.json({ error: 'studentId, courseId, session, term are required' }, { status: 400 });
+    if (!studentId || (!incomingCourseId && !courseCode) || !session || !term) {
+      return NextResponse.json({ error: 'studentId, (courseId or courseCode), session, term are required' }, { status: 400 });
     }
 
     // Validate bounds
@@ -69,6 +70,20 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
     if (tErr || !termRow) {
       return NextResponse.json({ error: tErr?.message || 'Term not found for session' }, { status: 400 });
+    }
+
+    // Resolve course ID from code if needed
+    let courseId = incomingCourseId || '';
+    if (!courseId && courseCode) {
+      const { data: courseRow, error: cErr } = await supabase
+        .from('courses')
+        .select('id, code')
+        .ilike('code', courseCode)
+        .maybeSingle();
+      if (cErr || !courseRow) {
+        return NextResponse.json({ error: cErr?.message || `Course not found for code ${courseCode}` }, { status: 400 });
+      }
+      courseId = courseRow.id as string;
     }
 
     // Call RPC to upsert

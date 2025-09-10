@@ -30,7 +30,6 @@ export default function StudentGrades() {
   const [studentStream, setStudentStream] = useState<string | undefined>(undefined);
   const [grades, setGrades] = useState<any[]>([]);
   const [gpa, setGpa] = useState<string>('0.00');
-  const [cgpa, setCgpa] = useState<string>('0.00');
   const [position, setPosition] = useState<string>('N/A');
   const [overallCgpa, setOverallCgpa] = useState<string>('0.00');
   const [allSessions, setAllSessions] = useState<Array<{ name: string }>>([]);
@@ -101,18 +100,7 @@ export default function StudentGrades() {
     fetchGrades();
   }, [selectedTerm, selectedSession, studentClassLevel, studentStream]);
 
-  // CGPA across all terms in selected session (or all sessions if needed)
-  useEffect(() => {
-    const fetchCgpa = async () => {
-      const s = getStudentSession();
-      if (!s?.student_id || !selectedSession) return setCgpa('0.00');
-      const sumResp = await fetch(`/api/students/summary?student_id=${encodeURIComponent(s.student_id)}&session=${encodeURIComponent(selectedSession)}`);
-      if (!sumResp.ok) return setCgpa('0.00');
-      const sj = await sumResp.json();
-      setCgpa(String(sj.sessionCgpa || '0.00'));
-    };
-    fetchCgpa();
-  }, [selectedSession]);
+  // Remove session CGPA; we'll only show overall CGPA
 
   // Overall CGPA across all sessions (fetch sessions list, then compute)
   useEffect(() => {
@@ -219,14 +207,10 @@ export default function StudentGrades() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         <div className="bg-white p-4 rounded-lg shadow border">
           <h3 className="text-sm font-medium text-gray-700">Term GPA</h3>
           <p className="text-2xl font-bold text-blue-600">{calculateGPA()}</p>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow border">
-          <h3 className="text-sm font-medium text-gray-700">CGPA (This Session)</h3>
-          <p className="text-2xl font-bold text-green-600">{cgpa}</p>
         </div>
         <div className="bg-white p-4 rounded-lg shadow border">
           <h3 className="text-sm font-medium text-gray-700">Class Position</h3>
@@ -249,9 +233,6 @@ export default function StudentGrades() {
           </li>
           <li>
             <span className="font-medium">Term GPA</span>: Total grade points added for the term ÷ total number of subjects for that term.
-          </li>
-          <li>
-            <span className="font-medium">CGPA (This Session)</span>: For the selected session, add all grade points across its terms and subjects ÷ total number of subjects taken in the session.
           </li>
           <li>
             <span className="font-medium">Overall CGPA (All Sessions)</span>: Add all grade points across every session and term you have taken ÷ total number of subjects across all sessions.

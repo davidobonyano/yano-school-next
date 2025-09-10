@@ -26,24 +26,31 @@ export async function GET(request: Request, context: { params: Promise<{ student
 		// Fetch student info
 		const { data: student, error: sErr } = await supabase
 			.from('school_students')
-			.select('student_id, full_name, class_level, stream')
+			.select('student_id, full_name, class_level, stream, profile_image_url')
 			.eq('student_id', studentId)
 			.maybeSingle();
 		if (sErr) return NextResponse.json({ error: sErr.message }, { status: 500 });
 		if (!student) return NextResponse.json({ error: 'Student not found' }, { status: 404 });
 
-		// Fetch all results with names
-		const { data: results, error: rErr } = await supabase
-			.from('student_results')
-			.select(`
-				course_id, total_score, grade,
-				courses:course_id (name),
-				academic_sessions:session_id (name),
-				academic_terms:term_id (name)
-			`)
-			.eq('student_id', studentId)
-			.order('created_at', { ascending: true });
-		if (rErr) return NextResponse.json({ error: rErr.message }, { status: 500 });
+		// Fetch all results with names (no credits weighting needed)
+		let results: any[] | null = null;
+		{
+			const { data, error } = await supabase
+				.from('student_results')
+				.select(`
+					course_id, total_score, grade,
+					courses:course_id (name, code),
+					academic_sessions:session_id (name),
+					academic_terms:term_id (name)
+				`)
+				.eq('student_id', studentId)
+				.order('created_at', { ascending: true });
+			if (error) {
+				return NextResponse.json({ error: error.message }, { status: 500 });
+			} else {
+				results = data as any[];
+			}
+		}
 
 		// Group results by session
 		const groups = new Map<string, any[]>();
@@ -69,7 +76,7 @@ export async function GET(request: Request, context: { params: Promise<{ student
 		let logoImg: any = null;
 		let logoDims: { width: number; height: number } | null = null;
 		try {
-			const footerLogoPath = path.join(process.cwd(), 'public', 'yano-footer-logo.png');
+			const footerLogoPath = path.join(process.cwd(), 'public', 'images', 'yano-logo.png');
 			const footerLogoBytes = await fs.readFile(footerLogoPath);
 			const embedded = await pdfDoc.embedPng(footerLogoBytes);
 			logoImg = embedded;
@@ -88,6 +95,24 @@ export async function GET(request: Request, context: { params: Promise<{ student
 				logoDims = null;
 			}
 		}
+
+		// Preload student photo if available
+		let studentPhotoImg: any = null;
+		try {
+			const url = (student as any)?.profile_image_url as string | undefined;
+			if (url) {
+				const resp = await fetch(url);
+				const bytes = new Uint8Array(await resp.arrayBuffer());
+				// Try JPG then PNG
+				try {
+					studentPhotoImg = await pdfDoc.embedJpg(bytes);
+				} catch {
+					try {
+						studentPhotoImg = await pdfDoc.embedPng(bytes);
+					} catch {}
+				}
+			}
+		} catch {}
 
 		const drawText = (text: string, x: number, y: number, size = 10, bold = false) => {
 			page.drawText(text, { x, y, size, font: bold ? fontBold : font, color: rgb(0, 0, 0) });
@@ -116,23 +141,34 @@ export async function GET(request: Request, context: { params: Promise<{ student
 		const drawHeader = (p: typeof page) => {
 			const titleY = 800;
 			let localY = titleY;
-			if (logoImg && logoDims) {
-				p.drawImage(logoImg, { x: 60, y: localY - logoDims.height + 6, width: logoDims.width, height: logoDims.height });
+			// Small centered logo to avoid overlap
+			if (logoImg) {
+				const displayW = 60;
+				const displayH = 60;
+				p.drawImage(logoImg, { x: (595.28 - displayW) / 2, y: localY - displayH + 8, width: displayW, height: displayH });
 			}
 			// Title block
-			p.drawText('YANO SCHOOL', { x: 220, y: localY + 6, size: 18, font: fontBold, color: rgb(0, 0, 0) });
-			p.drawText('Official Academic Transcript', { x: 220, y: localY - 12, size: 12, font: font, color: rgb(0, 0, 0) });
+			p.drawText('YANO SCHOOL', { x: 220, y: localY + 12, size: 18, font: fontBold, color: rgb(0, 0, 0) });
+			p.drawText('Office of the Principal', { x: 220, y: localY - 6, size: 11, font: font, color: rgb(0, 0, 0) });
 			// Decorative line
-			p.drawLine({ start: { x: 60, y: localY - 28 }, end: { x: 535, y: localY - 28 }, thickness: 1, color: rgb(0, 0, 0) });
+			p.drawLine({ start: { x: 60, y: localY - 30 }, end: { x: 535, y: localY - 30 }, thickness: 1, color: rgb(0, 0, 0) });
+
+			// Student photo top-right
+			if (studentPhotoImg) {
+				const size = 100;
+				p.drawImage(studentPhotoImg, { x: 595.28 - 60 - size, y: 841.89 - 50 - size, width: size, height: size });
+			}
 		};
 
-		// Results table header
+		// Results table header (Code, Title, Mark, Letter, GP)
 		const drawResultsTableHeader = (startY: number, yRef: { y: number }) => {
 			const headerY = startY - 10;
-			drawText('Term', 60, headerY, 11, true);
-			drawText('Course', 160, headerY, 11, true);
-			drawText('Total', 420, headerY, 11, true);
-			drawText('Grade', 480, headerY, 11, true);
+			drawText('S/No', 60, headerY, 11, true);
+			drawText('Course Code', 90, headerY, 11, true);
+			drawText('Course Title', 170, headerY, 11, true);
+			drawText('Mark', 400, headerY, 11, true);
+			drawText('Letter', 450, headerY, 11, true);
+			drawText('GP', 500, headerY, 11, true);
 			drawLine(60, headerY - 4, 535, headerY - 4, 1);
 			yRef.y = headerY - 12;
 		};
@@ -141,17 +177,17 @@ export async function GET(request: Request, context: { params: Promise<{ student
 
 		// Header with logo and title
 		drawHeader(page);
-		let y = 760;
+		let y = 720;
 
-		// Student info
-		drawText('Student Information', 60, y, 12, true); y -= 14;
-		drawLine(60, y, 200, y, 0.5); y -= 8;
-		drawText(`Name: ${student.full_name}`, 60, y); y -= 12;
-		drawText(`Student ID: ${student.student_id}`, 60, y); y -= 12;
-		drawText(`Class: ${student.class_level} ${student.stream || ''}`.trim(), 60, y); y -= 12;
-		drawText(`Graduation Session: ${graduationSession}`, 60, y); y -= 20;
+		// Student info block in a more official style
+		drawText('STUDENT ACADEMIC RECORD', 240, y + 12, 12, true);
+		drawText(`DATE ISSUED: ${new Date().toLocaleDateString()}`, 420, y + 12, 9);
+		drawText(`STUDENT NAME: ${student.full_name}`, 60, y); y -= 12;
+		drawText(`MATRIC NUMBER: ${student.student_id}`, 60, y); y -= 12;
+		drawText(`CLASS: ${student.class_level}${student.stream ? ' • ' + student.stream : ''}`, 60, y); y -= 12;
+		drawText(`GRADUATION SESSION: ${graduationSession}`, 60, y); y -= 20;
 
-		drawLine(60, y, 535, y, 1); y -= 6;
+		drawLine(60, y, 535, y, 1); y -= 16;
 
 		// Iterate sessions
 		for (const sess of sessions) {
@@ -160,43 +196,49 @@ export async function GET(request: Request, context: { params: Promise<{ student
 			const sessGrades = rows.map((r: any) => gradeToPoint(r.grade));
 			const sessGpa = sessGrades.length ? (sessGrades.reduce((a: number, b: number) => a + b, 0) / sessGrades.length) : 0;
 
-			addNewPageIfNeeded(80, { y });
+			addNewPageIfNeeded(90, { y });
 			drawText(`${sess}`, 60, y, 12, true); y -= 6;
 			drawResultsTableHeader(y, { y });
 			repeatNextTableHeader = true;
 
+			let idx = 1;
 			for (const rAny of rows) {
 				const r = rAny as any;
-				addNewPageIfNeeded(18, { y });
-				drawText((r.academic_terms && r.academic_terms.name) ? String(r.academic_terms.name) : '', 60, y);
-				drawText(String((r.courses && r.courses.name ? r.courses.name : r.course_id) || '').slice(0, 64), 160, y);
-				drawText(String(r.total_score ?? ''), 420, y);
-				drawText(String(r.grade || ''), 480, y);
-				y -= 14;
+				addNewPageIfNeeded(22, { y });
+				drawText(String(idx), 60, y);
+				drawText(String(r.courses?.code || ''), 90, y);
+				drawText(String((r.courses?.name || r.course_id) || '').slice(0, 36), 170, y);
+				const mark = Number(r.total_score ?? 0);
+				drawText(String(mark), 400, y);
+				const letter = String(r.grade || '');
+				drawText(letter, 450, y);
+				const gp = gradeToPoint(letter);
+				drawText(gp.toFixed(2), 500, y);
+				y -= 16; idx += 1;
 			}
 
-			// Session summary line
-			addNewPageIfNeeded(22, { y });
-			drawLine(60, y, 535, y, 0.5); y -= 10;
-			drawText(`Session GPA: ${sessGpa.toFixed(2)}`, 60, y, 11, true); y -= 14;
+			// Separator line between terms
+			addNewPageIfNeeded(16, { y });
+			drawLine(60, y, 535, y, 0.5); y -= 12;
 		}
 
 		// Academic summary card
-		addNewPageIfNeeded(140, { y });
+		addNewPageIfNeeded(120, { y });
 		drawLine(60, y, 535, y, 1); y -= 8;
 		drawText('Academic Summary', 60, y, 12, true); y -= 12;
 		const totalCourses = (results || []).length;
-		const sessionsCount = sessions.length;
-		const bestSessionGpa = sessions.reduce((best, s) => {
-			const rows = groups.get(s) || [];
-			const pts = rows.map((r: any) => gradeToPoint(r.grade));
-			const g = pts.length ? pts.reduce((a: number, b: number) => a + b, 0) / pts.length : 0;
-			return Math.max(best, g);
-		}, 0);
 		drawText(`Overall CGPA: ${overallGpa.toFixed(2)}`, 60, y); y -= 12;
 		drawText(`Total Courses: ${totalCourses}`, 60, y); y -= 12;
-		drawText(`Sessions Attended: ${sessionsCount}`, 60, y); y -= 12;
-		drawText(`Best Session GPA: ${bestSessionGpa.toFixed(2)}`, 60, y); y -= 18;
+		// Degree classification based on overall CGPA
+		const classify = (cgpa: number): string => {
+			if (cgpa >= 4.5) return 'First Class';
+			if (cgpa >= 3.5) return 'Second Class Upper';
+			if (cgpa >= 2.4) return 'Second Class Lower';
+			if (cgpa >= 1.5) return 'Third Class';
+			if (cgpa >= 1.0) return 'Pass';
+			return 'Fail';
+		};
+		drawText(`Classification: ${classify(overallGpa)}`, 60, y); y -= 18;
 
 		// Signatures
 		addNewPageIfNeeded(80, { y });

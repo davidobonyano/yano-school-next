@@ -38,7 +38,7 @@ export function CourseRegistrationManager({
   userStream, 
   className = '' 
 }: CourseRegistrationManagerProps) {
-  const { currentContext } = useAcademicContext();
+  const { currentContext, sessions } = useAcademicContext();
   const [registrations, setRegistrations] = useState<StudentCourseRegistration[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showRegistrationForm, setShowRegistrationForm] = useState(false);
@@ -223,9 +223,13 @@ export function CourseRegistrationManager({
                     <SelectValue placeholder="All sessions" />
                   </SelectTrigger>
                   <SelectContent>
-                                      <SelectItem value="all">All sessions</SelectItem>
-                  <SelectItem value="2025/2026">2025/2026</SelectItem>
-                  <SelectItem value="2024/2025">2024/2025</SelectItem>
+                    <SelectItem value="all">All sessions</SelectItem>
+                    {(sessions || [])
+                      .slice()
+                      .sort((a, b) => String(b.name).localeCompare(String(a.name)))
+                      .map((s) => (
+                        <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>

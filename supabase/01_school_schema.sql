@@ -118,6 +118,18 @@ create table if not exists public.school_students (
   constraint uq_student_per_class unique(full_name, class_level)
 );
 
+-- Add profile_image_url column if missing
+do $$ begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'school_students'
+      and column_name = 'profile_image_url'
+  ) then
+    alter table public.school_students add column profile_image_url text;
+  end if;
+end $$;
+
 -- Add last_login column if missing (tracks last successful portal login)
 do $$ begin
   if not exists (
@@ -478,6 +490,16 @@ create table if not exists public.courses (
   created_at timestamptz default now() not null,
   updated_at timestamptz default now() not null
 );
+
+-- Add credit_units if missing (default 1)
+do $$ begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'courses' and column_name = 'credit_units'
+  ) then
+    alter table public.courses add column credit_units integer default 1;
+  end if;
+end $$;
 
 drop trigger if exists trg_courses_updated_at on public.courses;
 create trigger trg_courses_updated_at

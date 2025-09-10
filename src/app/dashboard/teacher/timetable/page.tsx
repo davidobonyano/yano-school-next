@@ -34,7 +34,8 @@ const TIMES = [
 ];
 
 function buildClassOptions(): string[] {
-  const kg = ['KG1', 'KG2', 'KG3'];
+  const kg = ['KG1', 'KG2'];
+  const nur = ['NUR1', 'NUR2'];
   const pr = ['PR1', 'PR2', 'PR3', 'PR4', 'PR5', 'PR6'];
   const jss = ['JSS1', 'JSS2', 'JSS3'];
   const ssStreams = ['Arts', 'Commercial', 'Science'];
@@ -42,7 +43,7 @@ function buildClassOptions(): string[] {
   ['SS1','SS2','SS3'].forEach(level => {
     ssStreams.forEach(stream => ss.push(`${level} ${stream}`));
   });
-  return [...kg, ...pr, ...jss, ...ss];
+  return [...nur, ...kg, ...pr, ...jss, ...ss];
 }
 
 export default function TeacherTimetablePage() {

@@ -31,7 +31,7 @@ export default function StudentDashboard() {
   const [payments, setPayments] = useState<any[]>([]);
   const [upcomingExams, setUpcomingExams] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentSessionCgpa, setCurrentSessionCgpa] = useState<string>('0.00');
+  const [overallCgpa, setOverallCgpa] = useState<string>('0.00');
   const [paymentStatus, setPaymentStatus] = useState<{
     status: 'PAID' | 'OUTSTANDING' | 'PENDING';
     amount: number;
@@ -39,6 +39,7 @@ export default function StudentDashboard() {
   }>({ status: 'PENDING', amount: 0, displayText: 'PENDING ₦0' });
   const [timetableItems, setTimetableItems] = useState<any[]>([]);
   const [currentDay, setCurrentDay] = useState<string>('');
+  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
   
   type Announcement = {
     id: string;
@@ -91,6 +92,19 @@ export default function StudentDashboard() {
       setStudentStream(s.stream || '');
       setIsActive(typeof s.is_active === 'boolean' ? s.is_active : true);
     }
+    // Load profile image
+    (async () => {
+      try {
+        const sid = s?.student_id;
+        if (!sid) return;
+        const { data, error } = await supabase
+          .from('school_students')
+          .select('profile_image_url')
+          .eq('student_id', sid)
+          .maybeSingle();
+        if (!error) setProfileImageUrl((data as any)?.profile_image_url || null);
+      } catch {}
+    })();
     
     // Set current day
     const today = new Date();
@@ -204,14 +218,10 @@ export default function StudentDashboard() {
           .then(r => r.ok ? r.json() : { ledger: [] })
           .catch(() => ({ ledger: [] }));
 
-        // CGPA: fetch results for 3 terms in parallel
-        const sessionName = academicContext.session;
-        const terms = ['First Term', 'Second Term', 'Third Term'];
-        const resultsReq = Promise.allSettled(
-          terms.map(t => fetch(`/api/results?student_id=${encodeURIComponent(studentId)}&session=${encodeURIComponent(sessionName)}&term=${encodeURIComponent(t)}`, { signal })
-            .then(r => r.ok ? r.json() : { results: [] })
-            .catch(() => ({ results: [] })))
-        );
+        // Overall CGPA: single summary endpoint
+        const resultsReq = fetch(`/api/students/summary?student_id=${encodeURIComponent(studentId)}`, { cache: 'no-store', signal })
+          .then(r => r.ok ? r.json() : { overallCgpa: '0.00' })
+          .catch(() => ({ overallCgpa: '0.00' }));
 
         // Timetable for today's classes
         const s = getStudentSession();
@@ -267,27 +277,8 @@ export default function StudentDashboard() {
           setPaymentStatus({ status, amount: totalBalance, displayText });
         }
 
-        // CGPA
-        const settled = Array.isArray(resultsRes) ? resultsRes : [];
-        const points: number[] = [];
-        const toPoint = (grade: string): number => {
-          if (!grade) return 0;
-          if (grade.startsWith('A')) return 5.0;
-          if (grade === 'B2') return 4.5;
-          if (grade === 'B3') return 4.0;
-          if (grade === 'C4') return 3.5;
-          if (grade === 'C5') return 3.0;
-          if (grade === 'C6') return 2.5;
-          if (grade === 'D7') return 2.0;
-          if (grade === 'E8') return 1.0;
-          return 0.0;
-        };
-        settled.forEach((res: any) => {
-          const rows = (res?.value?.results || []) as Array<{ grade: string }>;
-          rows.forEach(row => points.push(toPoint(row.grade)));
-        });
-        if (points.length === 0) setCurrentSessionCgpa('0.00');
-        else setCurrentSessionCgpa((points.reduce((a, b) => a + b, 0) / points.length).toFixed(2));
+        // Overall CGPA
+        setOverallCgpa(String((resultsRes as any)?.overallCgpa || '0.00'));
 
         // Timetable
         setTimetableItems(Array.isArray(ttRes.items) ? ttRes.items : []);
@@ -295,7 +286,7 @@ export default function StudentDashboard() {
         // Fail-soft defaults
         setCourses([]);
         setPaymentStatus({ status: 'PENDING', amount: 0, displayText: 'PENDING ₦0' });
-        setCurrentSessionCgpa('0.00');
+        setOverallCgpa('0.00');
         setTimetableItems([]);
       }
     };
@@ -444,10 +435,15 @@ export default function StudentDashboard() {
           className="flex flex-col md:flex-row items-start md:items-center gap-6 mb-8 p-6 bg-gradient-to-r from-blue-900 to-blue-800 rounded-2xl shadow-xl text-white"
         >
           <div className="flex-shrink-0">
-            <div className="h-24 w-24 rounded-full bg-white/20 border-4 border-white/30 overflow-hidden backdrop-blur-sm">
-              <div className="h-full w-full bg-white/10 flex items-center justify-center text-white text-4xl font-bold">
-                <FontAwesomeIcon icon={faUser} />
-              </div>
+            <div className="h-28 w-28 rounded-lg bg-white/20 border-4 border-white/30 overflow-hidden backdrop-blur-sm">
+              {profileImageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={profileImageUrl} alt="Profile" className="h-full w-full object-cover" />
+              ) : (
+                <div className="h-full w-full bg-white/10 flex items-center justify-center text-white text-4xl font-bold">
+                  <FontAwesomeIcon icon={faUser} />
+                </div>
+              )}
             </div>
           </div>
           <div className="flex-1">
@@ -510,8 +506,8 @@ export default function StudentDashboard() {
             {
               href: "/dashboard/student/grades",
               icon: faChartBar,
-              title: "Current CGPA",
-              value: currentSessionCgpa,
+              title: "Overall CGPA",
+              value: overallCgpa,
               color: "green",
               bgColor: "bg-green-50",
               iconColor: "text-green-600",

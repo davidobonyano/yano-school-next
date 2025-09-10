@@ -251,10 +251,15 @@ export default function StudentsPage() {
                 <tr key={student.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                        <span className="text-blue-600 font-medium">
-                          {student.full_name.split(' ').map(n => n[0]).join('')}
-                        </span>
+                      <div className="h-10 w-10 rounded-md bg-blue-100 overflow-hidden flex items-center justify-center">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        { (student as any).profile_image_url ? (
+                          <img src={(student as any).profile_image_url as string} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <span className="text-blue-600 font-medium">
+                            {student.full_name.split(' ').map(n => n[0]).join('')}
+                          </span>
+                        )}
                       </div>
                       <div className="ml-4">
                         <div className="text-sm font-medium text-gray-900">{student.full_name}</div>

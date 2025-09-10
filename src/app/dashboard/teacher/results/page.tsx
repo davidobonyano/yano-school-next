@@ -71,6 +71,8 @@ export default function ResultsManagementPage() {
 	const [savingCourseId, setSavingCourseId] = useState<string>('');
 	const [existingResults, setExistingResults] = useState<ExistingResult[]>([]);
 	const [bulkSaving, setBulkSaving] = useState<boolean>(false);
+	const [showBulkModal, setShowBulkModal] = useState<boolean>(false);
+	const [bulkText, setBulkText] = useState<string>('');
 
 	const sessionName = currentContext?.session_name || '';
 	const termName = currentContext?.term_name || '';
@@ -266,6 +268,77 @@ export default function ResultsManagementPage() {
 		}
 	};
 
+	const parseBulkCSV = (text: string) => {
+		// Expected headers: student_id (YAN code), course_code, ca, midterm, exam
+		const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+		if (lines.length === 0) return [] as Array<{studentId:string;courseCode:string;ca:number;midterm:number;exam:number}>;
+		const [headerLine, ...rows] = lines;
+		const headers = headerLine.split(',').map(h => h.trim().toLowerCase());
+		const idx = {
+			student_id: headers.indexOf('student_id'),
+			course_code: headers.indexOf('course_code'),
+			ca: headers.indexOf('ca'),
+			midterm: headers.indexOf('midterm'),
+			exam: headers.indexOf('exam')
+		};
+		if (idx.student_id < 0 || idx.course_code < 0 || idx.ca < 0 || idx.midterm < 0 || idx.exam < 0) {
+			throw new Error('CSV must include headers: student_id,course_code,ca,midterm,exam');
+		}
+		return rows.map((r) => {
+			const cols = r.split(',');
+			return {
+				studentId: (cols[idx.student_id] || '').trim(),
+				courseCode: (cols[idx.course_code] || '').trim(),
+				ca: parseFloat(cols[idx.ca] || '0'),
+				midterm: parseFloat(cols[idx.midterm] || '0'),
+				exam: parseFloat(cols[idx.exam] || '0'),
+			};
+		}).filter(x => x.studentId && x.courseCode);
+	};
+
+	const handleBulkUpload = async () => {
+		if (!sessionName || !termName) {
+			alert('Academic context missing');
+			return;
+		}
+		let rows: Array<{studentId:string;courseCode:string;ca:number;midterm:number;exam:number}> = [];
+		try {
+			rows = parseBulkCSV(bulkText);
+		} catch (e) {
+			alert(e instanceof Error ? e.message : 'Invalid CSV');
+			return;
+		}
+		if (rows.length === 0) {
+			alert('No valid rows found');
+			return;
+		}
+		setBulkSaving(true);
+		try {
+			const results = await Promise.allSettled(rows.map(row => fetch('/api/results/upsert', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					studentId: row.studentId,
+					courseCode: row.courseCode,
+					session: sessionName,
+					term: termName,
+					ca: row.ca,
+					midterm: row.midterm,
+					exam: row.exam
+				})
+			})));
+			const success = results.filter(r => r.status === 'fulfilled' && r.value.ok).length;
+			const failed = results.length - success;
+			alert(`Uploaded ${success} rows${failed ? `, ${failed} failed` : ''}`);
+			setShowBulkModal(false);
+			setBulkText('');
+		} catch (e) {
+			alert('Bulk upload failed');
+		} finally {
+			setBulkSaving(false);
+		}
+	};
+
 	return (
 		<div className="p-6">
 			<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
@@ -349,6 +422,7 @@ export default function ResultsManagementPage() {
 							>
 								{bulkSaving ? 'Saving All...' : 'Save All'}
 							</button>
+							<button onClick={() => setShowBulkModal(true)} className="ml-2 inline-flex items-center gap-2 px-3 py-1.5 rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50">Bulk Upload CSV</button>
 						</div>
 					</div>
 
@@ -480,6 +554,25 @@ export default function ResultsManagementPage() {
 					)}
 				</div>
 			</div>
+
+			{showBulkModal && (
+				<div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+					<div className="bg-white rounded-lg shadow-lg w-full max-w-2xl p-4">
+						<div className="text-lg font-semibold mb-2">Bulk Results Upload (CSV)</div>
+						<div className="text-sm text-gray-600 mb-3">Headers required: <code>student_id,course_code,ca,midterm,exam</code></div>
+						<textarea
+							value={bulkText}
+							onChange={(e) => setBulkText(e.target.value)}
+							className="w-full h-56 border rounded p-2 font-mono text-sm"
+							placeholder={`student_id,course_code,ca,midterm,exam\nYAN001,MTH101,15,18,55\nYAN002,ENG201,20,19,60`}
+						/>
+						<div className="mt-3 flex justify-end gap-2">
+							<button onClick={() => { setShowBulkModal(false); setBulkText(''); }} className="px-3 py-1.5 border rounded">Cancel</button>
+							<button onClick={handleBulkUpload} disabled={bulkSaving || !bulkText.trim()} className="px-3 py-1.5 border rounded bg-green-700 text-white disabled:opacity-60">{bulkSaving ? 'Uploading...' : 'Upload'}</button>
+						</div>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }

@@ -176,6 +176,14 @@ export default function StudentLayout({ children }: { children: ReactNode }) {
       hoverColor: 'hover:from-slate-700 hover:to-slate-800',
       iconColor: 'text-slate-100'
     },
+    { 
+      href: '/dashboard/student/settings/photo', 
+      icon: faUserCircle, 
+      label: 'Profile Photo',
+      bgColor: 'bg-gradient-to-r from-slate-600 to-slate-700',
+      hoverColor: 'hover:from-slate-700 hover:to-slate-800',
+      iconColor: 'text-slate-100'
+    },
   ];
 
   return (

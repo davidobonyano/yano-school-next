@@ -36,6 +36,7 @@ export type StudentRow = {
 	created_by: string | null;
 	created_at: string;
 	updated_at: string;
+  	profile_image_url?: string | null;
 };
 
 export type StudentCredentialRow = {

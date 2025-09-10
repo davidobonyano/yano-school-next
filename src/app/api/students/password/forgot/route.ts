@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import crypto from 'crypto';
 
+export const runtime = 'nodejs';
+
 function generateToken(): string {
   return crypto.randomBytes(32).toString('hex');
 }
@@ -32,7 +34,9 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     if (studentErr) {
-      return NextResponse.json({ error: studentErr.message }, { status: 500 });
+      // Avoid leaking details to client; log server-side and return generic success
+      console.error('students/password/forgot lookup error:', studentErr);
+      return NextResponse.json({ success: true });
     }
 
     // Always return success to avoid account enumeration, but only create token if student exists and has email
@@ -57,6 +61,7 @@ export async function POST(request: Request) {
 
     if (insErr) {
       // Still do not reveal error to client; log server-side if needed
+      console.error('students/password/forgot insert error:', insErr);
       return genericResponse;
     }
 
@@ -68,7 +73,9 @@ export async function POST(request: Request) {
 
     return genericResponse;
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || 'Unexpected error' }, { status: 500 });
+    console.error('students/password/forgot unexpected error:', err);
+    // Do not fail the client flow; avoid enumeration and UX regressions
+    return NextResponse.json({ success: true });
   }
 }
 

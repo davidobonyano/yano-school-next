@@ -33,6 +33,7 @@ export default function TeacherLayout({ children }: { children: ReactNode }) {
   const sidebarRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number>(0);
   const touchCurrentX = useRef<number>(0);
+  const mainRef = useRef<HTMLDivElement>(null);
 
   // Use the dashboard refresh hook to automatically refresh when context changes
   useDashboardRefresh();
@@ -369,8 +370,8 @@ export default function TeacherLayout({ children }: { children: ReactNode }) {
       )}
 
       {/* Main Content Area */}
-      <main className="flex-1 h-full overflow-y-auto bg-blue-50 lg:ml-0 pt-14 lg:pt-0">
-        <div className="sticky top-0 z-30 bg-blue-50/80 backdrop-blur supports-[backdrop-filter]:bg-blue-50/60 border-b border-gray-200">
+      <main ref={mainRef} className="flex-1 h-full overflow-y-auto bg-blue-50 lg:ml-0 pt-14 lg:pt-0">
+        <div className="bg-blue-50/80 border-b border-gray-200">
           <div className="px-4 py-3">
             <AcademicContextDisplay showControls={false} className="!mb-0" />
           </div>
