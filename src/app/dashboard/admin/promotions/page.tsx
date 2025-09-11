@@ -12,6 +12,7 @@ import {
   faSearch
 } from '@fortawesome/free-solid-svg-icons';
 import { supabase } from '@/lib/supabase';
+import { useNotifications } from '@/components/ui/notifications';
 
 type ClassLevel = 'NUR1' | 'NUR2' | 'KG1' | 'KG2' | 'PRI1' | 'PRI2' | 'PRI3' | 'PRI4' | 'PRI5' | 'PRI6' | 'JSS1' | 'JSS2' | 'JSS3' | 'SS1' | 'SS2' | 'SS3';
 
@@ -60,6 +61,7 @@ const NEXT_CLASS: Record<ClassLevel, ClassLevel | 'GRADUATED'> = {
 };
 
 export default function PromotionsPage() {
+  const { showSuccessToast, showErrorToast } = useNotifications();
   const [students, setStudents] = useState<Student[]>([]);
   const [promotions, setPromotions] = useState<PromotionRecord[]>([]);
   const [selectedClass, setSelectedClass] = useState<ClassLevel | ''>('');
@@ -220,10 +222,10 @@ export default function PromotionsPage() {
 
       await fetchStudents();
       setPromotions([]);
-      alert(`Successfully processed ${promotions.length} student movements!`);
+      showSuccessToast(`Successfully processed ${promotions.length} student movements!`);
     } catch (error) {
       console.error('Error processing promotions:', error);
-      alert('Error processing promotions. Please try again.');
+      showErrorToast('Error processing promotions. Please try again.');
     } finally {
       setIsProcessing(false);
     }

@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { BookOpen, Loader2, AlertCircle, Undo2 } from 'lucide-react';
+import { useNotifications } from '@/components/ui/notifications';
 // import { toast } from 'sonner';
 
 interface CourseRegistrationFormProps {
@@ -31,6 +32,7 @@ export function CourseRegistrationForm({
   studentId
 }: CourseRegistrationFormProps) {
   const { currentContext } = useAcademicContext();
+  const { showErrorToast, showSuccessToast } = useNotifications();
   const [courses, setCourses] = useState<Course[]>([]);
   const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -90,13 +92,16 @@ export function CourseRegistrationForm({
       params.append('student_id', studentId);
       params.append('term', currentContext.term_name);
       params.append('session', currentContext.session_name);
-      params.append('status', 'pending');
+      // Fetch all registrations (pending, approved, rejected) to show proper state
       const resp = await fetch(`/api/courses/registrations?${params}`);
       if (!resp.ok) return;
       const data = await resp.json();
       const map: Record<string, string> = {};
       (data.registrations || []).forEach((r: any) => {
-        if (r.course_id && r.id) map[r.course_id as string] = r.id as string;
+        // Only show as "registered" if pending or approved (not rejected)
+        if (r.course_id && r.id && (r.status === 'pending' || r.status === 'approved')) {
+          map[r.course_id as string] = r.id as string;
+        }
       });
       setRegisteredCourseIdToRegistrationId(map);
     } catch (e) {
@@ -118,7 +123,7 @@ export function CourseRegistrationForm({
       const resp = await fetch(`/api/courses/registrations?id=${registrationId}`, { method: 'DELETE' });
       if (!resp.ok) {
         const data = await resp.json().catch(() => ({}));
-        alert(data.error || 'Failed to deregister');
+        showErrorToast(data.error || 'Failed to deregister');
         return;
       }
       // Refresh both lists
@@ -136,7 +141,7 @@ export function CourseRegistrationForm({
     e.preventDefault();
     if (selectedCourseIds.length === 0 || !currentContext) return;
     if (!studentId) {
-      alert('Unable to submit registration: missing student ID. Please sign in again.');
+      showErrorToast('Unable to submit registration: missing student ID. Please sign in again.');
       return;
     }
 
@@ -172,11 +177,12 @@ export function CourseRegistrationForm({
           const errorMessage = f?.data?.error || 'Failed';
           return `${course?.code || f.courseId}: ${errorMessage}`;
         }).join('\n');
-        alert(`Some registrations failed:\n${failedDetails}`);
+        showErrorToast(`Some registrations failed:\n${failedDetails}`);
       }
 
       if (successes > 0) {
         console.log(`Successfully registered ${successes} course(s).`);
+        showSuccessToast(`Successfully registered ${successes} course(s).`);
       }
 
       onSuccess();
@@ -250,13 +256,14 @@ export function CourseRegistrationForm({
                     <tbody>
                       {courses.map((course) => {
                         const checked = selectedCourseIds.includes(course.id);
+                        const isRegistered = Boolean(registeredCourseIdToRegistrationId[course.id]);
                         return (
-                          <tr key={course.id} className="border-t hover:bg-gray-50">
+                          <tr key={course.id} className={`border-t hover:bg-gray-50 ${isRegistered ? 'bg-green-50' : ''}`}>
                             <td className="p-3">
                               <input
                                 type="checkbox"
                                 checked={checked}
-                                disabled={Boolean(registeredCourseIdToRegistrationId[course.id])}
+                                disabled={isRegistered}
                                 onChange={(e) => {
                                   if (e.target.checked) {
                                     setSelectedCourseIds(prev => Array.from(new Set([...prev, course.id])));
@@ -267,19 +274,26 @@ export function CourseRegistrationForm({
                               />
                             </td>
                             <td className="p-3 font-mono text-xs">{course.code}</td>
-                            <td className="p-3 flex items-center gap-2">
-                              <span>{course.name}</span>
-                              {registeredCourseIdToRegistrationId[course.id] && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeregister(course.id)}
-                                  className="inline-flex items-center px-2 py-1 text-xs border rounded hover:bg-gray-50"
-                                  disabled={isDeregisteringId === registeredCourseIdToRegistrationId[course.id] || isSubmitting}
-                                  title="Deregister"
-                                >
-                                  <Undo2 className="h-3 w-3 mr-1" /> Deregister
-                                </button>
-                              )}
+                            <td className="p-3">
+                              <div className="flex items-center gap-2">
+                                <span className={isRegistered ? 'text-green-700 font-medium' : ''}>{course.name}</span>
+                                {isRegistered && (
+                                  <>
+                                    <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium text-green-800 bg-green-100 rounded-full">
+                                      Registered
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeregister(course.id)}
+                                      className="inline-flex items-center px-2 py-1 text-xs text-red-600 border border-red-300 rounded hover:bg-red-50"
+                                      disabled={isDeregisteringId === registeredCourseIdToRegistrationId[course.id] || isSubmitting}
+                                      title="Deregister from this course"
+                                    >
+                                      <Undo2 className="h-3 w-3 mr-1" /> Deregister
+                                    </button>
+                                  </>
+                                )}
+                              </div>
                             </td>
                             <td className="p-3">{course.term}</td>
                             <td className="p-3">{course.category}</td>

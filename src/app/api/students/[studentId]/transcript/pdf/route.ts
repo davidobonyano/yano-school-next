@@ -125,11 +125,11 @@ export async function GET(request: Request, context: { params: Promise<{ student
 		let repeatNextTableHeader = false;
 
 		const addNewPageIfNeeded = (needed: number, yRef: { y: number }) => {
-			if (yRef.y - needed < 80) {
+			if (yRef.y - needed < 100) {
 				page = pdfDoc.addPage([595.28, 841.89]);
 				// Draw header on new page
 				drawHeader(page);
-				yRef.y = 760;
+				yRef.y = 600; // More space below header
 				// Repeat table header if we're in the middle of a section
 				if (repeatNextTableHeader) {
 					drawResultsTableHeader(yRef.y, yRef);
@@ -141,23 +141,30 @@ export async function GET(request: Request, context: { params: Promise<{ student
 		const drawHeader = (p: typeof page) => {
 			const titleY = 800;
 			let localY = titleY;
-			// Small centered logo to avoid overlap
+			
+			// School address - TOP LEFT
+			p.drawText('YANO SCHOOL', { x: 60, y: localY + 20, size: 10, font: fontBold, color: rgb(0, 0, 0) });
+			p.drawText('123 Education Lane', { x: 60, y: localY + 8, size: 9, font: font, color: rgb(0, 0, 0) });
+			p.drawText('Academic City, AC 12345', { x: 60, y: localY - 4, size: 9, font: font, color: rgb(0, 0, 0) });
+			
+			// Logo - MIDDLE TOP (centered)
 			if (logoImg) {
-				const displayW = 60;
-				const displayH = 60;
-				p.drawImage(logoImg, { x: (595.28 - displayW) / 2, y: localY - displayH + 8, width: displayW, height: displayH });
+				const displayW = 80;
+				const displayH = 80;
+				p.drawImage(logoImg, { x: (595.28 - displayW) / 2, y: localY - 10, width: displayW, height: displayH });
 			}
-			// Title block
-			p.drawText('YANO SCHOOL', { x: 220, y: localY + 12, size: 18, font: fontBold, color: rgb(0, 0, 0) });
-			p.drawText('Office of the Principal', { x: 220, y: localY - 6, size: 11, font: font, color: rgb(0, 0, 0) });
+			
+			// From the office of the principal + contact info - TOP RIGHT
+			p.drawText('From the Office of the Principal', { x: 350, y: localY + 20, size: 10, font: fontBold, color: rgb(0, 0, 0) });
+			p.drawText('Phone: +234-XXX-XXX-XXXX', { x: 350, y: localY + 8, size: 9, font: font, color: rgb(0, 0, 0) });
+			p.drawText('Email: principal@yanoschool.edu', { x: 350, y: localY - 4, size: 9, font: font, color: rgb(0, 0, 0) });
+			
+			// School name - BELOW LOGO (centered)
+			p.drawText('YANO SCHOOL', { x: 220, y: localY - 45, size: 18, font: fontBold, color: rgb(0, 0, 0) });
+			p.drawText('Excellence in Education', { x: 245, y: localY - 60, size: 11, font: font, color: rgb(0, 0, 0) });
+			
 			// Decorative line
-			p.drawLine({ start: { x: 60, y: localY - 30 }, end: { x: 535, y: localY - 30 }, thickness: 1, color: rgb(0, 0, 0) });
-
-			// Student photo top-right
-			if (studentPhotoImg) {
-				const size = 100;
-				p.drawImage(studentPhotoImg, { x: 595.28 - 60 - size, y: 841.89 - 50 - size, width: size, height: size });
-			}
+			p.drawLine({ start: { x: 60, y: localY - 75 }, end: { x: 535, y: localY - 75 }, thickness: 1, color: rgb(0, 0, 0) });
 		};
 
 		// Results table header (Code, Title, Mark, Letter, GP)
@@ -177,15 +184,27 @@ export async function GET(request: Request, context: { params: Promise<{ student
 
 		// Header with logo and title
 		drawHeader(page);
-		let y = 720;
+		let y = 675;
 
-		// Student info block in a more official style
-		drawText('STUDENT ACADEMIC RECORD', 240, y + 12, 12, true);
-		drawText(`DATE ISSUED: ${new Date().toLocaleDateString()}`, 420, y + 12, 9);
-		drawText(`STUDENT NAME: ${student.full_name}`, 60, y); y -= 12;
-		drawText(`MATRIC NUMBER: ${student.student_id}`, 60, y); y -= 12;
-		drawText(`CLASS: ${student.class_level}${student.stream ? ' • ' + student.stream : ''}`, 60, y); y -= 12;
-		drawText(`GRADUATION SESSION: ${graduationSession}`, 60, y); y -= 20;
+		// Student academic record title
+		drawText('STUDENT ACADEMIC RECORD', 200, y + 25, 14, true);
+		
+		// Student info on the LEFT side
+		drawText(`STUDENT NAME: ${student.full_name}`, 60, y); y -= 15;
+		drawText(`MATRIC NUMBER: ${student.student_id}`, 60, y); y -= 15;
+		drawText(`CLASS: ${student.class_level}${student.stream ? ' • ' + student.stream : ''}`, 60, y); y -= 15;
+		drawText(`GRADUATION SESSION: ${graduationSession}`, 60, y); y -= 15;
+		drawText(`DATE ISSUED: ${new Date().toLocaleDateString()}`, 60, y); y -= 15;
+		
+		// Student image on the RIGHT side
+		if (studentPhotoImg) {
+			const size = 120;
+			const rightX = 595.28 - 80 - size; // Right aligned with margin
+			const topY = 675 + 25; // Aligned with student info section
+			page.drawImage(studentPhotoImg, { x: rightX, y: topY - size, width: size, height: size });
+			// Add border around photo
+			page.drawRectangle({ x: rightX - 2, y: topY - size - 2, width: size + 4, height: size + 4, borderColor: rgb(0, 0, 0), borderWidth: 1 });
+		}
 
 		drawLine(60, y, 535, y, 1); y -= 16;
 
@@ -204,7 +223,7 @@ export async function GET(request: Request, context: { params: Promise<{ student
 			let idx = 1;
 			for (const rAny of rows) {
 				const r = rAny as any;
-				addNewPageIfNeeded(22, { y });
+				addNewPageIfNeeded(25, { y });
 				drawText(String(idx), 60, y);
 				drawText(String(r.courses?.code || ''), 90, y);
 				drawText(String((r.courses?.name || r.course_id) || '').slice(0, 36), 170, y);
@@ -214,12 +233,12 @@ export async function GET(request: Request, context: { params: Promise<{ student
 				drawText(letter, 450, y);
 				const gp = gradeToPoint(letter);
 				drawText(gp.toFixed(2), 500, y);
-				y -= 16; idx += 1;
+				y -= 18; idx += 1; // Increased spacing between rows
 			}
 
 			// Separator line between terms
-			addNewPageIfNeeded(16, { y });
-			drawLine(60, y, 535, y, 0.5); y -= 12;
+			addNewPageIfNeeded(20, { y });
+			drawLine(60, y, 535, y, 0.5); y -= 20; // More space after separator
 		}
 
 		// Academic summary card

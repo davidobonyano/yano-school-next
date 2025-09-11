@@ -2,6 +2,7 @@ import './globals.css';
 import type { Metadata } from 'next';
 import ConditionalLayout from '@/components/ConditionalLayout';
 import { GlobalAcademicContextProvider } from '@/contexts/GlobalAcademicContext';
+import { ToastProvider } from '@/components/ui/notifications';
 
 export const metadata: Metadata = {
   title: 'Yano School',
@@ -36,7 +37,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <GlobalAcademicContextProvider>
-          <ConditionalLayout>{children}</ConditionalLayout>
+          <ToastProvider>
+            <ConditionalLayout>{children}</ConditionalLayout>
+          </ToastProvider>
         </GlobalAcademicContextProvider>
       </body>
     </html>

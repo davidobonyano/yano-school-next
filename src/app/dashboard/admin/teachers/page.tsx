@@ -12,6 +12,7 @@ import {
   faChalkboardTeacher
 } from '@fortawesome/free-solid-svg-icons';
 import { supabase } from '@/lib/supabase';
+import { useNotifications } from '@/components/ui/notifications';
 
 type Teacher = {
   id: string;
@@ -22,6 +23,7 @@ type Teacher = {
 
 export default function TeachersPage() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const { showConfirmation } = useNotifications();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
@@ -54,10 +56,13 @@ export default function TeachersPage() {
 
   const statuses = [...new Set(teachers.map(s => s.status).filter(Boolean))] as Array<'active'|'processing'>;
 
-  const handleDelete = (teacherId: string) => {
-    if (confirm('Are you sure you want to delete this teacher?')) {
-      setTeachers(teachers.filter(t => t.id !== teacherId));
-    }
+  const handleDelete = async (teacherId: string) => {
+    let confirmed = false;
+    await new Promise<void>((resolve) => {
+      showConfirmation('Delete Teacher', 'Are you sure you want to delete this teacher?', () => { confirmed = true; resolve(); }, { confirmText: 'Delete', type: 'danger' });
+    });
+    if (!confirmed) return;
+    setTeachers(teachers.filter(t => t.id !== teacherId));
   };
 
   const handleStatusChange = async (teacherId: string, newStatus: 'active' | 'processing') => {

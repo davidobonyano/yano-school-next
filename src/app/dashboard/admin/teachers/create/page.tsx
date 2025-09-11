@@ -10,9 +10,11 @@ import {
   faEnvelope,
   faIdCard
 } from '@fortawesome/free-solid-svg-icons';
+import { useNotifications } from '@/components/ui/notifications';
 
 export default function CreateTeacherPage() {
   const router = useRouter();
+  const { showSuccessToast } = useNotifications();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -44,7 +46,7 @@ export default function CreateTeacherPage() {
     };
 
     console.log('Creating teacher:', teacherData);
-    alert(`Teacher ${teacherData.name} created successfully!`);
+    showSuccessToast(`Teacher ${teacherData.name} created successfully!`);
     router.push('/dashboard/admin/teachers');
   };
 

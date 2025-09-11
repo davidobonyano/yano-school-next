@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useNotifications } from '@/components/ui/notifications';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useGlobalAcademicContext } from '@/contexts/GlobalAcademicContext';
 import { CLASS_LEVELS } from '@/types/courses';
@@ -100,12 +101,7 @@ export default function AdminPaymentsPage() {
   const [selectedClassLevel, setSelectedClassLevel] = useState<string>('All');
   const [selectedStream, setSelectedStream] = useState<string>('All');
 
-  // Toast notification state
-  const [toast, setToast] = useState<{ show: boolean; message: string; type: 'success' | 'error' }>({
-    show: false,
-    message: '',
-    type: 'success'
-  });
+  const { showSuccessToast, showErrorToast, showConfirmation } = useNotifications();
 
   // Local loading state for sync action
   const [syncingCharges, setSyncingCharges] = useState(false);
@@ -168,11 +164,7 @@ export default function AdminPaymentsPage() {
     setShowStudentModal(false);
   }
 
-  // Show toast notification
-  function showToast(message: string, type: 'success' | 'error' = 'success') {
-    setToast({ show: true, message, type });
-    setTimeout(() => setToast(prev => ({ ...prev, show: false })), 3000);
-  }
+  // using shared toasts
 
   // Sync student charges with fee structures
   async function syncStudentCharges() {
@@ -190,7 +182,7 @@ export default function AdminPaymentsPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || 'Failed to sync student charges');
       
-      showToast(`Successfully updated ${json.updatedCount} student charges!`, 'success');
+      showSuccessToast(`Successfully updated ${json.updatedCount} student charges!`);
       
       // Reload data to reflect changes
       loadSummary();
@@ -198,7 +190,7 @@ export default function AdminPaymentsPage() {
         loadConsolidatedData(selectedStudentForConsolidated);
       }
     } catch (e) {
-      showToast((e as Error).message, 'error');
+      showErrorToast((e as Error).message);
     } finally {
       setSyncingCharges(false);
     }
@@ -222,7 +214,7 @@ export default function AdminPaymentsPage() {
       setConsolidatedData(json);
       setSelectedStudentForConsolidated(student);
     } catch (e) {
-      showToast((e as Error).message, 'error');
+      showErrorToast((e as Error).message);
     } finally {
       setLoadingConsolidated(false);
     }
@@ -249,7 +241,7 @@ export default function AdminPaymentsPage() {
       setConsolidatedData(json);
       setActiveTab('consolidated');
     } catch (e) {
-      showToast((e as Error).message, 'error');
+      showErrorToast((e as Error).message);
     } finally {
       setLoadingConsolidated(false);
     }
@@ -286,7 +278,7 @@ export default function AdminPaymentsPage() {
       if (!res.ok) throw new Error(json?.error || 'Failed to load payment records');
       setPaymentRecords(json.items || []);
     } catch (e) {
-      alert((e as Error).message);
+      showErrorToast((e as Error).message);
     } finally {
       setLoadingPayments(false);
     }
@@ -304,8 +296,7 @@ export default function AdminPaymentsPage() {
       if (!res.ok) throw new Error(json?.error || 'Failed to load fees');
       setFees(json.items || []);
     } catch (e) {
-      // eslint-disable-next-line no-alert
-      alert((e as Error).message);
+      showErrorToast((e as Error).message);
     } finally {
       setLoadingFees(false);
     }
@@ -333,8 +324,7 @@ export default function AdminPaymentsPage() {
       if (!res.ok) throw new Error(json?.error || 'Failed to save fee');
       await loadFees();
     } catch (e) {
-      // eslint-disable-next-line no-alert
-      alert((e as Error).message);
+      showErrorToast((e as Error).message);
     }
   }
 
@@ -342,14 +332,15 @@ export default function AdminPaymentsPage() {
     if (!canQuery) return;
     
     // Show confirmation dialog
-    const confirmed = window.confirm(
-      `Are you sure you want to delete this fee structure?\n\n` +
-      `Class: ${item.class_level}\n` +
-      `Stream: ${item.stream || 'None'}\n` +
-      `Purpose: ${item.purpose}\n` +
-      `Amount: ₦${Number(item.amount).toLocaleString()}`
-    );
-    
+    let confirmed = false;
+    await new Promise<void>((resolve) => {
+      showConfirmation(
+        'Delete Fee Structure',
+        `Are you sure you want to delete this fee structure?\n\nClass: ${item.class_level}\nStream: ${item.stream || 'None'}\nPurpose: ${item.purpose}\nAmount: ₦${Number(item.amount).toLocaleString()}`,
+        () => { confirmed = true; resolve(); },
+        { confirmText: 'Delete', type: 'danger' }
+      );
+    });
     if (!confirmed) return;
     
     try {
@@ -370,15 +361,17 @@ export default function AdminPaymentsPage() {
       }
       
       if (previewJson.confirmRequired) {
-        // Show what will be deleted and ask for final confirmation
-        const finalConfirm = window.confirm(
-          `This will delete ${previewJson.matches.length} fee structure(s):\n\n` +
-          previewJson.matches.map((match: any) => 
-            `${match.class_level} ${match.stream || ''} - ${match.purpose}: ₦${Number(match.amount).toLocaleString()}`
-          ).join('\n') +
-          `\n\nProceed with deletion?`
-        );
-        
+        let finalConfirm = false;
+        await new Promise<void>((resolve) => {
+          showConfirmation(
+            'Confirm Deletion',
+            `This will delete ${previewJson.matches.length} fee structure(s):\n\n` +
+            previewJson.matches.map((match: any) => `${match.class_level} ${match.stream || ''} - ${match.purpose}: ₦${Number(match.amount).toLocaleString()}`).join('\n') +
+            `\n\nProceed with deletion?`,
+            () => { finalConfirm = true; resolve(); },
+            { confirmText: 'Delete', type: 'danger' }
+          );
+        });
         if (!finalConfirm) return;
       }
       
@@ -398,10 +391,10 @@ export default function AdminPaymentsPage() {
         throw new Error(json?.error || 'Failed to delete fee');
       }
       
-      showToast(`Successfully deleted ${json.deletedCount || 1} fee structure(s)`, 'success');
+      showSuccessToast(`Successfully deleted ${json.deletedCount || 1} fee structure(s)`);
       await loadFees();
     } catch (e) {
-      showToast((e as Error).message, 'error');
+      showErrorToast((e as Error).message);
     }
   }
 
@@ -430,7 +423,7 @@ export default function AdminPaymentsPage() {
     try {
       const paymentAmount = Number(recordForm.amount || 0);
       if (paymentAmount <= 0) {
-        showToast('Payment amount must be greater than 0', 'error');
+        showErrorToast('Payment amount must be greater than 0');
         return;
       }
 
@@ -447,7 +440,7 @@ export default function AdminPaymentsPage() {
       if (summaryRes.ok && summaryJson.summary) {
         const feeSummary = summaryJson.summary.find((item: any) => item.purpose === recordForm.purpose);
         if (feeSummary && (feeSummary.paid + paymentAmount) > feeSummary.expected) {
-          showToast(`Payment would exceed expected fee. Maximum allowed: ₦${(feeSummary.expected - feeSummary.paid).toLocaleString()}`, 'error');
+          showErrorToast(`Payment would exceed expected fee. Maximum allowed: ₦${(feeSummary.expected - feeSummary.paid).toLocaleString()}`);
           return;
         }
       }
@@ -470,7 +463,7 @@ export default function AdminPaymentsPage() {
       if (!res.ok) throw new Error(json?.error || 'Failed to add payment');
       
       // Show success toast
-      showToast('Payment recorded successfully!', 'success');
+      showSuccessToast('Payment recorded successfully!');
       
       // Auto-show consolidated summary for the recorded student
       const studentIdForSummary = recordForm.studentId;
@@ -488,7 +481,7 @@ export default function AdminPaymentsPage() {
         loadConsolidatedData(selectedStudentForConsolidated);
       }
     } catch (e) {
-      showToast((e as Error).message, 'error');
+      showErrorToast((e as Error).message);
     }
   }
 
@@ -548,8 +541,7 @@ export default function AdminPaymentsPage() {
               { id: 'fees', label: 'Fee Structures', icon: faMoneyBillWave },
               { id: 'payments', label: 'Payment Records', icon: faReceipt },
               { id: 'consolidated', label: 'Student Payments', icon: faUsers },
-              { id: 'summary', label: 'Summary & Reports', icon: faChartBar },
-              { id: 'history', label: 'Payment History', icon: faEye }
+              { id: 'summary', label: 'Summary & Reports', icon: faChartBar }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -1131,20 +1123,7 @@ export default function AdminPaymentsPage() {
         </div>
       )}
 
-      {/* Toast Notification */}
-      {toast.show && (
-        <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg transition-all duration-300 ${
-          toast.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-        }`}>
-          <div className="flex items-center">
-            <FontAwesomeIcon 
-              icon={toast.type === 'success' ? faCheckCircle : faExclamationTriangle} 
-              className="mr-2" 
-            />
-            {toast.message}
-          </div>
-        </div>
-      )}
+      {/* Toasts handled globally by ToastProvider */}
     </div>
   );
 }

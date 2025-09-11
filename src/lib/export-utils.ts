@@ -6,7 +6,9 @@ export interface ExportableData {
 
 export function exportToCSV(data: ExportableData[], filename: string) {
   if (!data || data.length === 0) {
-    alert('No data to export');
+    if (typeof window !== 'undefined' && (window as any).__notifications_showErrorToast) {
+      (window as any).__notifications_showErrorToast('No data to export');
+    }
     return;
   }
 
@@ -47,7 +49,9 @@ export function exportToCSV(data: ExportableData[], filename: string) {
 
 export function exportToJSON(data: ExportableData[], filename: string) {
   if (!data || data.length === 0) {
-    alert('No data to export');
+    if (typeof window !== 'undefined' && (window as any).__notifications_showErrorToast) {
+      (window as any).__notifications_showErrorToast('No data to export');
+    }
     return;
   }
 

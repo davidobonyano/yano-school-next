@@ -1,14 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { requireAdmin } from '@/lib/authz';
-
-function normalizeTermName(name: string): string {
-  const n = name.trim().toLowerCase();
-  if (n === 'first term' || n === '1st term') return '1st Term';
-  if (n === 'second term' || n === '2nd term') return '2nd Term';
-  if (n === 'third term' || n === '3rd term') return '3rd Term';
-  return name;
-}
+import { normalizeTermName } from '@/lib/term-utils';
 
 export async function GET(request: Request) {
   try {

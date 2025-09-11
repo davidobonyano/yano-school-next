@@ -1,6 +1,7 @@
 "use client";
 import { CourseDashboard } from '@/components/courses/CourseDashboard';
 import { CourseRegistrationManager } from '@/components/courses/CourseRegistrationManager';
+import { StudentRegistrationSummary } from '@/components/StudentRegistrationSummary';
 import { useEffect, useState } from 'react';
 import { getStudentSession } from '@/lib/student-session';
 
@@ -22,6 +23,12 @@ export default function StudentCoursesPage() {
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-8">
+      {/* Registration Summary */}
+      <StudentRegistrationSummary
+        studentId={studentId}
+        className="max-w-none"
+      />
+      
       {/* Course Registration Section */}
       <CourseRegistrationManager 
         userRole="student"

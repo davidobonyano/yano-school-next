@@ -41,6 +41,18 @@ type OutstandingRow = {
   status: 'Outstanding' | 'Paid';
 };
 
+type FeeBreakdownRow = {
+  class_level: string;
+  stream: string | null;
+  student_id: string; // public code
+  full_name: string;
+  current_fee: number;
+  previous_debt: number;
+  total: number;
+  current_outstanding?: number;
+  previous_outstanding?: number;
+};
+
 type HistoricalSession = {
   id: string;
   name: string;
@@ -113,6 +125,17 @@ export default function AdminReportsPage() {
   const [summary, setSummary] = useState<SessionSummary | null>(null);
   const [revenue, setRevenue] = useState<RevenueSummary | null>(null);
   const [outstanding, setOutstanding] = useState<OutstandingRow[]>([]);
+  const [feeTotals, setFeeTotals] = useState<{ current_fee: number; previous_debt: number; total: number; current_outstanding?: number; previous_outstanding?: number } | null>(null);
+  const [feeRows, setFeeRows] = useState<FeeBreakdownRow[]>([]);
+  
+  // Previous balances data
+  const [previousBalances, setPreviousBalances] = useState<{
+    expected: number;
+    collected: number;
+    outstanding: number;
+    collectionRate: number;
+  } | null>(null);
+  const [previousOutstanding, setPreviousOutstanding] = useState<OutstandingRow[]>([]);
   
   // Historical data
   const [historicalSessions, setHistoricalSessions] = useState<HistoricalSession[]>([]);
@@ -137,14 +160,15 @@ export default function AdminReportsPage() {
         setError(null);
         const params = new URLSearchParams({ term: period.term, session: period.session });
 
-        const [summaryRes, revenueRes, outstandingRes] = await Promise.all([
+        const [summaryRes, revenueRes, outstandingRes, feeBreakdownRes] = await Promise.all([
           fetch(`/api/reports/session-summary?${params.toString()}`, { cache: 'no-store' }),
           fetch(`/api/reports/expected-revenue?${params.toString()}`, { cache: 'no-store' }),
-          fetch(`/api/reports/outstanding?${params.toString()}`, { cache: 'no-store' })
+          fetch(`/api/reports/outstanding?${params.toString()}`, { cache: 'no-store' }),
+          fetch(`/api/reports/current-fee-breakdown?${params.toString()}`, { cache: 'no-store' })
         ]);
 
-        const [summaryJson, revenueJson, outstandingJson] = await Promise.all([
-          summaryRes.json(), revenueRes.json(), outstandingRes.json()
+        const [summaryJson, revenueJson, outstandingJson, feeBreakdownJson] = await Promise.all([
+          summaryRes.json(), revenueRes.json(), outstandingRes.json(), feeBreakdownRes.json()
         ]);
 
         if (!summaryRes.ok) throw new Error(summaryJson.error || 'Failed to load summary');
@@ -154,6 +178,23 @@ export default function AdminReportsPage() {
         setSummary(summaryJson.summary || null);
         setRevenue(revenueJson || null);
         setOutstanding(outstandingJson.outstanding || []);
+        
+        // Skip previous balances fetch entirely
+
+        // When available, prefer fee breakdown totals for current vs previous
+        if (feeBreakdownRes.ok) {
+          const totals = feeBreakdownJson?.totals || null;
+          if (totals) {
+            setFeeTotals({
+              current_fee: Number(totals.current_fee || 0),
+              previous_debt: Number(totals.previous_debt || 0),
+              total: Number(totals.total || (Number(totals.current_fee || 0) + Number(totals.previous_debt || 0))),
+              current_outstanding: Number(totals.current_outstanding || 0),
+              previous_outstanding: Number(totals.previous_outstanding || 0)
+            });
+          }
+          setFeeRows(Array.isArray(feeBreakdownJson?.rows) ? feeBreakdownJson.rows : []);
+        }
       } catch (e: any) {
         setError(e?.message || 'Unexpected error');
       } finally {
@@ -387,57 +428,178 @@ export default function AdminReportsPage() {
           {/* Current Period Tab */}
           {activeTab === 'current' && (
             <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="bg-white p-4 rounded-lg shadow border">
-              <h3 className="text-sm font-medium text-gray-700">Expected Collection</h3>
-              <p className="text-2xl font-bold">{formatNaira(summary?.expected || revenue?.expectedRevenue || 0)}</p>
-            </div>
-            <div className="bg-white p-4 rounded-lg shadow border">
-              <h3 className="text-sm font-medium text-gray-700">Collected</h3>
-              <p className="text-2xl font-bold">{formatNaira(summary?.collected || revenue?.actualRevenue || 0)}</p>
-            </div>
-            <div className="bg-white p-4 rounded-lg shadow border">
-              <h3 className="text-sm font-medium text-gray-700">Outstanding</h3>
-              <p className="text-2xl font-bold text-yellow-700">{formatNaira(summary?.outstanding || revenue?.outstanding || 0)}</p>
-            </div>
-            <div className="bg-white p-4 rounded-lg shadow border">
-              <h3 className="text-sm font-medium text-gray-700">Collection Rate</h3>
-              <p className="text-2xl font-bold">{(revenue?.collectionRate ?? 0).toFixed(1)}%</p>
-            </div>
-          </div>
+              {/* Current Period Card */}
+              <div className="bg-white rounded-lg shadow border p-6 mb-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <FontAwesomeIcon icon={faChartLine} className="w-6 h-6 text-blue-600" />
+                  <h2 className="text-xl font-semibold text-gray-900">Current Period</h2>
+                  <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
+                    {period.session} • {period.term}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <h3 className="text-sm font-medium text-blue-700">Expected Collection</h3>
+                    <p className="text-sm text-blue-800">
+                      {formatNaira(feeTotals?.current_fee ?? (summary?.expected || revenue?.expectedRevenue || 0))}
+                      {(((feeTotals?.previous_debt ?? (previousBalances?.outstanding)) || 0) > 0) && (
+                        <span className="text-xs text-gray-600 ml-2">
+                          (debt {formatNaira((feeTotals?.previous_debt ?? (previousBalances?.outstanding)) || 0)} previous term fees)
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-3xl font-extrabold text-blue-900 mt-1">
+                      {formatNaira((feeTotals?.current_fee ?? (summary?.expected || revenue?.expectedRevenue || 0)) + ((feeTotals?.previous_debt ?? (previousBalances?.outstanding)) || 0))}
+                    </p>
+                  </div>
+                  <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                    <h3 className="text-sm font-medium text-green-700">Collected</h3>
+                    <p className="text-2xl font-bold text-green-900">{formatNaira(summary?.collected || revenue?.actualRevenue || 0)}</p>
+                    <p className="text-xs text-green-600 mt-1">Current term payments</p>
+                  </div>
+                  <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                    <h3 className="text-sm font-medium text-yellow-700">Outstanding</h3>
+                    <p className="text-sm text-yellow-800">
+                      {formatNaira(feeTotals?.current_outstanding ?? 0)}
+                      {(((feeTotals?.previous_outstanding ?? 0) > 0)) && (
+                        <span className="text-xs text-gray-600 ml-2">
+                          (debt {formatNaira(feeTotals?.previous_outstanding ?? 0)} previous term fees)
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-3xl font-extrabold text-yellow-900 mt-1">
+                      {formatNaira((feeTotals?.current_outstanding ?? 0) + (feeTotals?.previous_outstanding ?? 0))}
+                    </p>
+                  </div>
+                  <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                    <h3 className="text-sm font-medium text-purple-700">Collection Rate</h3>
+                    <p className="text-2xl font-bold text-purple-900">{(revenue?.collectionRate ?? 0).toFixed(1)}%</p>
+                    <p className="text-xs text-purple-600 mt-1">Current term rate</p>
+                  </div>
+                </div>
+                
+                {(() => {
+                  const rows = (feeRows && feeRows.length > 0)
+                    ? feeRows.map(r => ({
+                        class_level: r.class_level,
+                        stream: r.stream,
+                        student_id: r.student_id,
+                        full_name: r.full_name,
+                        currentOutstanding: Number(r.current_outstanding ?? 0),
+                        previousOutstanding: Number(r.previous_outstanding ?? 0),
+                        total: Number(r.current_outstanding ?? 0) + Number(r.previous_outstanding ?? 0)
+                      }))
+                    : (() => {
+                        const merged = new Map<string, { class_level: string; stream: string | null; student_id: string; full_name: string; currentOutstanding: number; previousOutstanding: number; total: number }>();
+                        outstanding.forEach((r) => {
+                          merged.set(r.student_id, {
+                            class_level: r.class_level,
+                            stream: r.stream,
+                            student_id: r.student_id,
+                            full_name: r.full_name,
+                            currentOutstanding: r.outstanding,
+                            previousOutstanding: 0,
+                            total: r.outstanding
+                          });
+                        });
+                        previousOutstanding.forEach((r) => {
+                          const existing = merged.get(r.student_id);
+                          if (existing) {
+                            existing.previousOutstanding = r.outstanding;
+                            existing.total = existing.currentOutstanding + existing.previousOutstanding;
+                            merged.set(r.student_id, existing);
+                          } else {
+                            merged.set(r.student_id, {
+                              class_level: r.class_level,
+                              stream: r.stream,
+                              student_id: r.student_id,
+                              full_name: r.full_name,
+                              currentOutstanding: 0,
+                              previousOutstanding: r.outstanding,
+                              total: r.outstanding
+                            });
+                          }
+                        });
+                        return Array.from(merged.values());
+                      })();
+                  return rows.length > 0 ? (
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-800 mb-3">Outstanding (Present Term + Previous)</h3>
+                    <div className="mb-3 flex justify-end">
+                      <button
+                        onClick={() => {
+                          try {
+                            const rowsToExport = (feeRows && feeRows.length > 0)
+                              ? feeRows.map(r => ({
+                                  Class: r.class_level,
+                                  Stream: r.stream || '-',
+                                  Student: r.full_name,
+                                  ID: r.student_id,
+                                  Present_Term_Outstanding: r.current_outstanding ?? 0,
+                                  Previous_Terms_Outstanding: r.previous_outstanding ?? 0,
+                                  Total_Outstanding: (Number(r.current_outstanding ?? 0) + Number(r.previous_outstanding ?? 0))
+                                }))
+                              : [] as any[];
+                            const csv = ['Class,Stream,Student,ID,Present Term,Previous Terms,Total']
+                              .concat(rowsToExport.map(r => [r.Class, r.Stream, '"' + r.Student + '"', r.ID, r.Present_Term_Outstanding, r.Previous_Terms_Outstanding, r.Total_Outstanding].join(',')))
+                              .join('\n');
+                            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `outstanding_${period.session}_${period.term}.csv`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                          } catch (err) {
+                            alert((err as Error).message);
+                          }
+                        }}
+                        className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                      >
+                        Export CSV
+                      </button>
+                    </div>
+                    <div className="overflow-hidden rounded-lg border">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stream</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Present Term</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Previous Terms</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {rows.slice(0, 10).map((r) => (
+                            <tr key={`${r.student_id}-${r.class_level}-${r.stream || ''}`} className="hover:bg-gray-50">
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{r.class_level}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{r.stream || '-'}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{r.full_name}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{r.student_id}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatNaira(r.currentOutstanding)}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatNaira(r.previousOutstanding)}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">{formatNaira(r.total)}</td>
+                            </tr>
+                          ))}
+                          {rows.length > 10 && (
+                            <tr>
+                              <td className="px-6 py-4 text-sm text-gray-500 text-center" colSpan={7}>
+                                ... and {rows.length - 10} more students
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  ) : null;
+                })()}
+              </div>
 
-          <div>
-            <h2 className="text-lg font-semibold text-gray-800 mb-2">Outstanding by Class</h2>
-            <div className="overflow-hidden rounded-lg shadow">
-              <table className="min-w-full divide-y divide-gray-200 bg-white">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stream</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Outstanding</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {outstanding.map((r) => (
-                    <tr key={`${r.student_id}-${r.class_level}-${r.stream || ''}`} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{r.class_level}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{r.stream || '-'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{r.full_name}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{r.student_id}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatNaira(r.outstanding)}</td>
-                    </tr>
-                  ))}
-                  {outstanding.length === 0 && (
-                    <tr>
-                      <td className="px-6 py-4 text-sm text-gray-600" colSpan={5}>No outstanding data.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+              {/* Removed Previous Balances card as requested */}
             </>
           )}
 

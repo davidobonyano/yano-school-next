@@ -12,6 +12,7 @@ import { CourseTable } from './CourseTable';
 import { CourseFiltersComponent } from './CourseFilters';
 import { CourseForm } from './CourseForm';
 import { exportCoursesToCSV, parseCSVToCourses } from '@/lib/courseUtils';
+import { useNotifications } from '@/components/ui/notifications';
 
 interface CourseDashboardProps {
   userRole: 'admin' | 'teacher' | 'student';
@@ -26,6 +27,7 @@ export function CourseDashboard({
   userStream, 
   className = '' 
 }: CourseDashboardProps) {
+  const { showErrorToast, showSuccessToast } = useNotifications();
   const [courses, setCourses] = useState<Course[]>([]);
   const [filteredCourses, setFilteredCourses] = useState<Course[]>([]);
   const [filters, setFilters] = useState<CourseFilters>({
@@ -135,11 +137,11 @@ export function CourseDashboard({
         fetchStats();
       } else {
         const error = await response.json();
-        alert(`Failed to create course: ${error.error}`);
+        showErrorToast(`Failed to create course: ${error.error}`);
       }
     } catch (error) {
       console.error('Error creating course:', error);
-      alert('Failed to create course');
+      showErrorToast('Failed to create course');
     }
   };
 
@@ -158,11 +160,11 @@ export function CourseDashboard({
         fetchStats();
       } else {
         const error = await response.json();
-        alert(`Failed to update course: ${error.error}`);
+        showErrorToast(`Failed to update course: ${error.error}`);
       }
     } catch (error) {
       console.error('Error updating course:', error);
-      alert('Failed to update course');
+      showErrorToast('Failed to update course');
     }
   };
 
@@ -181,11 +183,11 @@ export function CourseDashboard({
         fetchStats();
       } else {
         const error = await response.json();
-        alert(`Failed to delete course: ${error.error}`);
+        showErrorToast(`Failed to delete course: ${error.error}`);
       }
     } catch (error) {
       console.error('Error deleting course:', error);
-      alert('Failed to delete course');
+      showErrorToast('Failed to delete course');
     }
   };
 
@@ -222,14 +224,14 @@ export function CourseDashboard({
           if (response.ok) {
             fetchCourses();
             fetchStats();
-            alert(`Successfully imported ${courses.length} courses`);
+            showSuccessToast(`Successfully imported ${courses.length} courses`);
           } else {
             const error = await response.json();
-            alert(`Failed to import courses: ${error.error}`);
+            showErrorToast(`Failed to import courses: ${error.error}`);
           }
         } catch (error) {
           console.error('Error importing courses:', error);
-          alert('Failed to import courses');
+          showErrorToast('Failed to import courses');
         }
       }
     };

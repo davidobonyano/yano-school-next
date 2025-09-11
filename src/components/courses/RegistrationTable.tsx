@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { CheckCircle, XCircle, Clock, BookOpen, User, Calendar, AlertCircle, Loader2 } from 'lucide-react';
+import { useNotifications } from '@/components/ui/notifications';
 // import { toast } from 'sonner';
 
 interface RegistrationTableProps {
@@ -26,6 +27,7 @@ export function RegistrationTable({
   isLoading = false 
 }: RegistrationTableProps) {
   const [approvingId, setApprovingId] = useState<string | null>(null);
+  const { showConfirmation, showErrorToast, showSuccessToast } = useNotifications();
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -108,7 +110,11 @@ export function RegistrationTable({
   };
 
   const handleDelete = async (registrationId: string) => {
-    if (!confirm('Are you sure you want to delete this registration?')) return;
+    let confirmed = false;
+    await new Promise<void>((resolve) => {
+      showConfirmation('Delete Registration', 'Are you sure you want to delete this registration?', () => { confirmed = true; resolve(); }, { confirmText: 'Delete', type: 'danger' });
+    });
+    if (!confirmed) return;
 
     setIsSubmitting(true);
     try {
@@ -121,11 +127,11 @@ export function RegistrationTable({
         throw new Error(error.message || 'Failed to delete registration');
       }
 
-      console.log('Registration deleted successfully!');
+      showSuccessToast('Registration deleted successfully!');
       onRefresh();
     } catch (error) {
       console.error('Error deleting registration:', error);
-      console.error(error instanceof Error ? error.message : 'Failed to delete registration');
+      showErrorToast(error instanceof Error ? error.message : 'Failed to delete registration');
     } finally {
       setIsSubmitting(false);
     }

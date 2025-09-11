@@ -55,7 +55,6 @@ export default function PromotionsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to promote');
       setPeriod({ term: newTerm, session: newSession });
-      alert('Promotion completed');
     } catch (e: any) {
       setError(e?.message || 'Unexpected error');
     } finally {

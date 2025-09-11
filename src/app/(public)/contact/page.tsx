@@ -60,7 +60,6 @@ export default function ContactPage() {
       setIsSent(true);
       setFormData({ from_name: '', from_email: '', subject: '', message: '' });
     } catch (error) {
-      alert('Failed to send message. Try again.');
       console.error(error);
     }
   };

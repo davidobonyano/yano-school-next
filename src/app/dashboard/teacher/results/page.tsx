@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useNotifications } from '@/components/ui/notifications';
 import { useAcademicContext } from '@/lib/academic-context';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChartBar, faFilter, faSave, faUsers, faCheckCircle } from '@fortawesome/free-solid-svg-icons';
@@ -58,7 +59,12 @@ function gradeFromTotal(total: number): string {
 
 export default function ResultsManagementPage() {
 	const { currentContext, isLoading: contextLoading } = useAcademicContext();
+  const { showSuccessToast, showErrorToast } = useNotifications();
 
+	const [sessionFilter, setSessionFilter] = useState<string>('');
+	const [termFilter, setTermFilter] = useState<string>('');
+	const [availableSessions, setAvailableSessions] = useState<string[]>([]);
+	const [availableTerms, setAvailableTerms] = useState<string[]>([]);
 	const [classLevel, setClassLevel] = useState<string>('All');
 	const [stream, setStream] = useState<string>('All');
 	const [students, setStudents] = useState<Student[]>([]);
@@ -74,8 +80,31 @@ export default function ResultsManagementPage() {
 	const [showBulkModal, setShowBulkModal] = useState<boolean>(false);
 	const [bulkText, setBulkText] = useState<string>('');
 
-	const sessionName = currentContext?.session_name || '';
-	const termName = currentContext?.term_name || '';
+	const sessionName = sessionFilter || currentContext?.session_name || '';
+	const termName = termFilter || currentContext?.term_name || '';
+
+	// Initialize filters to current context on mount and fetch available options
+	useEffect(() => {
+		const fetchAvailableOptions = async () => {
+			try {
+				const response = await fetch('/api/academic/sessions-terms');
+				if (response.ok) {
+					const data = await response.json();
+					setAvailableSessions(data.sessions || []);
+					setAvailableTerms(data.terms || []);
+				}
+			} catch (error) {
+				console.error('Failed to fetch sessions and terms:', error);
+			}
+		};
+
+		if (currentContext && !sessionFilter) {
+			setSessionFilter(currentContext.session_name || '');
+			setTermFilter(currentContext.term_name || '');
+		}
+		
+		fetchAvailableOptions();
+	}, [currentContext, sessionFilter]);
 
 	const classLevelOptions = useMemo(() => [
 		'All', ...CLASS_LEVELS
@@ -193,9 +222,9 @@ export default function ResultsManagementPage() {
 		if (!selectedStudentId || !sessionName || !termName) return;
 		const inputs = scoresByCourseId[courseId] || { ca: 0, midterm: 0, exam: 0 };
 		// Basic validation
-		if (inputs.ca < 0 || inputs.ca > 20) return !silent && alert('CA must be between 0 and 20');
-		if (inputs.midterm < 0 || inputs.midterm > 20) return !silent && alert('Midterm must be between 0 and 20');
-		if (inputs.exam < 0 || inputs.exam > 60) return !silent && alert('Exam must be between 0 and 60');
+		if (inputs.ca < 0 || inputs.ca > 20) return !silent && showErrorToast('CA must be between 0 and 20');
+		if (inputs.midterm < 0 || inputs.midterm > 20) return !silent && showErrorToast('Midterm must be between 0 and 20');
+		if (inputs.exam < 0 || inputs.exam > 60) return !silent && showErrorToast('Exam must be between 0 and 60');
 
 		setSavingCourseId(courseId);
 		try {
@@ -216,10 +245,10 @@ export default function ResultsManagementPage() {
 				const err = await resp.json().catch(() => ({}));
 				throw new Error(err.error || 'Failed to save result');
 			}
-			if (!silent) alert('Result saved');
+			if (!silent) showSuccessToast('Result saved');
 		} catch (e) {
 			console.error('Failed to save result', e);
-			!silent && alert(e instanceof Error ? e.message : 'Failed to save');
+			!silent && showErrorToast(e instanceof Error ? e.message : 'Failed to save');
 		} finally {
 			setSavingCourseId('');
 		}
@@ -238,9 +267,9 @@ export default function ResultsManagementPage() {
 				}
 			}
 			if (errors.length > 0) {
-				alert(`Some courses failed to save: ${errors.join(', ')}`);
+				showErrorToast(`Some courses failed to save: ${errors.join(', ')}`);
 			} else {
-				alert('All results saved');
+				showSuccessToast('All results saved');
 			}
 			// Refresh existing results after save
 			const r = await fetch(`/api/results?student_id=${encodeURIComponent(selectedStudentId)}&session=${encodeURIComponent(sessionName)}&term=${encodeURIComponent(termName)}`);
@@ -262,7 +291,7 @@ export default function ResultsManagementPage() {
 			}
 		} catch (e) {
 			console.error(e);
-			alert(e instanceof Error ? e.message : 'Failed to save all');
+			showErrorToast(e instanceof Error ? e.message : 'Failed to save all');
 		} finally {
 			setBulkSaving(false);
 		}
@@ -298,18 +327,18 @@ export default function ResultsManagementPage() {
 
 	const handleBulkUpload = async () => {
 		if (!sessionName || !termName) {
-			alert('Academic context missing');
+			showErrorToast('Academic context missing');
 			return;
 		}
 		let rows: Array<{studentId:string;courseCode:string;ca:number;midterm:number;exam:number}> = [];
 		try {
 			rows = parseBulkCSV(bulkText);
 		} catch (e) {
-			alert(e instanceof Error ? e.message : 'Invalid CSV');
+			showErrorToast(e instanceof Error ? e.message : 'Invalid CSV');
 			return;
 		}
 		if (rows.length === 0) {
-			alert('No valid rows found');
+			showErrorToast('No valid rows found');
 			return;
 		}
 		setBulkSaving(true);
@@ -329,11 +358,11 @@ export default function ResultsManagementPage() {
 			})));
 			const success = results.filter(r => r.status === 'fulfilled' && r.value.ok).length;
 			const failed = results.length - success;
-			alert(`Uploaded ${success} rows${failed ? `, ${failed} failed` : ''}`);
+			showSuccessToast(`Uploaded ${success} rows${failed ? `, ${failed} failed` : ''}`);
 			setShowBulkModal(false);
 			setBulkText('');
 		} catch (e) {
-			alert('Bulk upload failed');
+			showErrorToast('Bulk upload failed');
 		} finally {
 			setBulkSaving(false);
 		}
@@ -356,8 +385,40 @@ export default function ResultsManagementPage() {
 				<div className="bg-white rounded-lg shadow p-4 lg:col-span-1">
 					<div className="flex items-center gap-2 mb-4">
 						<FontAwesomeIcon icon={faFilter} className="w-4 h-4 text-gray-500" />
-						<span className="text-sm text-gray-700">Select Class and Stream</span>
+						<span className="text-sm text-gray-700">Filters</span>
 					</div>
+					
+					{/* Session/Term Override */}
+					<div className="grid grid-cols-2 gap-3 mb-4">
+						<div>
+							<label className="block text-xs text-gray-600 mb-1">Session</label>
+							<select
+								value={sessionFilter}
+								onChange={(e) => setSessionFilter(e.target.value)}
+								className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
+							>
+								<option value="">{contextLoading ? 'Loading...' : 'Select Session'}</option>
+								{availableSessions.map((session) => (
+									<option key={session} value={session}>{session}</option>
+								))}
+							</select>
+						</div>
+						<div>
+							<label className="block text-xs text-gray-600 mb-1">Term</label>
+							<select
+								value={termFilter}
+								onChange={(e) => setTermFilter(e.target.value)}
+								className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
+							>
+								<option value="">{contextLoading ? 'Loading...' : 'Select Term'}</option>
+								{availableTerms.map((term) => (
+									<option key={term} value={term}>{term}</option>
+								))}
+							</select>
+						</div>
+					</div>
+
+					{/* Class/Stream */}
 					<div className="grid grid-cols-2 gap-3 mb-4">
 						<select
 							value={classLevel}

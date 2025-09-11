@@ -27,7 +27,7 @@ import {
 export default function TeacherLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [teacher, setTeacher] = useState<any>(null);
+  const [teacher, setTeacher] = useState<{teacher_id: string; full_name: string} | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
@@ -222,9 +222,9 @@ export default function TeacherLayout({ children }: { children: ReactNode }) {
               </div>
             </div>
             <div>
-              <h2 className="text-xl font-bold">{teacher?.name || 'Welcome back, Teacher!'}</h2>
+              <h2 className="text-xl font-bold">{teacher?.full_name || 'Welcome back, Teacher!'}</h2>
               <p className="text-sm text-blue-200">Teacher</p>
-              <p className="text-sm text-blue-200">ID: {teacher?.id || 'Loading...'}</p>
+              <p className="text-sm text-blue-200">ID: {teacher?.teacher_id || 'Loading...'}</p>
             </div>
           </div>
         </div>
@@ -315,9 +315,9 @@ export default function TeacherLayout({ children }: { children: ReactNode }) {
                     </div>
                   </div>
                   <div>
-                    <h2 className="font-bold">{teacher?.name || 'Welcome back, Teacher!'}</h2>
+                    <h2 className="font-bold">{teacher?.full_name || 'Welcome back, Teacher!'}</h2>
                     <p className="text-xs text-blue-200">Teacher</p>
-                    <p className="text-xs text-blue-200">ID: {teacher?.id || 'Loading...'}</p>
+                    <p className="text-xs text-blue-200">ID: {teacher?.teacher_id || 'Loading...'}</p>
                   </div>
                 </div>
               </div>

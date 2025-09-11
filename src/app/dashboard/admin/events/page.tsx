@@ -101,7 +101,7 @@ export default function EventsPage() {
 
   // Delete event
   const deleteEvent = async (eventId: string) => {
-    if (!confirm('Are you sure you want to delete this event?')) return;
+    // Use dialog above for confirmation; this is a safety check
 
     try {
       const response = await fetch(`/api/events/${eventId}`, {

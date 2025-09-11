@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faSearch, faFilter, faTrash, faGraduationCap } from '@fortawesome/free-solid-svg-icons';
+import { useNotifications } from '@/components/ui/notifications';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,6 +25,7 @@ type ClassLevel =
   | 'SS1' | 'SS2' | 'SS3';
 
 export default function StudentsPage() {
+  const { showErrorToast } = useNotifications();
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -128,7 +130,7 @@ export default function StudentsPage() {
         .from('school_students')
         .update({ student_id: selectedCustomId })
         .eq('id', editing.id);
-      if (idErr) { setSaving(false); alert(idErr.message); return; }
+      if (idErr) { setSaving(false); showErrorToast(idErr.message); return; }
     }
     const { error } = await supabase
       .from('school_students')
@@ -152,7 +154,7 @@ export default function StudentsPage() {
       setAllowReassignId(false);
       setSelectedCustomId('');
     } else {
-      alert(error.message);
+      showErrorToast(error.message);
     }
   };
 

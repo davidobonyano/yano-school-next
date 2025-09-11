@@ -54,7 +54,9 @@ export async function POST(request: Request) {
         if (streamRaw === 'NULL') {
           studentsQuery = studentsQuery.is('stream', null);
         } else {
-          studentsQuery = studentsQuery.eq('stream', streamRaw);
+          // Match stream case-insensitively to support variants like 'Arts' vs 'ARTS'
+          const normalized = (streamRaw || '').trim();
+          studentsQuery = studentsQuery.ilike('stream', normalized);
         }
         const { data, error } = await studentsQuery;
         if (error) throw error;

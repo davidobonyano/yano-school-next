@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useNotifications } from '@/components/ui/notifications';
 import { CLASS_LEVELS as SHARED_CLASS_LEVELS } from '@/types/courses';
 
 type Announcement = {
@@ -19,6 +20,7 @@ type Announcement = {
 const CLASS_LEVELS = SHARED_CLASS_LEVELS as unknown as string[];
 
 export default function AdminAnnouncementsPage() {
+  const { showErrorToast, showSuccessToast, showConfirmation } = useNotifications();
   const [items, setItems] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -75,19 +77,23 @@ export default function AdminAnnouncementsPage() {
       await load();
       resetForm();
     } catch (e) {
-      // eslint-disable-next-line no-alert
-      alert((e as Error).message);
+      showErrorToast((e as Error).message);
     } finally {
       setSaving(false);
     }
   };
 
   const remove = async (id: string) => {
-    if (!confirm('Delete this announcement?')) return;
+    let confirmed = false;
+    await new Promise<void>((resolve) => {
+      showConfirmation('Delete Announcement', 'Delete this announcement?', () => { confirmed = true; resolve(); }, { confirmText: 'Delete', type: 'danger' });
+    });
+    if (!confirmed) return;
     const res = await fetch(`/api/announcements?id=${id}`, { method: 'DELETE' });
     const data = await res.json();
-    if (!res.ok) { alert(data.error || 'Failed'); return; }
+    if (!res.ok) { showErrorToast(data.error || 'Failed'); return; }
     await load();
+    showSuccessToast('Announcement deleted');
   };
 
   const startEdit = (a: Announcement) => {

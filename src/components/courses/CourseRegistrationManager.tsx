@@ -22,6 +22,7 @@ import { CourseRegistrationForm } from './CourseRegistrationForm';
 import { RegistrationTable } from './RegistrationTable';
 import { useAcademicContext } from '@/lib/academic-context';
 import { CLASS_LEVELS } from '@/types/courses';
+import { useNotifications } from '@/components/ui/notifications';
 
 interface CourseRegistrationManagerProps {
   userRole: 'admin' | 'teacher' | 'student';
@@ -39,6 +40,7 @@ export function CourseRegistrationManager({
   className = '' 
 }: CourseRegistrationManagerProps) {
   const { currentContext, sessions } = useAcademicContext();
+  const { showErrorToast, showConfirmation } = useNotifications();
   const [registrations, setRegistrations] = useState<StudentCourseRegistration[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showRegistrationForm, setShowRegistrationForm] = useState(false);
@@ -63,15 +65,52 @@ export function CourseRegistrationManager({
         params.append('student_id', userId);
       }
       
-      // Add general filters
+      // For current term/session focus: add current academic context by default
+      // For students, always filter to current term/session unless filters override
+      if (userRole === 'student') {
+        const sessionToUse = filters.session !== 'all' ? filters.session : currentContext?.session_name;
+        const termToUse = filters.term !== 'all' ? filters.term : currentContext?.term_name;
+        
+        // For students, we MUST have both session and term - don't show anything if context is missing
+        if (!sessionToUse || !termToUse) {
+          setRegistrations([]);
+          return;
+        }
+        
+        params.append('session', sessionToUse);
+        params.append('term', termToUse);
+      } else {
+        // For admin/teacher, allow broader filtering
+        const currentSession = filters.session === 'all' ? currentContext?.session_name : filters.session;
+        const currentTerm = filters.term === 'all' ? currentContext?.term_name : filters.term;
+        
+        if (currentSession && currentSession !== 'all') {
+          params.append('session', currentSession);
+        }
+        if (currentTerm && currentTerm !== 'all') {
+          params.append('term', currentTerm);
+        }
+      }
+      
+      // Add other filters (excluding session/term since we handle them above)
       Object.entries(filters).forEach(([key, value]) => {
-        if (value && value !== 'all') params.append(key, value);
+        if (key !== 'session' && key !== 'term' && value && value !== 'all') {
+          params.append(key, value);
+        }
       });
 
       const response = await fetch(`/api/courses/registrations?${params}`);
       if (!response.ok) throw new Error('Failed to fetch registrations');
       
       const data = await response.json();
+      
+      // Debug logging for students to see what's being fetched
+      if (userRole === 'student') {
+        console.log('Student course registrations API call:', `/api/courses/registrations?${params}`);
+        console.log('Current academic context:', currentContext);
+        console.log('Fetched registrations:', data.registrations);
+      }
+      
       setRegistrations(data.registrations || []);
     } catch (error) {
       console.error('Error fetching registrations:', error);
@@ -83,7 +122,7 @@ export function CourseRegistrationManager({
 
   useEffect(() => {
     fetchRegistrations();
-  }, [userRole, userId, filters]);
+  }, [userRole, userId, filters, currentContext]);
 
   const handleRegistrationSuccess = () => {
     fetchRegistrations();
@@ -123,29 +162,40 @@ export function CourseRegistrationManager({
           <p className="text-gray-600 mt-1">
             {userRole === 'admin' && 'Manage all student course registrations'}
             {userRole === 'teacher' && 'Review and approve student course registrations'}
-            {userRole === 'student' && 'Register for courses and track your applications'}
+            {userRole === 'student' && 'Your course registration history'}
           </p>
+          {userRole === 'student' && currentContext && (
+            <p className="text-sm text-blue-600 font-medium mt-1">
+              Current Term: {currentContext.session_name} • {currentContext.term_name}
+            </p>
+          )}
         </div>
         {canManageRegistrations && currentContext && (
           <Button
             variant="destructive"
             onClick={async () => {
-              if (!confirm(`Reset all registrations for ${currentContext.term_name} • ${currentContext.session_name}?`)) return;
-              try {
-                const resp = await fetch('/api/courses/registrations/reset', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ term: currentContext.term_name, session: currentContext.session_name })
-                });
-                if (!resp.ok) {
-                  const data = await resp.json().catch(() => ({}));
-                  throw new Error(data.error || 'Failed to reset');
-                }
-                fetchRegistrations();
-              } catch (e) {
-                console.error(e);
-                alert(e instanceof Error ? e.message : 'Failed to reset registrations');
-              }
+              showConfirmation(
+                'Reset Registrations',
+                `Reset all registrations for ${currentContext.term_name} • ${currentContext.session_name}?`,
+                async () => {
+                  try {
+                    const resp = await fetch('/api/courses/registrations/reset', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ term: currentContext.term_name, session: currentContext.session_name })
+                    });
+                    if (!resp.ok) {
+                      const data = await resp.json().catch(() => ({}));
+                      throw new Error(data.error || 'Failed to reset');
+                    }
+                    fetchRegistrations();
+                  } catch (e) {
+                    console.error(e);
+                    showErrorToast(e instanceof Error ? e.message : 'Failed to reset registrations');
+                  }
+                },
+                { confirmText: 'Reset', type: 'danger' }
+              );
             }}
           >
             Reset Current Term Registrations
@@ -160,7 +210,7 @@ export function CourseRegistrationManager({
         )}
       </div>
 
-      {/* Filters */}
+      {/* Filters - Only for Admin/Teacher, not for students */}
       {canManageRegistrations && (
         <Card>
           <CardHeader>

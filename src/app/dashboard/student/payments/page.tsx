@@ -188,8 +188,7 @@ export default function StudentPaymentsPage() {
       setPayments(json.payments || []);
       setLedger(json.ledger || []);
     } catch (e) {
-      // eslint-disable-next-line no-alert
-      alert((e as Error).message);
+      console.error(e);
     } finally {
       setLoading(false);
     }

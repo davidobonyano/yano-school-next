@@ -111,14 +111,17 @@ export async function GET() {
       .order('created_at', { ascending: false })
       .limit(5);
 
-    // 6. Approvals summary (service client)
+    // 6. Approvals summary (service client) - term/session scoped when available
     let approvedStudents = 0;
     let approvedCourses = 0;
     try {
-      const { data: approvedRows } = await supabaseService
+      let approvalsQuery = supabaseService
         .from('student_course_registrations')
         .select('student_id, course_id')
         .eq('status', 'approved');
+      if (currentSessionId) approvalsQuery = approvalsQuery.eq('session_id', currentSessionId);
+      if (currentTermId) approvalsQuery = approvalsQuery.eq('term_id', currentTermId);
+      const { data: approvedRows } = await approvalsQuery;
       if (Array.isArray(approvedRows)) {
         const studentSet = new Set<string>();
         const courseSet = new Set<string>();

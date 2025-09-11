@@ -13,9 +13,11 @@ import {
   faPhone
 } from '@fortawesome/free-solid-svg-icons';
 import { supabase } from '@/lib/supabase';
+import { useNotifications } from '@/components/ui/notifications';
 
 export default function CreateStudentPage() {
   const router = useRouter();
+  const { showSuccessToast, showErrorToast } = useNotifications();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -43,7 +45,7 @@ export default function CreateStudentPage() {
     ['KG1','KG2','NUR1','NUR2','PRI1','PRI2','PRI3','PRI4','PRI5','PRI6','JSS1','JSS2','JSS3','SS1','SS2','SS3'] as ClassLevel[]
   ), []);
 
-  const isSS1 = useMemo(() => (formData.class_level || '') === 'SS1', [formData.class_level]);
+  const isSS = useMemo(() => ['SS1','SS2','SS3'].includes((formData.class_level || '') as any), [formData.class_level]);
 
   useEffect(() => {
     // Try to pick the first teacher as creator by default
@@ -68,7 +70,7 @@ export default function CreateStudentPage() {
     setIsSubmitting(true);
     try {
       if (!formData.name || !formData.school_name || !formData.class_level) {
-        alert('Full name, school name and class are required');
+        showErrorToast('Full name, school name and class are required');
         setIsSubmitting(false);
         return;
       }
@@ -83,11 +85,11 @@ export default function CreateStudentPage() {
           phone: formData.phone || null,
           parent_name: formData.parent_name || null,
           parent_phone: formData.parent_phone || null,
-          stream: isSS1 ? (formData.stream || null) : null,
+          stream: isSS ? (formData.stream || null) : null,
           created_by: teacherId
         });
         if (error) throw error;
-        alert(`Student created with custom ID ${selectedCustomId}`);
+        showSuccessToast(`Student created with custom ID ${selectedCustomId}`);
       } else {
         const { data, error } = await supabase.rpc('add_school_student', {
           p_full_name: formData.name,
@@ -98,15 +100,15 @@ export default function CreateStudentPage() {
           p_phone: formData.phone || null,
           p_parent_name: formData.parent_name || null,
           p_parent_phone: formData.parent_phone || null,
-          p_stream: isSS1 ? (formData.stream || null) : null,
+          p_stream: isSS ? (formData.stream || null) : null,
         });
         if (error) throw error;
         if (!data?.success) throw new Error(data?.error || 'Failed to create student');
-        alert(`Student created with ID ${data.student_id}`);
+        showSuccessToast(`Student created with ID ${data.student_id}`);
       }
       router.push('/dashboard/admin/students');
     } catch (err: any) {
-      alert(err.message || 'Failed to create student');
+      showErrorToast(err.message || 'Failed to create student');
     } finally {
       setIsSubmitting(false);
     }
@@ -277,10 +279,10 @@ export default function CreateStudentPage() {
                   </select>
                 </div>
 
-                {isSS1 && (
+                {isSS && (
                   <div>
                     <label htmlFor="stream" className="block text-sm font-medium text-gray-700 mb-1">
-                      Stream (SS1 only)
+                      Stream (SS1–SS3)
                     </label>
                     <select
                       id="stream"

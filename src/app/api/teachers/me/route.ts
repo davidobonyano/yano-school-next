@@ -27,7 +27,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ 
         success: true, 
         teacher: {
-          id: teacher.id,
+          teacher_id: teacher.id,
           full_name: teacher.full_name,
           email: teacher.email,
           school_name: teacher.school_name,
@@ -98,11 +98,11 @@ export async function GET(request: Request) {
     return NextResponse.json({
       success: true,
       teacher: {
-        id: teacher.id,
-        name: teacher.full_name,
+        teacher_id: teacher.id,
+        full_name: teacher.full_name,
         email: teacher.email,
-        schoolName: teacher.school_name,
-        isActive: teacher.is_active
+        school_name: teacher.school_name,
+        is_active: teacher.is_active
       }
     });
 

@@ -143,8 +143,6 @@ export default function StudentPromotionPage() {
     setStudents(updatedStudents);
     setPromotions([]);
     setIsProcessing(false);
-    
-    alert(`Successfully processed ${promotions.length} student movements!`);
   };
 
   const getActionIcon = (action: string) => {
