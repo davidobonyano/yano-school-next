@@ -83,12 +83,13 @@ export async function GET(request: NextRequest) {
 		if (resErr) return NextResponse.json({ error: resErr.message }, { status: 500 });
 
 		// Build ranking list for this subject
-		const totalsMap = new Map<string, number>();
-		for (const row of results || []) {
-			const sid = (row as any).student_id as string;
-			const tot = Number((row as any).total_score || 0);
-			totalsMap.set(sid, (totalsMap.get(sid) || 0) + tot);
-		}
+    type ResultRow = { student_id: string; total_score: number };
+    const totalsMap = new Map<string, number>();
+    for (const row of ((results as ResultRow[] | null) || [])) {
+      const sid = row.student_id;
+      const tot = Number(row.total_score || 0);
+      totalsMap.set(sid, (totalsMap.get(sid) || 0) + tot);
+    }
 
 		const list = studentIds.map(sid => ({
 			studentId: sid,

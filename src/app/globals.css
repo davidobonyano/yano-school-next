@@ -30,7 +30,6 @@ body.dark-mode .card,
 body.dark-mode .section,
 body.dark-mode .content,
 body.dark-mode .bg-white,
-body.dark-mode .bg-gray-100,
 body.dark-mode .bg-gray-200 {
   background-color: #2D2D30 !important;
   color: #D4D4D4 !important;
@@ -77,9 +76,12 @@ body.dark-mode .section {
 
 /* Transparent overlays */
 body.dark-mode .transparent {
-  background-color: rgba(31, 34, 42, 0.6) !important;
+  background-color: #2D2D30 !important;
   backdrop-filter: blur(6px);
   color: #D4D4D4 !important;
+}
+body.dark-mode .bg-gray-100 {
+  background-color: #2D2D30 !important; /* matches body dark background */
 }
 
 /* Uniform Section Colors */
@@ -104,7 +106,7 @@ body.dark-mode .text-gray-600 {
 }
 
 body.dark-mode .bg-neutral-800 {
-  background-color: #262626 !important; /* neutral-800 */
+  background-color: #2D2D30 !important; /* neutral-800 */
 }
 
 body.dark-mode .bg-red-600 {
@@ -154,7 +156,10 @@ body.dark-mode .text-gray-400 {
 
 /* Theme Toggle Dark Mode */
 body.dark-mode .bg-gray-100 {
-  background-color: #4b5563 !important; /* gray-600 */
+  background-color: #2D2D30 !important; /* gray-600 */
+}
+body.dark-mode .bg-card {
+  background-color: #2D2D30 !important; /* gray-600 */
 }
 
 body.dark-mode .bg-gray-700 {

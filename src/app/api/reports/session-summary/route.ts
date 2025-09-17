@@ -1,14 +1,9 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { requireAdmin } from '@/lib/authz';
+import { normalizeTermName as normalizeTerm } from '@/lib/term-utils';
 
-function normalizeTermName(name: string): string {
-  const n = name.trim().toLowerCase();
-  if (n === 'first term' || n === '1st term') return '1st Term';
-  if (n === 'second term' || n === '2nd term') return '2nd Term';
-  if (n === 'third term' || n === '3rd term') return '3rd Term';
-  return name;
-}
+const normalizeTermName = normalizeTerm;
 
 export async function GET(request: Request) {
   try {
@@ -54,6 +49,7 @@ export async function GET(request: Request) {
     if (!termRow?.id) return NextResponse.json({ error: 'Term not found' }, { status: 404 });
 
     // Expected from student_charges; collected from payment_records
+    type ChargeRow = { amount: number };
     const { data: charges, error: chargesErr } = await supabase
       .from('student_charges')
       .select('amount')
@@ -61,8 +57,9 @@ export async function GET(request: Request) {
       .eq('term_id', termRow.id);
     if (chargesErr) return NextResponse.json({ error: chargesErr.message }, { status: 500 });
 
-    const expected = (charges || []).reduce((sum: number, c: any) => sum + Number(c.amount || 0), 0);
+    const expected = ((charges as ChargeRow[] | null) || []).reduce((sum: number, c) => sum + Number(c.amount || 0), 0);
 
+    type PaymentRow = { amount: number };
     const { data: payments, error: payErr } = await supabase
       .from('payment_records')
       .select('amount')
@@ -70,7 +67,7 @@ export async function GET(request: Request) {
       .eq('term_id', termRow.id);
     if (payErr) return NextResponse.json({ error: payErr.message }, { status: 500 });
 
-    const collected = (payments || []).reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+    const collected = ((payments as PaymentRow[] | null) || []).reduce((sum: number, p) => sum + Number(p.amount || 0), 0);
     const outstanding = Math.max(0, expected - collected);
 
     return NextResponse.json({

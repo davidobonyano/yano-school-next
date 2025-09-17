@@ -12,6 +12,7 @@ export async function POST(request: Request) {
     }
 
     // Get comprehensive financial summary using the database function
+    type SummaryRow = { billed_total?: number; paid_total?: number; overdue_total?: number };
     const { data: summaryData, error: summaryError } = await supabase.rpc('get_student_financial_summary', {
       p_student_id: studentId,
       p_term: term,
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
       });
     }
 
-    const summary = summaryData[0];
+    const summary = (summaryData as SummaryRow[])[0];
     
     // Calculate payment status based on new definitions
     let payment_status = 'Pending';
@@ -82,6 +83,7 @@ export async function PUT(request: Request) {
     }
 
     // Get bulk financial summaries
+    type BulkRow = { student_id: string; billed_total?: number; paid_total?: number; overdue_total?: number };
     const { data: bulkData, error: bulkError } = await supabase.rpc('get_bulk_student_summaries', {
       p_student_ids: studentIds,
       p_term: term,
@@ -93,7 +95,7 @@ export async function PUT(request: Request) {
     }
 
     // Process and format the data
-    const summaries = (bulkData || []).map((row: any) => {
+    const summaries = ((bulkData as BulkRow[] | null) || []).map((row) => {
       const billed = Number(row.billed_total || 0);
       const paid = Number(row.paid_total || 0);
       

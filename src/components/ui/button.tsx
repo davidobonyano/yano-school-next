@@ -10,17 +10,17 @@ const buttonVariants = cva(
         default:
           "bg-red-500 text-white hover:bg-red-600 shadow-sm hover:shadow focus:shadow-md",
         outline:
-          "border border-red-400 text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10",
+          "border border-red-400 text-red-600 hover:bg-red-50",
         link: "underline-offset-4 text-red-600 hover:underline",
         destructive:
           "bg-red-600 text-white hover:bg-red-700 shadow-sm hover:shadow",
         secondary:
-          "bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600",
+          "bg-slate-900 text-white hover:bg-slate-800 ",
         ghost:
-          "bg-transparent text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800/60",
+          "bg-transparent text-slate-700 hover:bg-slate-100 ",
         // New neutral soft variant
         soft:
-          "bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:border-slate-700",
+          "bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200",
       },
       size: {
         default: "h-10 px-5",

@@ -61,7 +61,7 @@ const Footer = () => {
       </div>
 
       {/* CTA Section: Newsletter + Socials */}
-      <div className="border-t border-gray-300 py-6">
+      <div className=" py-6">
         <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
           {/* Newsletter Form */}
           <form className="flex flex-col sm:flex-row items-center w-full md:w-auto gap-3">

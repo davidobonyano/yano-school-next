@@ -55,7 +55,8 @@ export async function GET(request: Request) {
     if (paymentsError) {
       return NextResponse.json({ error: paymentsError.message }, { status: 500 });
     }
-    const payments = (rawPayments || []).map((p: any) => ({
+    type RawPayment = { academic_terms?: { name?: string | null } | null; academic_sessions?: { name?: string | null } | null } & Record<string, any>;
+    const payments = ((rawPayments as RawPayment[] | null) || []).map((p) => ({
       ...p,
       term_name: p.academic_terms?.name || null,
       session_name: p.academic_sessions?.name || null
@@ -76,7 +77,8 @@ export async function GET(request: Request) {
     const ledgerAccumulator: LedgerAccumulator = {};
 
     // Seed from charges
-    (charges || []).forEach((c: any) => {
+    type ChargeRow = { session_id: string; term_id: string; term_name?: string | null; purpose: string; amount: number } & Record<string, any>;
+    ((charges as ChargeRow[] | null) || []).forEach((c) => {
       const key = `${c.session_id}|${c.term_id}|${c.purpose}`;
       if (!ledgerAccumulator[key]) {
         ledgerAccumulator[key] = {
@@ -94,7 +96,8 @@ export async function GET(request: Request) {
     });
 
     // Add payments
-    (payments || []).forEach((p: any) => {
+    type PaymentRow = { session_id: string; term_id: string; purpose: string; amount: number } & Record<string, any>;
+    (payments as unknown as PaymentRow[]).forEach((p) => {
       const key = `${p.session_id}|${p.term_id}|${p.purpose}`;
       if (!ledgerAccumulator[key]) {
         ledgerAccumulator[key] = {

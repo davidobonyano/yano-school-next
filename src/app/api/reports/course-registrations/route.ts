@@ -43,6 +43,19 @@ export async function GET(request: Request) {
         query = query.eq('term', term);
       }
 
+      type RegistrationRow = {
+        id: string;
+        course_id: string;
+        class_level: string;
+        stream: string | null;
+        term: string;
+        session: string;
+        status: string;
+        approved_by: string | null;
+        approved_at: string | null;
+        registered_at: string;
+        courses?: { name?: string | null } | null;
+      };
       const { data: registrations, error } = await query;
 
       if (error) {
@@ -50,7 +63,7 @@ export async function GET(request: Request) {
       }
 
       // Transform the data
-      const transformedRegistrations = (registrations || []).map((reg: any) => ({
+      const transformedRegistrations = ((registrations as RegistrationRow[] | null) || []).map((reg) => ({
         id: reg.id,
         course_name: reg.courses?.name || 'Unknown',
         class_level: reg.class_level,
@@ -91,6 +104,15 @@ export async function GET(request: Request) {
         query = query.eq('term', term);
       }
 
+      type SummaryRow = {
+        student_id: string;
+        class_level: string;
+        stream: string | null;
+        term: string;
+        session: string;
+        status: 'approved' | 'pending' | 'rejected' | string;
+        school_students?: { full_name?: string | null } | null;
+      };
       const { data: registrations, error } = await query;
 
       if (error) {
@@ -98,7 +120,7 @@ export async function GET(request: Request) {
       }
 
       // Group by student and count registrations
-      const studentSummary = (registrations || []).reduce((acc: any, reg: any) => {
+      const studentSummary = ((registrations as SummaryRow[] | null) || []).reduce((acc, reg) => {
         const key = `${reg.student_id}-${reg.session}-${reg.term}`;
         if (!acc[key]) {
           acc[key] = {
@@ -121,7 +143,7 @@ export async function GET(request: Request) {
         else if (reg.status === 'rejected') acc[key].rejected_registrations++;
         
         return acc;
-      }, {});
+      }, {} as Record<string, any>);
 
       const transformedRegistrations = Object.values(studentSummary);
 

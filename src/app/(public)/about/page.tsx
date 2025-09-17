@@ -41,7 +41,7 @@ export default function AboutPage() {
       </section>
 
       <div className="text-center flex flex-col items-center justify-center py-12">
-        <p className="text-lg text-gray-700 dark:text-gray-200">Interested in Enrolling?</p>
+        <p className="text-lg text-gray-700 ">Interested in Enrolling?</p>
         <Link
           href="/admissions"
           className="inline-block mt-4 border border-red-400 px-6 py-3 rounded-3xl text-black dark:text-white hover:bg-red-400 hover:text-white transition duration-300"

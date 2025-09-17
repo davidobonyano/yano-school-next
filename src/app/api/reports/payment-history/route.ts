@@ -63,23 +63,24 @@ export async function GET(request: Request) {
     if (sessionId) query = query.eq('session_id', sessionId);
     if (termId) query = query.eq('term_id', termId);
 
+    type PaymentCore = { id: string; student_id: string; amount: number; purpose: string; paid_on: string; session_id: string | null; term_id: string | null };
     const { data, error } = await query;
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    const studentIds = Array.from(new Set((data || []).map((p: any) => p.student_id)));
-    let studentsMap: Record<string, any> = {};
+    const studentIds = Array.from(new Set(((data as PaymentCore[] | null) || []).map((p) => p.student_id)));
+    let studentsMap: Record<string, { id: string; student_id: string; full_name: string }> = {};
     if (studentIds.length > 0) {
       const { data: students, error: studentsErr } = await supabase
         .from('school_students')
         .select('id, student_id, full_name')
         .in('id', studentIds);
       if (studentsErr) return NextResponse.json({ error: studentsErr.message }, { status: 500 });
-      studentsMap = (students || []).reduce((acc: any, s: any) => { acc[s.id] = s; return acc; }, {});
+      studentsMap = ((students as any[]) || []).reduce((acc, s) => { acc[(s as any).id as string] = { id: (s as any).id as string, student_id: (s as any).student_id as string, full_name: (s as any).full_name as string }; return acc; }, {} as Record<string, { id: string; student_id: string; full_name: string }>);
     }
 
     // Map session/term IDs to names so rows always have readable values
-    const sessionIds = Array.from(new Set((data || []).map((p: any) => p.session_id).filter(Boolean)));
-    const termIds = Array.from(new Set((data || []).map((p: any) => p.term_id).filter(Boolean)));
+    const sessionIds = Array.from(new Set(((data as PaymentCore[] | null) || []).map((p) => p.session_id).filter(Boolean)));
+    const termIds = Array.from(new Set(((data as PaymentCore[] | null) || []).map((p) => p.term_id).filter(Boolean)));
 
     let sessionsMap: Record<string, string> = {};
     if (sessionIds.length > 0) {
@@ -88,7 +89,7 @@ export async function GET(request: Request) {
         .select('id, name')
         .in('id', sessionIds);
       if (sessionsErr) return NextResponse.json({ error: sessionsErr.message }, { status: 500 });
-      sessionsMap = (sessions || []).reduce((acc: any, s: any) => { acc[s.id] = s.name; return acc; }, {});
+      sessionsMap = ((sessions as any[]) || []).reduce((acc, s) => { acc[(s as any).id as string] = (s as any).name as string; return acc; }, {} as Record<string, string>);
     }
 
     let termsMap: Record<string, string> = {};
@@ -98,10 +99,10 @@ export async function GET(request: Request) {
         .select('id, name')
         .in('id', termIds);
       if (termsErr) return NextResponse.json({ error: termsErr.message }, { status: 500 });
-      termsMap = (terms || []).reduce((acc: any, t: any) => { acc[t.id] = t.name; return acc; }, {});
+      termsMap = ((terms as any[]) || []).reduce((acc, t) => { acc[(t as any).id as string] = (t as any).name as string; return acc; }, {} as Record<string, string>);
     }
 
-    const payments = (data || []).map((p: any) => ({
+    const payments = ((data as PaymentCore[] | null) || []).map((p) => ({
       id: p.id,
       student_name: studentsMap[p.student_id]?.full_name || 'Unknown',
       student_id: studentsMap[p.student_id]?.student_id || '',
@@ -109,8 +110,8 @@ export async function GET(request: Request) {
       payment_method: 'N/A',
       description: p.purpose,
       transaction_date: p.paid_on,
-      session: sessionName || sessionsMap[p.session_id] || '',
-      term: termNameRaw || termsMap[p.term_id] || '',
+      session: sessionName || (p.session_id ? sessionsMap[p.session_id] : '') || '',
+      term: termNameRaw || (p.term_id ? termsMap[p.term_id] : '') || '',
     }));
 
     return NextResponse.json({ payments });

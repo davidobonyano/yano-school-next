@@ -65,7 +65,18 @@ export async function POST(request: Request) {
     );
 
     // Build all upsert rows in memory, combining duplicates on conflict key by summing amount
-    const combinedByKey = new Map<string, any>();
+    type UpsertRow = {
+      student_id: string;
+      session_id: string;
+      term_id: string;
+      term_name: string | null;
+      purpose: string;
+      description: string;
+      amount: number;
+      carried_over: boolean;
+      updated_at: string;
+    };
+    const combinedByKey = new Map<string, UpsertRow>();
     const nowIso = new Date().toISOString();
     for (const fee of feeStructures) {
       const key = `${String(fee.class_level)}||${fee.stream === null ? 'NULL' : String(fee.stream)}`;
@@ -88,12 +99,12 @@ export async function POST(request: Request) {
             amount: Number(fee.amount),
             carried_over: false,
             updated_at: nowIso
-          });
+          } as UpsertRow);
         }
       }
     }
 
-    const allRows = Array.from(combinedByKey.values());
+    const allRows: UpsertRow[] = Array.from(combinedByKey.values());
 
     // No rows to upsert
     if (allRows.length === 0) {

@@ -49,6 +49,7 @@ export async function GET(request: Request) {
     if (!termRow?.id) return NextResponse.json({ error: 'Term not found' }, { status: 404 });
 
     // Expected = sum student_charges; Actual = sum payment_records
+    type ChargeRow = { student_id: string; amount: number };
     const { data: charges, error: chargesErr } = await supabase
       .from('student_charges')
       .select('student_id, amount')
@@ -56,8 +57,9 @@ export async function GET(request: Request) {
       .eq('term_id', termRow.id);
     if (chargesErr) return NextResponse.json({ error: chargesErr.message }, { status: 500 });
 
-    const expectedRevenue = (charges || []).reduce((sum: number, c: any) => sum + Number(c.amount || 0), 0);
+    const expectedRevenue = ((charges as ChargeRow[] | null) || []).reduce((sum: number, c) => sum + Number(c.amount || 0), 0);
 
+    type PaymentRow = { student_id: string; amount: number };
     const { data: payments, error: payErr } = await supabase
       .from('payment_records')
       .select('student_id, amount')
@@ -65,7 +67,7 @@ export async function GET(request: Request) {
       .eq('term_id', termRow.id);
     if (payErr) return NextResponse.json({ error: payErr.message }, { status: 500 });
 
-    const actualRevenue = (payments || []).reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+    const actualRevenue = ((payments as PaymentRow[] | null) || []).reduce((sum: number, p) => sum + Number(p.amount || 0), 0);
     const outstanding = Math.max(0, expectedRevenue - actualRevenue);
     const totalStudents = new Set((charges || []).map((c: any) => c.student_id)).size;
     const collectionRate = expectedRevenue > 0 ? (actualRevenue / expectedRevenue) * 100 : 0;

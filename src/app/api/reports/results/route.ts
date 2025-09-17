@@ -81,12 +81,13 @@ export async function GET(request: NextRequest) {
 		if (aggErr) return NextResponse.json({ error: aggErr.message }, { status: 500 });
 
 		// Sum totals per student
-		const totalsMap = new Map<string, number>();
-		for (const row of aggregates || []) {
-			const sid = (row as any).student_id as string;
-			const tot = Number((row as any).total_score || 0);
-			totalsMap.set(sid, (totalsMap.get(sid) || 0) + tot);
-		}
+    type AggregateRow = { student_id: string; total_score: number };
+    const totalsMap = new Map<string, number>();
+    for (const row of ((aggregates as AggregateRow[] | null) || [])) {
+      const sid = row.student_id;
+      const tot = Number(row.total_score || 0);
+      totalsMap.set(sid, (totalsMap.get(sid) || 0) + tot);
+    }
 
 		// Build ranking list
 		const list = studentIds.map(sid => ({

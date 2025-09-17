@@ -101,20 +101,21 @@ export async function GET(request: NextRequest) {
 		}
 
 		// Dedupe by name (case-insensitive), prefer entries with matching term_id
-		const uniqueByName: Record<string, any> = {};
-		for (const c of (courses || [])) {
+    type CourseRow = { id: string; name: string; term_id?: string | null } & Record<string, any>;
+    const uniqueByName: Record<string, CourseRow> = {};
+    for (const c of ((courses as CourseRow[] | null) || [])) {
 			const key = String(c.name || '').trim().toLowerCase();
 			if (!key) continue;
 			const existing = uniqueByName[key];
 			if (!existing) {
 				uniqueByName[key] = c;
 			} else {
-				const existingPref = existing.term_id === termRow.id ? 1 : 0;
-				const currentPref = c.term_id === termRow.id ? 1 : 0;
+        const existingPref = (existing.term_id as string | null) === termRow.id ? 1 : 0;
+        const currentPref = (c.term_id as string | null) === termRow.id ? 1 : 0;
 				if (currentPref > existingPref) uniqueByName[key] = c;
 			}
 		}
-		const uniqueCourses = Object.values(uniqueByName);
+    const uniqueCourses = Object.values(uniqueByName);
 
 		// Results for this period and students (for per-course rankings)
 		const { data: periodResults, error: prErr } = await supabase
@@ -133,8 +134,9 @@ export async function GET(request: NextRequest) {
 		if (arErr) return NextResponse.json({ error: arErr.message }, { status: 500 });
 
 		// Build per-course rankings
-		const courseIdToRows: Record<string, any[]> = {};
-		(periodResults || []).forEach((r: any) => {
+    type PeriodResult = { student_id: string; course_id: string; total_score: number; grade: string | null };
+    const courseIdToRows: Record<string, { studentId: string; fullName: string; score: number }[]> = {};
+    ((periodResults as PeriodResult[] | null) || []).forEach((r) => {
 			const list = courseIdToRows[r.course_id] || [];
 			list.push({ studentId: r.student_id, fullName: idToName[r.student_id] || r.student_id, score: Number(r.total_score || 0) });
 			courseIdToRows[r.course_id] = list;
@@ -149,12 +151,12 @@ export async function GET(request: NextRequest) {
 		});
 
 		// Per-student GPA for period and CGPA overall (simple GPA: average grade points across subjects)
-		const studentPeriodGpa: Record<string, number> = {};
+    const studentPeriodGpa: Record<string, number> = {};
 		const studentCgpa: Record<string, number> = {};
 		const periodGrades: Record<string, number[]> = {};
 		const allGrades: Record<string, number[]> = {};
 
-		(periodResults || []).forEach((r: any) => {
+    ((periodResults as PeriodResult[] | null) || []).forEach((r) => {
 			const gp = computeGradePoint(r.grade);
 			if (!periodGrades[r.student_id]) periodGrades[r.student_id] = [];
 			periodGrades[r.student_id].push(gp);
@@ -164,7 +166,8 @@ export async function GET(request: NextRequest) {
 			studentPeriodGpa[sid] = arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
 		});
 
-		(allResults || []).forEach((r: any) => {
+    type AnyResult = { student_id: string; grade: string | null };
+    ((allResults as AnyResult[] | null) || []).forEach((r) => {
 			const gp = computeGradePoint(r.grade);
 			if (!allGrades[r.student_id]) allGrades[r.student_id] = [];
 			allGrades[r.student_id].push(gp);
@@ -175,7 +178,7 @@ export async function GET(request: NextRequest) {
 		});
 
 		// Compose course summaries
-		const courseSummaries = (uniqueCourses || []).map((c: any) => {
+    const courseSummaries = (uniqueCourses || []).map((c) => {
 			const rows = courseIdToRows[c.id] || [];
 			const top = rows[0] || null;
 			return {

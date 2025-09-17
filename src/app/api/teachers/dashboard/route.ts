@@ -33,12 +33,13 @@ export async function GET() {
       .eq('session_id', currentSessionId)
       .eq('term_id', currentTermId);
 
-    const assignedCourses = timetableCourses || [];
-    const uniqueCourses = [...new Set(assignedCourses.map(c => c.subject).filter(Boolean))];
+    type TimetableCourse = { subject?: string | null; class?: string | null };
+    const assignedCourses: TimetableCourse[] = (timetableCourses as TimetableCourse[] | null) || [];
+    const uniqueCourses = [...new Set(assignedCourses.map(c => c.subject).filter((s): s is string => Boolean(s)))];
 
     // Derive base class levels taught by this teacher (e.g., "SS1 Science" -> "SS1")
     const classLevelsTaught = new Set<string>();
-    (assignedCourses || []).forEach((c: any) => {
+    (assignedCourses || []).forEach((c: TimetableCourse) => {
       const cls = (c.class || '').toString().trim();
       if (!cls) return;
       const base = cls.split(' ')[0];
@@ -99,8 +100,9 @@ export async function GET() {
     // Get today's schedule
     const today = new Date();
     const dayName = today.toLocaleDateString('en-US', { weekday: 'long' });
-    const todaySchedule = (teacherClasses || []).filter(
-      (item: any) => item.day?.toLowerCase() === dayName.toLowerCase()
+    type TeacherClass = { day?: string | null };
+    const todaySchedule = ((teacherClasses as TeacherClass[] | null) || []).filter(
+      (item: TeacherClass) => (item.day || '').toLowerCase() === dayName.toLowerCase()
     );
 
     // 5. Get announcements for teachers
@@ -121,11 +123,12 @@ export async function GET() {
         .eq('status', 'approved');
       if (currentSessionId) approvalsQuery = approvalsQuery.eq('session_id', currentSessionId);
       if (currentTermId) approvalsQuery = approvalsQuery.eq('term_id', currentTermId);
+      type ApprovalRow = { student_id?: string | null; course_id?: string | null };
       const { data: approvedRows } = await approvalsQuery;
       if (Array.isArray(approvedRows)) {
         const studentSet = new Set<string>();
         const courseSet = new Set<string>();
-        approvedRows.forEach((r: any) => {
+        (approvedRows as ApprovalRow[]).forEach((r) => {
           if (r.student_id) studentSet.add(r.student_id);
           if (r.course_id) courseSet.add(r.course_id);
         });

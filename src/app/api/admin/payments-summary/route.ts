@@ -13,12 +13,14 @@ export async function GET(request: Request) {
   if (!sessionId || !termId) return NextResponse.json({ error: 'sessionId and termId required' }, { status: 400 });
 
   // Aggregate expected vs collected per class level
+  type StudentRow = { id: string; student_id: string; full_name: string; class_level: string | null; stream: string | null };
   const { data: students, error: studentsErr } = await supabase
     .from('school_students')
     .select('id, student_id, full_name, class_level, stream');
   if (studentsErr) return NextResponse.json({ error: studentsErr.message }, { status: 500 });
 
   // Expected per student from fee_structures (no dependency on student_charges)
+  type FeeStructureRow = { purpose: string; amount: number; class_level: string | null; stream: string | null; is_active: boolean };
   const { data: feeStructures, error: feeErr } = await supabase
     .from('fee_structures')
     .select('purpose, amount, class_level, stream, is_active')
@@ -28,6 +30,7 @@ export async function GET(request: Request) {
   if (feeErr) return NextResponse.json({ error: feeErr.message }, { status: 500 });
 
   // payments per student
+  type PaymentRow = { student_id: string; amount: number };
   const { data: payments, error: paymentsErr } = await supabase
     .from('payment_records')
     .select('student_id, amount')
@@ -36,21 +39,21 @@ export async function GET(request: Request) {
   if (paymentsErr) return NextResponse.json({ error: paymentsErr.message }, { status: 500 });
 
   const byStudent = new Map<string, { classLevel: string | null; stream: string | null; studentId: string; studentName: string; expected: number; paid: number }>();
-  for (const s of students ?? []) {
+  for (const s of ((students as StudentRow[] | null) || [])) {
     byStudent.set(s.id, {
-      classLevel: (s as any).class_level ?? null,
-      stream: (s as any).stream ?? null,
-      studentId: (s as any).student_id,
-      studentName: (s as any).full_name,
+      classLevel: s.class_level ?? null,
+      stream: s.stream ?? null,
+      studentId: s.student_id,
+      studentName: s.full_name,
       expected: 0,
       paid: 0
     });
   }
   // Compute expected by matching fee structures to each student
   for (const [sid, entry] of byStudent.entries()) {
-    const feesForStudent = (feeStructures ?? []).filter(f => {
-      const fClassRaw = (f as any).class_level as string | null | undefined;
-      const fStreamRaw = (f as any).stream as string | null | undefined;
+    const feesForStudent = ((feeStructures as FeeStructureRow[] | null) || []).filter(f => {
+      const fClassRaw = f.class_level as string | null | undefined;
+      const fStreamRaw = f.stream as string | null | undefined;
       const studentClassRaw = entry.classLevel as string | null | undefined;
       const studentStreamRaw = entry.stream as string | null | undefined;
 
@@ -59,11 +62,11 @@ export async function GET(request: Request) {
       const matchesStream = fStreamRaw == null || norm(fStreamRaw) === norm(studentStreamRaw);
       return matchesClass && matchesStream;
     });
-    const expectedSum = feesForStudent.reduce((acc, f: any) => acc + Number(f.amount || 0), 0);
+    const expectedSum = feesForStudent.reduce((acc, f) => acc + Number(f.amount || 0), 0);
     entry.expected += expectedSum;
     byStudent.set(sid, entry);
   }
-  for (const p of payments ?? []) {
+  for (const p of ((payments as PaymentRow[] | null) || [])) {
     const entry = byStudent.get(p.student_id);
     if (entry) entry.paid += Number(p.amount || 0);
   }
