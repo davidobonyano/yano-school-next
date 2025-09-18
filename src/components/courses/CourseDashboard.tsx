@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Plus, BookOpen, Users, Calendar, BarChart3, Download, Upload, Trash2, Edit, Eye } from 'lucide-react';
+import BulkCourseImportDialog from './BulkCourseImportDialog';
 import { CourseTable } from './CourseTable';
 import { CourseFiltersComponent } from './CourseFilters';
 import { CourseForm } from './CourseForm';
@@ -46,6 +47,7 @@ export function CourseDashboard({
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [viewingCourse, setViewingCourse] = useState<Course | null>(null);
   const [deletingCourse, setDeletingCourse] = useState<Course | null>(null);
+  const [showBulkImport, setShowBulkImport] = useState(false);
   
   const [stats, setStats] = useState({
     total: 0,
@@ -255,10 +257,16 @@ export function CourseDashboard({
         </div>
         
         {canManageCourses && (
-          <Button onClick={() => setShowCreateForm(true)} className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            Add Course
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={() => setShowCreateForm(true)} className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              Add Course
+            </Button>
+            <Button variant="outline" onClick={() => setShowBulkImport(true)} className="flex items-center gap-2">
+              <Upload className="h-4 w-4" />
+              Bulk Import
+            </Button>
+          </div>
         )}
       </div>
 
@@ -465,6 +473,16 @@ export function CourseDashboard({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Bulk Import Dialog */}
+      <BulkCourseImportDialog
+        open={showBulkImport}
+        onOpenChange={setShowBulkImport}
+        onImported={() => {
+          fetchCourses();
+          fetchStats();
+        }}
+      />
     </div>
   );
 }

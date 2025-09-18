@@ -206,9 +206,12 @@ export async function POST(request: NextRequest) {
       case 'update_subject_types':
         return await updateSubjectTypes(data);
 
+      case 'rename_courses':
+        return await renameCourses(data);
+
       default:
         return NextResponse.json(
-          { error: 'Invalid action. Use: regenerate_codes, assign_streams, update_subject_types' },
+          { error: 'Invalid action. Use: regenerate_codes, assign_streams, update_subject_types, rename_courses' },
           { status: 400 }
         );
     }
@@ -250,6 +253,75 @@ async function updateSubjectTypes(updateRules: any) {
     message: 'Subject type updates not yet implemented',
     rules: updateRules
   });
+}
+
+// Rename/replace course names across class levels/terms/streams
+async function renameCourses(payload: any) {
+  const { from, to, class_levels, terms, streams } = payload || {};
+
+  if (!from || !to) {
+    return NextResponse.json({ error: 'from and to are required' }, { status: 400 });
+  }
+  if (!Array.isArray(class_levels) || class_levels.length === 0) {
+    return NextResponse.json({ error: 'class_levels must be a non-empty array' }, { status: 400 });
+  }
+  if (!Array.isArray(terms) || terms.length === 0) {
+    return NextResponse.json({ error: 'terms must be a non-empty array' }, { status: 400 });
+  }
+
+  // Build base query
+  let query = supabase
+    .from('courses')
+    .update({ name: to, updated_at: new Date().toISOString() })
+    .in('class_level', class_levels as string[])
+    .in('term', terms as string[])
+    .eq('name', from)
+    .select('id, name, class_level, term, stream');
+
+  // Streams filter: if provided and includes null, handle both null and listed values
+  if (Array.isArray(streams) && streams.length > 0) {
+    const withNull = streams.includes(null) || streams.includes('null');
+    if (withNull) {
+      // supabase-js can't do OR easily; perform two updates
+      const { data: updatedWithStream, error: err1 } = await supabase
+        .from('courses')
+        .update({ name: to, updated_at: new Date().toISOString() })
+        .in('class_level', class_levels as string[])
+        .in('term', terms as string[])
+        .eq('name', from)
+        .in('stream', (streams as any[]).filter((s) => s && s !== 'null'))
+        .select('id');
+      if (err1) {
+        console.error('rename with stream error', err1);
+        return NextResponse.json({ error: 'Failed to rename courses (streamed)' }, { status: 500 });
+      }
+      const { data: updatedNullStream, error: err2 } = await supabase
+        .from('courses')
+        .update({ name: to, updated_at: new Date().toISOString() })
+        .in('class_level', class_levels as string[])
+        .in('term', terms as string[])
+        .eq('name', from)
+        .is('stream', null)
+        .select('id');
+      if (err2) {
+        console.error('rename null stream error', err2);
+        return NextResponse.json({ error: 'Failed to rename courses (null stream)' }, { status: 500 });
+      }
+      const count = (updatedWithStream?.length || 0) + (updatedNullStream?.length || 0);
+      return NextResponse.json({ message: `Renamed ${count} course(s)` });
+    } else {
+      query = query.in('stream', streams as string[]);
+    }
+  } else {
+    // If no streams provided, do not filter by stream (affects both null and non-null)
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    console.error('rename courses error', error);
+    return NextResponse.json({ error: 'Failed to rename courses' }, { status: 500 });
+  }
+  return NextResponse.json({ message: `Renamed ${data?.length || 0} course(s)` });
 }
 
 

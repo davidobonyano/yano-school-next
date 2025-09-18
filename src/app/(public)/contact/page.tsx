@@ -146,11 +146,12 @@ export default function ContactPage() {
             <ul className="space-y-3">
               <li className="flex items-center gap-3">
                 <FontAwesomeIcon icon={faMapMarkerAlt} className="text-red-400" />
-                123 Yano Street, Lagos, Nigeria
-              </li>
+                
+peace estate Igbo Olomu Rd
+Ikorodu,              </li>
               <li className="flex items-center gap-3">
                 <FontAwesomeIcon icon={faPhone} className="text-red-400" />
-                +234 903 552 6146
+                +234 805 582 0239
               </li>
               <li className="flex items-center gap-3">
                 <FontAwesomeIcon icon={faEnvelope} className="text-red-400" />
@@ -170,8 +171,8 @@ export default function ContactPage() {
           <div className="bg-white p-6 rounded-xl shadow border">
             <h2 className="text-2xl font-semibold mb-4">Departments</h2>
             <ul className="space-y-3">
-              <li><strong>Principal:</strong> principal@yanoschool.com</li>
-              <li><strong>Accounts:</strong> accounts@yanoschool.com</li>
+              <li><strong>Principal:</strong>yanocon@yahoo.com</li>
+              <li><strong>Accounts:</strong> yanoschoools@gmail.com</li>
             </ul>
           </div>
         </div>

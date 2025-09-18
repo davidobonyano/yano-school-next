@@ -101,7 +101,7 @@ export default function AdminPaymentsPage() {
   const [selectedClassLevel, setSelectedClassLevel] = useState<string>('All');
   const [selectedStream, setSelectedStream] = useState<string>('All');
 
-  const { showSuccessToast, showErrorToast, showConfirmation } = useNotifications();
+  const { showSuccessToast, showErrorToast, showConfirmation, hideConfirmation, AlertModal, ConfirmationModal } = useNotifications();
 
   // Local loading state for sync action
   const [syncingCharges, setSyncingCharges] = useState(false);
@@ -392,6 +392,7 @@ export default function AdminPaymentsPage() {
       }
       
       showSuccessToast(`Successfully deleted ${json.deletedCount || 1} fee structure(s)`);
+      hideConfirmation();
       await loadFees();
     } catch (e) {
       showErrorToast((e as Error).message);
@@ -1122,6 +1123,10 @@ export default function AdminPaymentsPage() {
           </div>
         </div>
       )}
+
+      {/* Global Modals */}
+      <AlertModal />
+      <ConfirmationModal />
 
       {/* Toasts handled globally by ToastProvider */}
     </div>

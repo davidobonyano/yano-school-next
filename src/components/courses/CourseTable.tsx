@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Course } from '@/types/courses';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,7 @@ interface CourseTableProps {
   onView: (course: Course) => void;
   filters?: any;
   className?: string;
+  onBulkDeleteComplete?: () => void;
 }
 
 export function CourseTable({ 
@@ -29,11 +30,14 @@ export function CourseTable({
   onDelete, 
   onView, 
   filters,
-  className = '' 
+  className = '',
+  onBulkDeleteComplete
 }: CourseTableProps) {
   const [viewingCourse, setViewingCourse] = useState<Course | null>(null);
   const [deletingCourse, setDeletingCourse] = useState<Course | null>(null);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
 
   const canManageCourses = userRole === 'admin';
 
@@ -88,6 +92,48 @@ export function CourseTable({
     }
   };
 
+  const allCourseIds = useMemo(() => courses.map(c => c.id), [courses]);
+  const allSelected = selectedIds.size > 0 && selectedIds.size === allCourseIds.length;
+  const someSelected = selectedIds.size > 0 && selectedIds.size < allCourseIds.length;
+
+  const toggleSelectAll = () => {
+    setSelectedIds(prev => {
+      if (prev.size === allCourseIds.length) return new Set();
+      return new Set(allCourseIds);
+    });
+  };
+
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    try {
+      const resp = await fetch('/api/courses/bulk', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courseIds: ids })
+      });
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => ({}));
+        throw new Error((data as any).error || 'Failed to delete courses');
+      }
+      setSelectedIds(new Set());
+      setConfirmBulkDelete(false);
+      onBulkDeleteComplete?.();
+    } catch (e) {
+      console.error(e);
+      setConfirmBulkDelete(false);
+      // Optional: surface a toast if available
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="text-center py-12">
@@ -132,6 +178,29 @@ export function CourseTable({
 
   return (
     <div className={`space-y-4 ${className}`}>
+      {canManageCourses && (
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              aria-label="Select all courses"
+              checked={allSelected}
+              ref={(el) => { if (el) el.indeterminate = someSelected as any; }}
+              onChange={toggleSelectAll}
+            />
+            <span className="text-sm text-gray-600">Select all</span>
+          </div>
+          <div>
+            <Button
+              variant="destructive"
+              disabled={selectedIds.size === 0}
+              onClick={() => setConfirmBulkDelete(true)}
+            >
+              Delete Selected ({selectedIds.size})
+            </Button>
+          </div>
+        </div>
+      )}
       {/* Summary Section */}
       <div className="bg-gray-50 rounded-lg p-4">
         <div className="flex items-center justify-between">
@@ -166,6 +235,7 @@ export function CourseTable({
             <Table>
               <TableHeader>
                 <TableRow className="bg-gray-50">
+                  {canManageCourses && <TableHead className="font-semibold w-10"></TableHead>}
                   <TableHead className="font-semibold">Code</TableHead>
                   <TableHead className="font-semibold">Course Name</TableHead>
                   <TableHead className="font-semibold">Term</TableHead>
@@ -178,6 +248,16 @@ export function CourseTable({
               <TableBody>
                 {groupedCourses[level].map((course) => (
                   <TableRow key={course.id} className="hover:bg-gray-50">
+                    {canManageCourses && (
+                      <TableCell className="w-10">
+                        <input
+                          type="checkbox"
+                          aria-label={`Select ${course.name}`}
+                          checked={selectedIds.has(course.id)}
+                          onChange={() => toggleSelectOne(course.id)}
+                        />
+                      </TableCell>
+                    )}
                     <TableCell className="font-mono text-sm">
                       <Badge variant="outline" className="font-mono">
                         {course.code}
@@ -333,6 +413,25 @@ export function CourseTable({
             >
               <Trash2 className="h-4 w-4 mr-2" />
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <AlertDialog open={confirmBulkDelete} onOpenChange={setConfirmBulkDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Selected Courses</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {selectedIds.size} selected course(s)? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} className="bg-red-600 hover:bg-red-700">
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Selected
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

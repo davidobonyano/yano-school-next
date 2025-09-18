@@ -10,7 +10,7 @@ interface GalleryItem {
   src: string;
   alt: string;
   title: string;
-  category: 'prefects' | 'students' | 'events' | 'academics';
+  category: 'prefects' | 'students' | 'events' | 'school';
   description?: string;
 }
 
@@ -19,10 +19,10 @@ const galleryItems: GalleryItem[] = [
   {
     id: '1',
     src: '/images/gallery/prefects-1.jpg',
-    alt: 'Head Boy and Head Girl',
-    title: 'Head Boy and Head Girl',
+    alt: 'Head Boy',
+    title: 'Head Boy',
     category: 'prefects',
-    description: 'Our student leaders representing excellence and responsibility'
+    description: 'Our head boy representing excellence and responsibility'
   },
   {
     id: '2',
@@ -33,44 +33,28 @@ const galleryItems: GalleryItem[] = [
     description: 'Students engaged in interactive learning'
   },
   {
-    id: '3',
-    src: '/images/gallery/prefects-2.jpg',
-    alt: 'Prefects at assembly',
-    title: 'Morning Assembly Leaders',
-    category: 'prefects',
-    description: 'Prefects leading the morning assembly'
-  },
-  {
     id: '4',
-    src: '/images/gallery/students-2.jpg',
-    alt: 'Science laboratory',
-    title: 'Science Laboratory Session',
-    category: 'academics',
-    description: 'Students conducting experiments in our modern lab'
-  },
-  {
-    id: '5',
-    src: '/images/gallery/events-1.jpg',
-    alt: 'Sports day',
-    title: 'Inter-House Sports Competition',
-    category: 'events',
-    description: 'Annual sports competition bringing houses together'
+    src: '/images/gallery/school-building.jpg',
+    alt: 'School Building',
+    title: 'School Building',
+    category: 'school',
+    description: 'Our campus and facilities'
   },
   {
     id: '6',
     src: '/images/gallery/students-3.jpg',
-    alt: 'Library study',
-    title: 'Library Study Session',
+    alt: 'KG class activities',
+    title: 'KG Class Activities',
     category: 'students',
-    description: 'Students utilizing our well-equipped library'
+    description: 'Our kindergarten learners enjoying class activities'
   },
   {
     id: '7',
     src: '/images/gallery/prefects-3.jpg',
-    alt: 'Prefects meeting',
-    title: 'Student Leadership Meeting',
+    alt: 'Head Girl',
+    title: 'Head Girl',
     category: 'prefects',
-    description: 'Prefects planning school activities'
+    description: 'Our head girl representing excellence and responsibility'
   },
   {
     id: '8',
@@ -79,6 +63,14 @@ const galleryItems: GalleryItem[] = [
     title: 'Cultural Day Celebration',
     category: 'events',
     description: 'Students showcasing diverse cultural heritage'
+  },
+  {
+    id: '9',
+    src: '/images/gallery/2025-graduants.jpg',
+    alt: '2025 Graduants',
+    title: '2025 Graduants',
+    category: 'school',
+    description: 'Celebrating the class of 2025'
   }
 ];
 
@@ -87,13 +79,14 @@ const categories = [
   { key: 'prefects', label: 'Prefects', icon: Star },
   { key: 'students', label: 'Student Life', icon: Users },
   { key: 'events', label: 'Events', icon: Camera },
-  { key: 'academics', label: 'Academics', icon: Users }
+  { key: 'school', label: 'School', icon: Users }
 ];
 
 export default function StudentGallery() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedImage, setSelectedImage] = useState<GalleryItem | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [imageError, setImageError] = useState(false);
 
   const filteredItems = selectedCategory === 'all' 
     ? galleryItems 
@@ -101,6 +94,7 @@ export default function StudentGallery() {
 
   const openModal = (item: GalleryItem) => {
     setSelectedImage(item);
+    setImageError(false);
     setCurrentImageIndex(filteredItems.findIndex(i => i.id === item.id));
   };
 
@@ -256,14 +250,22 @@ export default function StudentGallery() {
               </button>
 
               {/* Image */}
-              <div className="relative aspect-square max-w-2xl max-h-[80vh]">
-                <Image
-                  src={selectedImage.src}
-                  alt={selectedImage.alt}
-                  fill
-                  className="object-contain"
-                  sizes="80vw"
-                />
+              <div className="relative w-[80vw] max-w-2xl aspect-square max-h-[80vh] flex items-center justify-center bg-black/20">
+                {imageError ? (
+                  <div className="text-center text-white p-6">
+                    <p className="text-lg font-semibold">Unable to load image</p>
+                    <p className="text-sm text-gray-300 mt-2">{selectedImage.title}</p>
+                  </div>
+                ) : (
+                  <Image
+                    src={selectedImage.src}
+                    alt={selectedImage.alt}
+                    fill
+                    className="object-contain"
+                    sizes="80vw"
+                    onError={() => setImageError(true)}
+                  />
+                )}
               </div>
 
               {/* Image info */}

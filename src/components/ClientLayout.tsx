@@ -166,7 +166,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           <div className="flex flex-wrap gap-4 items-center">
             <span className="flex items-center gap-2">
               <FontAwesomeIcon icon={faPhone} />
-              +234 90 355 26 146
+              +234 805 582 0239
             </span>
             <span className="flex items-center gap-2">
               <FontAwesomeIcon icon={faEnvelope} />

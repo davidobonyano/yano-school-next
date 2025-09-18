@@ -293,14 +293,14 @@ export function CourseForm({
                     {isStreamRequired && <Badge variant="outline" className="ml-2">Required</Badge>}
                   </Label>
                   <Select
-                    value={formData.stream || ''}
-                    onValueChange={(value) => handleInputChange('stream', value === '' ? null : value)}
+                    value={formData.stream || 'General'}
+                    onValueChange={(value) => handleInputChange('stream', value === 'General' ? null : value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select stream" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">General (No Stream)</SelectItem>
+                      <SelectItem value="General">General (No Stream)</SelectItem>
                       {ACADEMIC_STREAMS.map((stream) => (
                         <SelectItem key={stream} value={stream}>
                           {stream}
@@ -319,14 +319,14 @@ export function CourseForm({
                 <div className="space-y-2">
                   <Label htmlFor="subject_type">Subject Type</Label>
                   <Select
-                    value={formData.subject_type || ''}
-                    onValueChange={(value) => handleInputChange('subject_type', value === '' ? null : value)}
+                    value={formData.subject_type || 'NotSpecified'}
+                    onValueChange={(value) => handleInputChange('subject_type', value === 'NotSpecified' ? null : value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select subject type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Not Specified</SelectItem>
+                      <SelectItem value="NotSpecified">Not Specified</SelectItem>
                       {SUBJECT_TYPES.map((type) => (
                         <SelectItem key={type} value={type}>
                           {type}

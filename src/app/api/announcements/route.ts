@@ -52,7 +52,18 @@ export async function POST(request: Request) {
       if (body.audience === 'admins') return 'admin';
       return 'all';
     })();
-    const payload: any = {
+    type AnnouncementInsert = {
+      title: string;
+      body?: string;
+      audience: 'students'|'teachers'|'admins'|'all'|'class'|'role';
+      expires_at: string | null;
+      audience_class_level: string | null;
+      audience_stream: string | null;
+      audience_role: 'student'|'teacher'|'admin' | null;
+      attachments: Array<{ name: string; url: string; type?: string; size?: number }>;
+      target_role?: 'student'|'teacher'|'admin'|'all';
+    };
+    const payload: AnnouncementInsert = {
       title: body.title,
       body: body.body,
       audience: body.audience,
@@ -65,39 +76,47 @@ export async function POST(request: Request) {
       target_role: derivedTargetRole
     };
     // Try with full payload; if schema missing optional columns, retry with minimal required columns
-    let { data, error } = await supabaseService.from('announcements').insert(payload).select('*').single();
+    let { data, error } = await supabaseService.from('announcements').insert(payload as any).select('*').single();
     if (error && /attachments|audience_class_level|audience_stream|audience_role|target_role/.test(error.message)) {
-      const minimal: any = {
+      const minimal: AnnouncementInsert = {
         title: payload.title,
         body: payload.body,
         audience: payload.audience,
         expires_at: payload.expires_at ?? null,
-        target_role: derivedTargetRole
+        target_role: derivedTargetRole,
+        audience_class_level: null,
+        audience_stream: null,
+        audience_role: null,
+        attachments: []
       };
       // If target_role column doesn't exist either, drop it in a final retry below
-      let retry = await supabaseService.from('announcements').insert(minimal).select('*').single();
+      let retry = await supabaseService.from('announcements').insert(minimal as any).select('*').single();
       if (retry.error && /target_role/.test(retry.error.message)) {
-        const finalMinimal = { ...minimal } as any;
+        const finalMinimal = { ...minimal } as AnnouncementInsert;
         delete finalMinimal.target_role;
-        retry = await supabaseService.from('announcements').insert(finalMinimal).select('*').single();
+        retry = await supabaseService.from('announcements').insert(finalMinimal as any).select('*').single();
       }
       data = retry.data;
       error = retry.error;
     }
     // Support legacy schema where column is 'content' instead of 'body'
     if (error && /content/.test(error.message)) {
-      const legacy: any = {
+      const legacy: AnnouncementInsert & { content: string } = {
         title: payload.title,
-        content: payload.body,
+        content: String(payload.body || ''),
         audience: payload.audience,
         expires_at: payload.expires_at ?? null,
-        target_role: derivedTargetRole
+        target_role: derivedTargetRole,
+        audience_class_level: null,
+        audience_stream: null,
+        audience_role: null,
+        attachments: []
       };
-      let retryLegacy = await supabaseService.from('announcements').insert(legacy).select('*').single();
+      let retryLegacy = await supabaseService.from('announcements').insert(legacy as any).select('*').single();
       if (retryLegacy.error && /target_role/.test(retryLegacy.error.message)) {
-        const without = { ...legacy } as any;
+        const without = { ...legacy } as AnnouncementInsert & { content: string };
         delete without.target_role;
-        retryLegacy = await supabaseService.from('announcements').insert(without).select('*').single();
+        retryLegacy = await supabaseService.from('announcements').insert(without as any).select('*').single();
       }
       data = retryLegacy.data;
       error = retryLegacy.error;
@@ -123,7 +142,17 @@ export async function PUT(request: Request) {
       audience_role: raw.audience_role || null,
       expires_at: raw.expires_at === '' ? null : raw.expires_at
     });
-    const payload: any = {
+    type AnnouncementUpdate = {
+      title: string;
+      body?: string;
+      audience: 'students'|'teachers'|'admins'|'all'|'class'|'role';
+      expires_at: string | null;
+      audience_class_level: string | null;
+      audience_stream: string | null;
+      audience_role: 'student'|'teacher'|'admin' | null;
+      attachments: Array<{ name: string; url: string; type?: string; size?: number }>;
+    };
+    const payload: AnnouncementUpdate = {
       title: body.title,
       body: body.body,
       audience: body.audience,

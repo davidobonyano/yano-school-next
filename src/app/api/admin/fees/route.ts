@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 import { readAdminSession } from '@/lib/admin-session';
 
 // GET: list fees for class/session/term
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
   if (!classLevel || !sessionId || !termId || !purpose || typeof amount !== 'number') {
     return NextResponse.json({ error: 'classLevel, sessionId, termId, purpose, amount required' }, { status: 400 });
   }
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('fee_structures')
     .upsert({ class_level: classLevel, stream: stream ?? null, session_id: sessionId, term_id: termId, purpose, amount, is_active: isActive ?? true }, {
       onConflict: 'class_level,stream,session_id,term_id,purpose'
@@ -81,7 +82,7 @@ export async function DELETE(request: Request) {
   // If stream is undefined or empty, don't include it in the filter
 
   // Build query manually to handle null stream properly
-  let query = supabase
+  let query = supabaseAdmin
     .from('fee_structures')
     .select('id, class_level, stream, session_id, term_id, purpose, amount, is_active')
     .eq('class_level', classLevel)
@@ -118,7 +119,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ success: false, message: 'No valid IDs found for deletion' }, { status: 400 });
   }
   
-  const { data: deleted, error } = await supabase
+  const { data: deleted, error } = await supabaseAdmin
     .from('fee_structures')
     .delete()
     .in('id', validIds);

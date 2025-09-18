@@ -8,18 +8,18 @@ export default function SchoolCalendar() {
     <section className="mb-16 bg-gray-100 px-4 py-8 rounded-2xl shadow-inner">
       <h2 className="text-2xl font-semibold text-gray-700 mb-4 flex items-center">
         <FontAwesomeIcon icon={faCalendarAlt} className="text-red-400 mr-2" />
-        2024/2025 Lagos State School Calendar
+        2025/2026 Lagos State School Calendar
       </h2>
 
       <ul className="list-disc pl-6 space-y-2 text-gray-700 mb-6">
         <li>
-          <strong>1st Term:</strong> Sept 9, 2024 – Dec 13, 2024
+          <strong>1st Term:</strong> Sept 15, 2025 – Dec 19, 2025
         </li>
         <li>
-          <strong>2nd Term:</strong> Jan 6, 2025 – Apr 11, 2025
+          <strong>2nd Term:</strong> Jan 12, 2026 – Apr 17, 2026
         </li>
         <li>
-          <strong>3rd Term:</strong> Apr 28, 2025 – Jul 28, 2025
+          <strong>3rd Term:</strong> May 4, 2026 – Jul 24, 2026
         </li>
         <li>
           Mid‑term breaks and public holidays follow Lagos State government announcements.
