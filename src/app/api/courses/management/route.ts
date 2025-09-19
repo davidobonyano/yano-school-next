@@ -275,8 +275,7 @@ async function renameCourses(payload: any) {
     .update({ name: to, updated_at: new Date().toISOString() })
     .in('class_level', class_levels as string[])
     .in('term', terms as string[])
-    .eq('name', from)
-    .select('id, name, class_level, term, stream');
+    .eq('name', from);
 
   // Streams filter: if provided and includes null, handle both null and listed values
   if (Array.isArray(streams) && streams.length > 0) {
@@ -316,7 +315,7 @@ async function renameCourses(payload: any) {
     // If no streams provided, do not filter by stream (affects both null and non-null)
   }
 
-  const { data, error } = await query;
+  const { data, error } = await query.select('id, name, class_level, term, stream');
   if (error) {
     console.error('rename courses error', error);
     return NextResponse.json({ error: 'Failed to rename courses' }, { status: 500 });

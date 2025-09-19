@@ -12,3 +12,6 @@ if (!supabaseUrl || !serviceRoleKey) {
 export const supabaseAdmin = createClient(supabaseUrl || '', serviceRoleKey || '');
 
 
+
+
+

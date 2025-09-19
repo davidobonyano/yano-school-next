@@ -52,16 +52,19 @@ export async function GET(request: Request, context: { params: Promise<{ student
 			}
 		}
 
-		// Group results by session
+		// Group results by session and term
 		const groups = new Map<string, any[]>();
 		for (const rAny of results || []) {
 			const r = rAny as any;
 			const sess = (r.academic_sessions && r.academic_sessions.name) ? String(r.academic_sessions.name) : 'Unknown Session';
-			if (!groups.has(sess)) groups.set(sess, []);
-			groups.get(sess)!.push(r);
+			const term = (r.academic_terms && r.academic_terms.name) ? String(r.academic_terms.name) : 'Unknown Term';
+			const key = `${sess} – ${term}`; // en dash for nicer typography
+			if (!groups.has(key)) groups.set(key, []);
+			groups.get(key)!.push(r);
 		}
-		const sessions = Array.from(groups.keys());
-		const graduationSession = sessions[sessions.length - 1] || '';
+		const sessionTermKeys = Array.from(groups.keys());
+		const lastKey = sessionTermKeys[sessionTermKeys.length - 1] || '';
+		const graduationSession = lastKey.split(' – ')[0] || '';
 
 		// Compute overall GPA
 		const allGrades = (results || []).map((r: any) => gradeToPoint(r.grade));
@@ -124,17 +127,17 @@ export async function GET(request: Request, context: { params: Promise<{ student
 
 		let repeatNextTableHeader = false;
 
-		const addNewPageIfNeeded = (needed: number, yRef: { y: number }) => {
-			if (yRef.y - needed < 100) {
+		const addNewPageIfNeeded = (needed: number, currentY: number): number => {
+			if (currentY - needed < 100) {
 				page = pdfDoc.addPage([595.28, 841.89]);
-				// Draw header on new page
-				drawHeader(page);
-				yRef.y = 600; // More space below header
-				// Repeat table header if we're in the middle of a section
+				// Do NOT draw the full header on subsequent pages; continue content
+				let newY = 770; // top margin for content on new pages
 				if (repeatNextTableHeader) {
-					drawResultsTableHeader(yRef.y, yRef);
+					newY = drawResultsTableHeader(newY);
 				}
+				return newY;
 			}
+			return currentY;
 		};
 
 		// Header
@@ -142,52 +145,56 @@ export async function GET(request: Request, context: { params: Promise<{ student
 			const titleY = 800;
 			let localY = titleY;
 			
-			// School address - TOP LEFT
+			// School address - TOP LEFT (updated)
 			p.drawText('YANO SCHOOL', { x: 60, y: localY + 20, size: 10, font: fontBold, color: rgb(0, 0, 0) });
-			p.drawText('123 Education Lane', { x: 60, y: localY + 8, size: 9, font: font, color: rgb(0, 0, 0) });
-			p.drawText('Academic City, AC 12345', { x: 60, y: localY - 4, size: 9, font: font, color: rgb(0, 0, 0) });
+			p.drawText('peace estate Igbo Olomu Rd Ikorodu', { x: 60, y: localY + 6, size: 9, font: font, color: rgb(0, 0, 0) });
 			
-			// Logo - MIDDLE TOP (centered)
+			// Logo - MIDDLE TOP (centered, smaller)
 			if (logoImg) {
-				const displayW = 80;
-				const displayH = 80;
+				const displayW = 60;
+				const displayH = 60;
 				p.drawImage(logoImg, { x: (595.28 - displayW) / 2, y: localY - 10, width: displayW, height: displayH });
 			}
 			
-			// From the office of the principal + contact info - TOP RIGHT
-			p.drawText('From the Office of the Principal', { x: 350, y: localY + 20, size: 10, font: fontBold, color: rgb(0, 0, 0) });
-			p.drawText('Phone: +234-XXX-XXX-XXXX', { x: 350, y: localY + 8, size: 9, font: font, color: rgb(0, 0, 0) });
-			p.drawText('Email: principal@yanoschool.edu', { x: 350, y: localY - 4, size: 9, font: font, color: rgb(0, 0, 0) });
+			// From the office of the principal + contact info - TOP RIGHT (pushed right)
+			p.drawText('From the Office of the Principal', { x: 410, y: localY + 20, size: 10, font: fontBold, color: rgb(0, 0, 0) });
+			p.drawText('Phone: +23480 333 90 882', { x: 410, y: localY + 8, size: 9, font: font, color: rgb(0, 0, 0) });
+			p.drawText('Email: yanocon@yahoo.com', { x: 410, y: localY - 4, size: 9, font: font, color: rgb(0, 0, 0) });
 			
 			// School name - BELOW LOGO (centered)
 			p.drawText('YANO SCHOOL', { x: 220, y: localY - 45, size: 18, font: fontBold, color: rgb(0, 0, 0) });
-			p.drawText('Excellence in Education', { x: 245, y: localY - 60, size: 11, font: font, color: rgb(0, 0, 0) });
+			// Motto centered under title (smaller)
+			p.drawText('Knowledge is Power', { x: 242, y: localY - 60, size: 10, font: font, color: rgb(0, 0, 0) });
 			
 			// Decorative line
 			p.drawLine({ start: { x: 60, y: localY - 75 }, end: { x: 535, y: localY - 75 }, thickness: 1, color: rgb(0, 0, 0) });
 		};
 
-		// Results table header (Code, Title, Mark, Letter, GP)
-		const drawResultsTableHeader = (startY: number, yRef: { y: number }) => {
-			const headerY = startY - 10;
+		// Results table header (Code, Title, Mark, Letter / Grade, GP)
+		const drawResultsTableHeader = (startY: number): number => {
+			// Position header close to provided Y, then create ample space below for rows
+			const headerY = startY;
 			drawText('S/No', 60, headerY, 11, true);
 			drawText('Course Code', 90, headerY, 11, true);
 			drawText('Course Title', 170, headerY, 11, true);
 			drawText('Mark', 400, headerY, 11, true);
+			// Split to two lines to avoid any overlap with GP
 			drawText('Letter', 450, headerY, 11, true);
-			drawText('GP', 500, headerY, 11, true);
-			drawLine(60, headerY - 4, 535, headerY - 4, 1);
-			yRef.y = headerY - 12;
+			drawText('Grade', 450, headerY - 12, 10, true);
+			drawText('GP', 520, headerY, 11, true);
+			// Removed underline below table header per request
+			// Small gap before rows
+			return headerY - 30;
 		};
 
 		// repeatNextTableHeader declared above
 
 		// Header with logo and title
 		drawHeader(page);
-		let y = 675;
+		let y = 660; // slightly higher start to reduce gap after motto
 
-		// Student academic record title
-		drawText('STUDENT ACADEMIC RECORD', 200, y + 25, 14, true);
+		// Student academic record title (reduced gap under motto)
+		drawText('STUDENT ACADEMIC RECORD', 200, y + 28, 14, true);
 		
 		// Student info on the LEFT side
 		drawText(`STUDENT NAME: ${student.full_name}`, 60, y); y -= 15;
@@ -196,54 +203,62 @@ export async function GET(request: Request, context: { params: Promise<{ student
 		drawText(`GRADUATION SESSION: ${graduationSession}`, 60, y); y -= 15;
 		drawText(`DATE ISSUED: ${new Date().toLocaleDateString()}`, 60, y); y -= 15;
 		
-		// Student image on the RIGHT side
+		// Student image on the RIGHT side (reduced size, aligned with lowered content start)
 		if (studentPhotoImg) {
-			const size = 120;
+			const size = 90;
 			const rightX = 595.28 - 80 - size; // Right aligned with margin
-			const topY = 675 + 25; // Aligned with student info section
+			const topY = 640 + 25; // Aligned with student info section
 			page.drawImage(studentPhotoImg, { x: rightX, y: topY - size, width: size, height: size });
 			// Add border around photo
 			page.drawRectangle({ x: rightX - 2, y: topY - size - 2, width: size + 4, height: size + 4, borderColor: rgb(0, 0, 0), borderWidth: 1 });
 		}
 
-		drawLine(60, y, 535, y, 1); y -= 16;
+		// Removed horizontal rule before session/year and table
+		y -= 20; // Reduced gap so title sits closer to content
 
 		// Iterate sessions
-		for (const sess of sessions) {
-			const rows = groups.get(sess) || [];
+		for (const key of sessionTermKeys) {
+			const rows = groups.get(key) || [];
 			// Compute session GPA
 			const sessGrades = rows.map((r: any) => gradeToPoint(r.grade));
 			const sessGpa = sessGrades.length ? (sessGrades.reduce((a: number, b: number) => a + b, 0) / sessGrades.length) : 0;
 
-			addNewPageIfNeeded(90, { y });
-			drawText(`${sess}`, 60, y, 12, true); y -= 6;
-			drawResultsTableHeader(y, { y });
+			y = addNewPageIfNeeded(90, y);
+			drawText(`${key}`, 60, y, 12, true); y -= 12; // add clearer gap below year/session-term text
+		y = drawResultsTableHeader(y);
 			repeatNextTableHeader = true;
 
 			let idx = 1;
 			for (const rAny of rows) {
 				const r = rAny as any;
-				addNewPageIfNeeded(25, { y });
+				y = addNewPageIfNeeded(25, y);
 				drawText(String(idx), 60, y);
 				drawText(String(r.courses?.code || ''), 90, y);
 				drawText(String((r.courses?.name || r.course_id) || '').slice(0, 36), 170, y);
 				const mark = Number(r.total_score ?? 0);
 				drawText(String(mark), 400, y);
 				const letter = String(r.grade || '');
-				drawText(letter, 450, y);
+				// Draw letter and move grade below for clarity
+				drawText(letter.replace(/\s+/g, '').replace('Grade',''), 450, y);
 				const gp = gradeToPoint(letter);
-				drawText(gp.toFixed(2), 500, y);
-				y -= 18; idx += 1; // Increased spacing between rows
+				drawText(gp.toFixed(2), 520, y);
+				// Add extra row height since header is two lines
+				y -= 26; idx += 1; // Increased spacing between rows
 			}
 
-			// Separator line between terms
-			addNewPageIfNeeded(20, { y });
-			drawLine(60, y, 535, y, 0.5); y -= 20; // More space after separator
+			// Term summary
+			y = addNewPageIfNeeded(60, y);
+			drawText('Term Summary:', 60, y, 11, true); y -= 14;
+			drawText(`GPA: ${sessGpa.toFixed(2)}`, 80, y); y -= 12;
+			drawText(`Courses Taken: ${rows.length}`, 80, y); y -= 20;
+			// Removed separator line between terms
+			y = addNewPageIfNeeded(20, y); y -= 20; // spacing after term
 		}
 
 		// Academic summary card
-		addNewPageIfNeeded(120, { y });
-		drawLine(60, y, 535, y, 1); y -= 8;
+		y = addNewPageIfNeeded(120, y);
+		// Removed horizontal rule before summary; keep spacing
+		y -= 24; // generous space after table before summary
 		drawText('Academic Summary', 60, y, 12, true); y -= 12;
 		const totalCourses = (results || []).length;
 		drawText(`Overall CGPA: ${overallGpa.toFixed(2)}`, 60, y); y -= 12;
@@ -257,14 +272,14 @@ export async function GET(request: Request, context: { params: Promise<{ student
 			if (cgpa >= 1.0) return 'Pass';
 			return 'Fail';
 		};
-		drawText(`Classification: ${classify(overallGpa)}`, 60, y); y -= 18;
+		drawText(`Classification: ${classify(overallGpa)}`, 60, y); y -= 30; // more space before signatures
 
-		// Signatures
-		addNewPageIfNeeded(80, { y });
-		drawText('Signatures', 60, y, 12, true); y -= 12;
-		drawLine(60, y, 535, y, 0.5); y -= 18;
-		drawLine(60, y, 240, y, 0.5); drawText('Registrar', 60, y - 12, 10); 
-		drawLine(300, y, 535, y, 0.5); drawText('Principal / Head Teacher', 300, y - 12, 10);
+		// Signatures (cleaner layout)
+		y = addNewPageIfNeeded(100, y);
+		drawLine(80, y, 250, y, 1);
+		drawText('Registrar', 120, y - 12, 10);
+		drawLine(340, y, 520, y, 1);
+		drawText('Principal / Head Teacher', 370, y - 12, 10);
 		y -= 34;
 		drawText('This document is official only when printed on authorized letterhead or accompanied by a school seal.', 60, y, 9);
 		y -= 14;

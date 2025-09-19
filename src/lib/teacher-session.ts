@@ -41,7 +41,7 @@ async function sign(data: string, secret: string): Promise<string> {
 	);
 	
 	const signature = await crypto.subtle.sign('HMAC', cryptoKey, dataBuffer);
-	return base64url(new Uint8Array(signature));
+	return base64url(Buffer.from(new Uint8Array(signature)));
 }
 
 export async function createTeacherSessionToken(payload: Omit<TeacherSessionPayload, 'exp'>, ttlSeconds = DEFAULT_TTL_SECONDS): Promise<string> {

@@ -47,7 +47,7 @@ export default function TeachersPage() {
 
   const filteredTeachers = teachers.filter(teacher => {
     const matchesSearch = teacher.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         teacher.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (teacher.email ? teacher.email.toLowerCase().includes(searchTerm.toLowerCase()) : false) ||
                          teacher.id.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = !statusFilter || teacher.status === statusFilter;
     
