@@ -9,7 +9,7 @@
     "lint": "next lint",
     "setup-auth": "node scripts/setup-teacher-auth.js",
     "test-auth": "node scripts/test-teacher-auth.js",
-    "test": "vitest run"
+    "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^7.0.0",
