@@ -13,6 +13,8 @@ export default function StudentPhotoSettingsPage() {
   const [message, setMessage] = useState<string>('');
   const [error, setError] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [originalSizeKb, setOriginalSizeKb] = useState<number | null>(null);
+  const [compressedSizeKb, setCompressedSizeKb] = useState<number | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -90,6 +92,8 @@ export default function StudentPhotoSettingsPage() {
       const compressed = await compressImage(file, maxBytes);
       const preview = URL.createObjectURL(compressed);
       setPreviewUrl(preview);
+      setOriginalSizeKb(Math.round(file.size / 102.4) / 10);
+      setCompressedSizeKb(Math.round(compressed.size / 102.4) / 10);
     } catch (err: any) {
       setError(err?.message || 'Failed to prepare image');
     }
@@ -130,6 +134,9 @@ export default function StudentPhotoSettingsPage() {
 
       setCurrentUrl(publicUrl);
       setMessage('Photo uploaded successfully.');
+      // Ensure sizes are visible after upload too
+      setOriginalSizeKb(prev => prev ?? Math.round(original.size / 102.4) / 10);
+      setCompressedSizeKb(prev => prev ?? Math.round(blob.size / 102.4) / 10);
     } catch (err: any) {
       setError(err?.message || 'Upload failed');
     } finally {
@@ -159,13 +166,24 @@ export default function StudentPhotoSettingsPage() {
         </div>
       </div>
 
+      {(originalSizeKb !== null || compressedSizeKb !== null) && (
+        <div className="text-xs text-gray-600">
+          {originalSizeKb !== null && (
+            <span>Original: {originalSizeKb.toFixed(1)} KB</span>
+          )}
+          {compressedSizeKb !== null && (
+            <span className="ml-3">Compressed: {compressedSizeKb.toFixed(1)} KB</span>
+          )}
+        </div>
+      )}
+
       <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
 
       {message && <div className="text-green-700 text-sm">{message}</div>}
       {error && <div className="text-red-600 text-sm">{error}</div>}
 
       <div className="text-xs text-gray-500">
-        Tip: Square photos look best. We auto-compress to ≤ 300kb.
+        Tip: Square photos look best. We auto-compress to ≤ 300 KB.
       </div>
     </div>
   );

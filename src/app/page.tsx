@@ -27,7 +27,7 @@ export default function Home() {
         }}
       >
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-10"></div>
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] z-10"></div>
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] md:backdrop-blur-[2px] z-10"></div>
 
         {/* Content over background */}
         <div className="relative z-20 flex flex-col justify-center h-full text-white px-6 max-w-2xl pt-[140px] landscape:pt-[150px] sm:pt-[120px]">

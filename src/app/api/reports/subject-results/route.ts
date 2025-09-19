@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
 		if (sErr || !sessionRow) return NextResponse.json({ error: sErr?.message || 'Session not found' }, { status: 400 });
 
 		const termNorm = normalizeTermName(term);
-		const [p1, p2] = termNamePatterns(termNorm as any);
+		const [p1, p2] = termNamePatterns(termNorm as 'First' | 'Second' | 'Third');
 		const { data: termRow, error: tErr } = await supabase
 			.from('academic_terms')
 			.select('id')
@@ -109,7 +109,8 @@ export async function GET(request: NextRequest) {
 		});
 
 		return NextResponse.json({ rankings });
-	} catch (err: any) {
-		return NextResponse.json({ error: err?.message || 'Unexpected error' }, { status: 500 });
+	} catch (err: unknown) {
+		const errorMessage = err instanceof Error ? err.message : 'Unexpected error';
+		return NextResponse.json({ error: errorMessage }, { status: 500 });
 	}
 } 

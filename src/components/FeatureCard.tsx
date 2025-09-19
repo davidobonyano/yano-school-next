@@ -46,7 +46,7 @@ const FeatureCard = ({ icon, title, description, image }: FeatureCardProps) => {
       onClick={handleCardClick}
       className={`group relative cursor-pointer transition-opacity duration-700 ease-out ${
         inView ? 'opacity-100' : 'opacity-0'
-      } bg-gray-100 text-gray-700 dark:text-gray-300 rounded-2xl shadow-lg overflow-hidden`}
+      } bg-gray-100 text-gray-700 rounded-2xl shadow-lg overflow-hidden`}
     >
       {/* Background image */}
       <div className="relative w-full h-48">
@@ -63,7 +63,6 @@ const FeatureCard = ({ icon, title, description, image }: FeatureCardProps) => {
       <div
         className={`absolute top-0 left-0 w-full h-48 
           bg-gradient-to-t from-blue-900/70 via-blue-800/60 to-transparent 
-          dark:from-blue-800/80 dark:via-blue-700/60
           flex items-center justify-center transition-opacity duration-300
           ${showOverlay ? 'opacity-100' : 'opacity-0'} 
           md:opacity-0 md:group-hover:opacity-100`}

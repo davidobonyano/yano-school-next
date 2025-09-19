@@ -51,7 +51,7 @@ export default function ProgramsPage() {
 >
   {/* Overlay: dark gradient from bottom to top */}
   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent z-10"></div>
-  <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] z-10"></div>
+  <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] md:backdrop-blur-[2px] z-10"></div>
 
   
   <div className="relative z-20 flex flex-col justify-center items-center text-center h-full px-6 text-white max-w-4xl mx-auto">
@@ -86,7 +86,7 @@ export default function ProgramsPage() {
             {programs.map((item, index) => (
               <div
                 key={index}
-                className="min-w-[260px] md:min-w-[300px] bg-white border border-gray-200 dark:border-gray-600 rounded-2xl p-5 shadow-md flex-shrink-0"
+                className="min-w-[260px] md:min-w-[300px] bg-white border border-gray-200 rounded-2xl p-5 shadow-md flex-shrink-0"
               >
                 <FontAwesomeIcon
                   icon={item.icon}

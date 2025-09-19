@@ -93,7 +93,7 @@ export async function POST(request: Request) {
     }
 
     // Ensure a teacher profile exists locally; create minimal one if missing
-    let teacher = null as any;
+    let teacher: { id: string; email: string; full_name: string; [key: string]: unknown } | null = null;
     {
       const { data, error } = await supabase
         .from('teachers')
@@ -120,6 +120,11 @@ export async function POST(request: Request) {
       }
     }
 
+    // Ensure teacher exists
+    if (!teacher) {
+      return NextResponse.json({ error: 'Teacher profile not found' }, { status: 404 });
+    }
+
     // Create session and set cookie
     const newSessionToken = await createTeacherSessionToken({ 
       teacherId: teacher.id, 
@@ -139,9 +144,10 @@ export async function POST(request: Request) {
       sessionToken: newSessionToken,
       authMethod: authOk ? 'supabase' : 'local'
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Teacher login error:', err);
-    return NextResponse.json({ error: err?.message || 'Unexpected error' }, { status: 500 });
+    const errorMessage = err instanceof Error ? err.message : 'Unexpected error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 

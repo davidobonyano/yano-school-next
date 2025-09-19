@@ -72,7 +72,7 @@ export async function POST(request: Request) {
     }
 
     return genericResponse;
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('students/password/forgot unexpected error:', err);
     // Do not fail the client flow; avoid enumeration and UX regressions
     return NextResponse.json({ success: true });

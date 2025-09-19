@@ -64,9 +64,10 @@ export async function POST(request: Request) {
     };
 
     return NextResponse.json({ summary: result });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : 'Unexpected error';
     return NextResponse.json({ 
-      error: err?.message || 'Unexpected error' 
+      error: errorMessage 
     }, { status: 500 });
   }
 }
@@ -118,9 +119,10 @@ export async function PUT(request: Request) {
     });
 
     return NextResponse.json({ summaries });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : 'Unexpected error';
     return NextResponse.json({ 
-      error: err?.message || 'Unexpected error' 
+      error: errorMessage 
     }, { status: 500 });
   }
 }

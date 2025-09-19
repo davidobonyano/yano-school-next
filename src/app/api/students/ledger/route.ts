@@ -28,8 +28,9 @@ export async function GET(request: Request) {
     if (balErr) return NextResponse.json({ error: balErr.message }, { status: 500 });
 
     return NextResponse.json({ ledger: data || [], balance: Array.isArray(balanceRows) ? balanceRows?.[0] : balanceRows });
-  } catch (err: any) {
-    return NextResponse.json({ error: err?.message || 'Unexpected error' }, { status: 500 });
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : 'Unexpected error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 

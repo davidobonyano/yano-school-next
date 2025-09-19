@@ -1,105 +1,68 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
-import {
-  faUserTie,
-  faChalkboardTeacher,
-  faShieldAlt,
-  faBroom,
-  faUserGraduate,
-  faQuoteLeft,
-  IconDefinition,
-} from '@fortawesome/free-solid-svg-icons';
+import { faQuoteLeft } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
 type TeamMember = {
   name: string;
   role: string;
-  icon: IconDefinition;
   photo: string;
   bio: string;
   funFact: string;
 };
 
-const team: TeamMember[] = [
-  {
-    name: 'Mr. Obonyano, AAT, ACA (ICAN)',
-    role: 'Proprietor & Chairman',
-    icon: faUserTie,
-    photo: '/images/team/placeholders/teacher1.avif',
-    bio: 'A seasoned accounting professional overseeing school governance and strategic direction.',
-    funFact: 'Enjoys reading thought-provoking books.',
-  },
-  {
-    name: 'Mr. Oboh',
-    role: 'Headmaster – Ketu Campus',
-    icon: faChalkboardTeacher,
-    photo: '/images/team/placeholders/teacher2.avif',
-    bio: 'Experienced in academic leadership with a passion for student discipline and growth.',
-    funFact: 'Plays chess competitively.',
-  },
-  {
-    name: 'Mrs. Soetan',
-    role: 'Headmistress – Ikorodu Campus',
-    icon: faChalkboardTeacher,
-    photo: '/images/team/placeholders/teacher3.webp',
-    bio: 'Dedicated to fostering a nurturing academic environment with high standards.',
-    funFact: 'Loves gardening on weekends.',
-  },
-  {
-    name: 'Mr. Adeyemi',
-    role: 'Senior Teacher (Math & ICT)',
-    icon: faUserGraduate,
-    photo: '/images/team/placeholders/teacher4.avif',
-    bio: 'Manages class schedules, results, and teaches core STEM subjects.',
-    funFact: 'Loves coding and jazz.',
-  },
-  {
-    name: 'Mrs. Chukwu',
-    role: 'English Teacher & Admissions',
-    icon: faUserGraduate,
-    photo: '/images/team/placeholders/teacher3.webp',
-    bio: 'Handles school admissions and excels at literature and essay coaching.',
-    funFact: 'Writes poetry in her spare time.',
-  },
-  {
-    name: 'Mr. Lawal',
-    role: 'Security Officer',
-    icon: faShieldAlt,
-    photo: '/images/team/placeholders/teacher5.avif',
-    bio: 'Responsible for maintaining a safe and secure school environment.',
-    funFact: 'Former amateur boxer.',
-  },
-  {
-    name: 'Mrs. Fatima',
-    role: 'Facility Staff',
-    icon: faBroom,
-    photo: '/images/team/placeholders/teacher6.webp',
-    bio: 'Ensures our environment is clean, welcoming, and sanitized daily.',
-    funFact: 'Enjoys painting landscapes.',
-  },
-];
-
 export default function LeadershipTeam() {
+  const [team, setTeam] = useState<TeamMember[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch('/api/team');
+        const data = await res.json();
+        const normalized: TeamMember[] = (data.team && data.team.length ? data.team : [
+          { name: 'Mr. Obonyano, AAT, ACA (ICAN)', role: 'Proprietor & Chairman', photo: '/images/team/placeholders/teacher1.avif', bio: 'A seasoned accounting professional overseeing school governance and strategic direction.', funFact: 'Enjoys reading thought-provoking books.' },
+          { name: 'Mr. Oboh', role: 'Headmaster – Ketu Campus', photo: '/images/team/placeholders/teacher2.avif', bio: 'Experienced in academic leadership with a passion for student discipline and growth.', funFact: 'Plays chess competitively.' },
+          { name: 'Mrs. Soetan', role: 'Headmistress – Ikorodu Campus', photo: '/images/team/placeholders/teacher3.webp', bio: 'Dedicated to fostering a nurturing academic environment with high standards.', funFact: 'Loves gardening on weekends.' },
+        ]).map((t: any) => ({
+          name: t.name,
+          role: t.role,
+          photo: t.photo_url || '/images/team/placeholders/teacher1.avif',
+          bio: t.bio || '',
+          funFact: t.fun_fact || '',
+        }));
+        setTeam(normalized);
+      } catch {}
+      setLoading(false);
+    };
+    load();
+  }, []);
   return (
     <section className="py-16 px-4 bg-gray-100">
       <h2 className="text-center text-3xl font-bold text-gray-700 mb-12">
         Leadership & Team
       </h2>
 
-      <div className="max-w-6xl mx-auto grid gap-10 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
-        {team.map((member, index) => (
-          <TeamCard key={index} {...member} />
-        ))}
-      </div>
+      {loading ? (
+        <div className="text-center text-gray-600">Loading...</div>
+      ) : (
+        <div className="max-w-6xl mx-auto grid gap-10 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+          {team.map((member, index) => (
+            <TeamCard key={index} {...member} />
+          ))}
+          {team.length === 0 && (
+            <div className="text-center text-gray-600 col-span-full">No team members yet.</div>
+          )}
+        </div>
+      )}
     </section>
   );
 }
 function TeamCard({
   name,
   role,
-  icon,
   photo,
   bio,
   funFact,
@@ -119,7 +82,6 @@ function TeamCard({
       </div>
 
       <div className="p-5 flex flex-col items-center text-center">
-        <FontAwesomeIcon icon={icon} className="text-red-400 text-xl mb-2" />
         <h3 className="text-lg font-semibold text-gray-700">{name}</h3>
         <p className="italic text-sm text-gray-600 mb-2">{role}</p>
 

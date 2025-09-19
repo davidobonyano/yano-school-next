@@ -9,6 +9,16 @@ const nextConfig: NextConfig = {
     // Do not fail production builds on type errors
     ignoreBuildErrors: true,
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'qkglxgyqionwvyolmodn.supabase.co',
+        port: '',
+        pathname: '/storage/v1/object/public/**',
+      },
+    ],
+  },
 };
 
 export default nextConfig;

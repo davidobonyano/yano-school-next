@@ -35,6 +35,26 @@ export default function EventsPage() {
     location: ''
   });
 
+  // Achievements management co-located here
+  type Achievement = { id: string; event_date: string; title: string; description: string; display_order: number };
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [achForm, setAchForm] = useState<Partial<Achievement>>({ display_order: 0, event_date: new Date().toISOString().slice(0,10) });
+  const [achLoading, setAchLoading] = useState(false);
+  const loadAchievements = async () => {
+    setAchLoading(true);
+    try { const r = await fetch('/api/admin/achievements'); const d = await r.json(); setAchievements(d.achievements||[]);} catch { /* noop */ }
+    setAchLoading(false);
+  };
+  const saveAchievement = async () => {
+    const method = achForm.id ? 'PUT' : 'POST';
+    const res = await fetch('/api/admin/achievements', { method, headers: { 'Content-Type':'application/json' }, body: JSON.stringify(achForm) });
+    if (res.ok) { setAchForm({ display_order: 0, event_date: new Date().toISOString().slice(0,10) }); loadAchievements(); }
+  };
+  const deleteAchievement = async (id: string) => {
+    const res = await fetch(`/api/admin/achievements?id=${id}`, { method: 'DELETE' });
+    if (res.ok) loadAchievements();
+  };
+
   // Show message function
   const showMessage = (text: string, type: 'success' | 'error' = 'success') => {
     setMessage(text);
@@ -179,6 +199,7 @@ export default function EventsPage() {
 
   useEffect(() => {
     fetchEvents();
+    loadAchievements();
   }, []);
 
   // Set form data when editing
@@ -455,6 +476,63 @@ export default function EventsPage() {
               ))}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Achievements Timeline Management */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Achievements Timeline</CardTitle>
+          <CardDescription>Manage achievements shown on the public timeline</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-3">
+              <div>
+                <Label>Date</Label>
+                <Input type="date" value={achForm.event_date || ''} onChange={e=>setAchForm({...achForm, event_date: e.target.value})} />
+              </div>
+              <div>
+                <Label>Title</Label>
+                <Input value={achForm.title || ''} onChange={e=>setAchForm({...achForm, title: e.target.value})} />
+              </div>
+              <div>
+                <Label>Description</Label>
+                <Textarea value={achForm.description || ''} onChange={e=>setAchForm({...achForm, description: e.target.value})} />
+              </div>
+              <div>
+                <Label>Display Order</Label>
+                <Input type="number" value={(achForm.display_order ?? 0).toString()} onChange={e=>setAchForm({...achForm, display_order: Number(e.target.value)})} />
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={saveAchievement}>{achForm.id ? 'Update' : 'Create'}</Button>
+                {achForm.id && <Button variant="secondary" onClick={()=>setAchForm({ display_order: 0, event_date: new Date().toISOString().slice(0,10) })}>Cancel</Button>}
+              </div>
+            </div>
+            <div className="space-y-2">
+              {achLoading ? (
+                <div className="text-gray-600">Loading...</div>
+              ) : (
+                <div className="space-y-3">
+                  {achievements.map(a => (
+                    <div key={a.id} className="border rounded p-3 flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-sm text-gray-600">{new Date(a.event_date).toLocaleDateString()}</div>
+                        <div className="font-medium">{a.title}</div>
+                        <div className="text-sm text-gray-700">{a.description}</div>
+                        <div className="text-xs text-gray-500">Order: {a.display_order}</div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button variant="secondary" onClick={()=>setAchForm(a)}>Edit</Button>
+                        <Button variant="destructive" onClick={()=>deleteAchievement(a.id)}>Delete</Button>
+                      </div>
+                    </div>
+                  ))}
+                  {achievements.length === 0 && <div className="text-gray-600">No achievements yet.</div>}
+                </div>
+              )}
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>

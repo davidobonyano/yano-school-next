@@ -43,7 +43,7 @@ export async function GET(request: Request) {
         .ilike('name', `%${termName}%`)
         .maybeSingle();
       if (t2err) return NextResponse.json({ error: t2err.message }, { status: 500 });
-      termRow = t2 || null as any;
+      termRow = t2 || null;
     }
 
     if (!termRow?.id) return NextResponse.json({ error: 'Term not found' }, { status: 404 });
@@ -79,8 +79,9 @@ export async function GET(request: Request) {
         session: sessionName
       }
     });
-  } catch (err: any) {
-    return NextResponse.json({ error: err?.message || 'Unexpected error' }, { status: 500 });
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : 'Unexpected error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 

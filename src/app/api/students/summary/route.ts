@@ -92,8 +92,8 @@ export async function GET(request: NextRequest) {
 
 		const [overallRes, sessionRes, termRes] = await Promise.all([
 			overallQuery,
-			sessionQuery ?? Promise.resolve({ data: null, error: null } as any),
-			termQuery ?? Promise.resolve({ data: null, error: null } as any)
+			sessionQuery ?? Promise.resolve({ data: null, error: null }),
+			termQuery ?? Promise.resolve({ data: null, error: null })
 		]);
 
 		if (overallRes.error) return NextResponse.json({ error: overallRes.error.message }, { status: 500 });
@@ -108,17 +108,18 @@ export async function GET(request: NextRequest) {
 		};
 
 		const responseJson = {
-			overallCgpa: computeAvg(overallRes.data as any),
-			sessionCgpa: computeAvg(sessionRes?.data as any),
-			termGpa: computeAvg(termRes?.data as any)
+			overallCgpa: computeAvg(overallRes.data as Array<{ grade: string }> | null),
+			sessionCgpa: computeAvg(sessionRes?.data as Array<{ grade: string }> | null),
+			termGpa: computeAvg(termRes?.data as Array<{ grade: string }> | null)
 		};
 
 		return new NextResponse(JSON.stringify(responseJson), {
 			status: 200,
 			headers: { 'Content-Type': 'application/json' }
 		});
-	} catch (err: any) {
-		return NextResponse.json({ error: err?.message || 'Unexpected error' }, { status: 500 });
+	} catch (err: unknown) {
+		const errorMessage = err instanceof Error ? err.message : 'Unexpected error';
+		return NextResponse.json({ error: errorMessage }, { status: 500 });
 	}
 }
 

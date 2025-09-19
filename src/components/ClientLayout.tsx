@@ -207,8 +207,8 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
                     ? 'text-blue-900 font-semibold'
                     : isHomePage
                     ? 'text-blue-900'
-                    : 'text-gray-700 dark:text-gray-300'
-                } hover:text-blue-700 dark:hover:text-white`}
+                    : 'text-gray-700'
+                } hover:text-blue-700`}
               >
                 {label}
                 <span
@@ -269,7 +269,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           className={`flex lg:hidden justify-between items-center px-4 shadow-md transition-all duration-300 ${
             isHomePage
               ? 'absolute top-[80px] w-[80%] left-1/2 transform -translate-x-1/2 bg-white z-30 rounded-xl shadow-md'
-              : 'bg-lightmode-header dark:bg-darkmode-header'
+              : 'bg-lightmode-header'
           }`}
         >
           <Link href="/">

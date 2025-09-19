@@ -44,7 +44,7 @@ export default function AboutPage() {
         <p className="text-lg text-gray-700 ">Interested in Enrolling?</p>
         <Link
           href="/admissions"
-          className="inline-block mt-4 border border-red-400 px-6 py-3 rounded-3xl text-black dark:text-white hover:bg-red-400 hover:text-white transition duration-300"
+          className="inline-block mt-4 border border-red-400 px-6 py-3 rounded-3xl text-black hover:bg-red-400 hover:text-white transition duration-300"
         >
           Visit Admissions Page →
         </Link>

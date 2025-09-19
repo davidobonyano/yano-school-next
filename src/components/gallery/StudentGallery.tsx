@@ -1,78 +1,46 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight, Users, Star, Camera } from 'lucide-react';
 
 interface GalleryItem {
   id: string;
-  src: string;
-  alt: string;
+  image_url: string;
+  alt?: string;
   title: string;
   category: 'prefects' | 'students' | 'events' | 'school';
   description?: string;
 }
 
-// Sample gallery data - replace with your actual images
-const galleryItems: GalleryItem[] = [
-  {
-    id: '1',
-    src: '/images/gallery/prefects-1.jpg',
-    alt: 'Head Boy',
-    title: 'Head Boy',
-    category: 'prefects',
-    description: 'Our head boy representing excellence and responsibility'
-  },
-  {
-    id: '2',
-    src: '/images/gallery/students-1.jpg',
-    alt: 'Students in classroom',
-    title: 'Active Learning Environment',
-    category: 'students',
-    description: 'Students engaged in interactive learning'
-  },
-  {
-    id: '4',
-    src: '/images/gallery/school-building.jpg',
-    alt: 'School Building',
-    title: 'School Building',
-    category: 'school',
-    description: 'Our campus and facilities'
-  },
-  {
-    id: '6',
-    src: '/images/gallery/students-3.jpg',
-    alt: 'KG class activities',
-    title: 'KG Class Activities',
-    category: 'students',
-    description: 'Our kindergarten learners enjoying class activities'
-  },
-  {
-    id: '7',
-    src: '/images/gallery/prefects-3.jpg',
-    alt: 'Head Girl',
-    title: 'Head Girl',
-    category: 'prefects',
-    description: 'Our head girl representing excellence and responsibility'
-  },
-  {
-    id: '8',
-    src: '/images/gallery/events-2.jpg',
-    alt: 'Cultural day',
-    title: 'Cultural Day Celebration',
-    category: 'events',
-    description: 'Students showcasing diverse cultural heritage'
-  },
-  {
-    id: '9',
-    src: '/images/gallery/2025-graduants.jpg',
-    alt: '2025 Graduants',
-    title: '2025 Graduants',
-    category: 'school',
-    description: 'Celebrating the class of 2025'
-  }
-];
+export default function StudentGallery() {
+  const [items, setItems] = useState<GalleryItem[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedImage, setSelectedImage] = useState<GalleryItem | null>(null);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [imageError, setImageError] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const q = selectedCategory && selectedCategory !== 'all' ? `?category=${selectedCategory}` : '';
+        const res = await fetch(`/api/gallery${q}`);
+        const data = await res.json();
+        const fallback: GalleryItem[] = [
+          { id: 'g1', image_url: '/images/gallery/prefects-1.jpg', alt: 'Head Boy', title: 'Head Boy', category: 'prefects', description: 'Our head boy representing excellence and responsibility' },
+          { id: 'g2', image_url: '/images/gallery/students-1.jpg', alt: 'Students in classroom', title: 'Active Learning Environment', category: 'students', description: 'Students engaged in interactive learning' },
+          { id: 'g3', image_url: '/images/gallery/school-building.jpg', alt: 'School Building', title: 'School Building', category: 'school', description: 'Our campus and facilities' }
+        ];
+        const incoming = (data.images || []) as GalleryItem[];
+        setItems(incoming.length ? incoming : fallback);
+      } catch {}
+      setLoading(false);
+    };
+    load();
+  }, [selectedCategory]);
 
 const categories = [
   { key: 'all', label: 'All Photos', icon: Camera },
@@ -82,15 +50,7 @@ const categories = [
   { key: 'school', label: 'School', icon: Users }
 ];
 
-export default function StudentGallery() {
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [selectedImage, setSelectedImage] = useState<GalleryItem | null>(null);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [imageError, setImageError] = useState(false);
-
-  const filteredItems = selectedCategory === 'all' 
-    ? galleryItems 
-    : galleryItems.filter(item => item.category === selectedCategory);
+  const filteredItems = items;
 
   const openModal = (item: GalleryItem) => {
     setSelectedImage(item);
@@ -172,8 +132,8 @@ export default function StudentGallery() {
               >
                 <div className="relative aspect-square rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 transform group-hover:scale-105">
                   <Image
-                    src={item.src}
-                    alt={item.alt}
+                    src={item.image_url}
+                    alt={item.alt || item.title}
                     fill
                     className="object-cover"
                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
@@ -202,10 +162,13 @@ export default function StudentGallery() {
         </motion.div>
 
         {/* No items message */}
-        {filteredItems.length === 0 && (
+        {!loading && filteredItems.length === 0 && (
           <div className="text-center py-12">
             <p className="text-gray-500">No photos found in this category.</p>
           </div>
+        )}
+        {loading && (
+          <div className="text-center py-12 text-gray-600">Loading...</div>
         )}
       </div>
 
@@ -258,8 +221,8 @@ export default function StudentGallery() {
                   </div>
                 ) : (
                   <Image
-                    src={selectedImage.src}
-                    alt={selectedImage.alt}
+                    src={selectedImage.image_url}
+                    alt={selectedImage.alt || selectedImage.title}
                     fill
                     className="object-contain"
                     sizes="80vw"

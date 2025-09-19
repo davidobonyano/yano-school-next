@@ -49,8 +49,9 @@ export async function POST(request: Request) {
 
     // For now, return a simple session marker; later replace with JWT/session cookie
     return NextResponse.json({ success: true, student: { student_id: student.student_id, full_name: student.full_name } });
-  } catch (err: any) {
-    return NextResponse.json({ error: err?.message || 'Unexpected error' }, { status: 500 });
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : 'Unexpected error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 

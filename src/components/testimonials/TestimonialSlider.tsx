@@ -6,36 +6,15 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faQuoteRight } from '@fortawesome/free-solid-svg-icons';
 
 type Slide = {
+  id: string;
   name: string;
   title: string;
   message: string;
-  image: string;
+  image_url?: string;
 };
 
-const slides: Slide[] = [
-  {
-    name: 'David Efe',
-    title: 'Geologist & Programmer',
-    message: 'Na Yano School make me sabi book well-well. Now I dey code and crack rock!',
-    image: '/images/students/dyano.jpg',
-  },
-  {
-    name: 'John Peace',
-    title: 'Accountant (ACA, ICAN)',
-    message:
-      'Yano School gave me a strong foundation to pursue the highest professional qualifications in Nigeria.',
-    image: '/images/students/peace.avif',
-  },
-  {
-    name: 'Fatima Abdul',
-    title: 'Surgical Intern (Doctor sha.)',
-    message:
-      'Yano School prepared me for life... but them no prepare me for how fast phone battery dey finish in medical school!',
-    image: '/images/students/fatima.webp',
-  },
-];
-
 export default function TestimonialSlider() {
+  const [slides, setSlides] = useState<Slide[]>([]);
   const [current, setCurrent] = useState(0);
   const [hasMounted, setHasMounted] = useState(false);
   const touchStartX = useRef<number | null>(null);
@@ -47,11 +26,29 @@ export default function TestimonialSlider() {
   }, []);
 
   useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch('/api/testimonials');
+        const data = await res.json();
+        const incoming = (data.testimonials || []) as Slide[];
+        if (incoming.length) setSlides(incoming);
+        else setSlides([
+          { id: 't1', name: 'David Efe', title: 'Geologist & Programmer', message: 'Na Yano School make me sabi book well-well. Now I dey code and crack rock!', image_url: '/images/students/dyano.jpg' },
+          { id: 't2', name: 'John Peace', title: 'Accountant (ACA, ICAN)', message: 'Yano School gave me a strong foundation to pursue the highest professional qualifications in Nigeria.', image_url: '/images/students/peace.avif' },
+          { id: 't3', name: 'Fatima Abdul', title: 'Surgical Intern (Doctor sha.)', message: 'Yano School prepared me for life... but them no prepare me for how fast phone battery dey finish in medical school!', image_url: '/images/students/fatima.webp' },
+        ]);
+      } catch {}
+    };
+    load();
+  }, []);
+
+  useEffect(() => {
+    if (slides.length === 0) return;
     const interval = setInterval(() => {
       setCurrent((prev) => (prev + 1) % slides.length);
     }, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [slides]);
 
   const handleTouchStart = (e: TouchEvent) => {
     touchStartX.current = e.changedTouches[0].clientX;
@@ -97,7 +94,7 @@ export default function TestimonialSlider() {
             className="min-w-full flex flex-col items-center justify-center px-6 text-center"
           >
             <Image
-              src={slide.image}
+              src={slide.image_url || '/images/students/placeholder.jpg'}
               alt={slide.name}
               width={112}
               height={112}

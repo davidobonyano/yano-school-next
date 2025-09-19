@@ -1,22 +1,35 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Shirt } from "lucide-react";
+import { useEffect, useState } from "react";
 
-const uniformPreview = [
+type Uniform = {
+  id: string;
+  image_url: string;
+  alt?: string;
+  title: string;
+  description?: string;
+  text_color?: string;
+};
+
+const fallbackUniforms = [
   {
-    src: "/images/uniforms/boys-regular.jpg",
+    id: "u1",
+    image_url: "/images/uniforms/boys-regular.jpg",
     alt: "Boys Regular Uniform",
     title: "Boys Regular",
     description: "Pink top with striped trousers",
   },
   {
-    src: "/images/uniforms/girls-regular.jpg", 
+    id: "u2",
+    image_url: "/images/uniforms/girls-regular.jpg", 
     alt: "Girls Regular Uniform",
     title: "Girls Regular",
     description: "Striped gown with pink tones",
   },
   {
-    src: "/images/uniforms/sports.jpg",
+    id: "u3",
+    image_url: "/images/uniforms/sports.jpg",
     alt: "Sportswear",
     title: "Sportswear", 
     description: "Pink sports attire for PE",
@@ -24,6 +37,34 @@ const uniformPreview = [
 ];
 
 export default function UniformPreview() {
+  const [uniforms, setUniforms] = useState<Uniform[]>(fallbackUniforms.slice(0, 2));
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadUniforms = async () => {
+      try {
+        const res = await fetch('/api/uniforms');
+        const data = await res.json();
+        const incoming = (data.uniforms || []) as Uniform[];
+        if (incoming.length > 0) {
+          // Filter to only show boys and girls regular uniforms
+          const filteredUniforms = incoming.filter(uniform => 
+            uniform.title.toLowerCase().includes('boys regular') || 
+            uniform.title.toLowerCase().includes('girls regular') ||
+            uniform.title.toLowerCase().includes('boys') ||
+            uniform.title.toLowerCase().includes('girls')
+          );
+          setUniforms(filteredUniforms.length > 0 ? filteredUniforms : fallbackUniforms.slice(0, 2));
+        }
+      } catch (error) {
+        console.error('Error loading uniforms:', error);
+        // Keep fallback uniforms on error (only first 2)
+        setUniforms(fallbackUniforms.slice(0, 2));
+      }
+      setLoading(false);
+    };
+    loadUniforms();
+  }, []);
   return (
     <section className="py-16 px-4 bg-red-50">
       <div className="max-w-6xl mx-auto">
@@ -34,36 +75,52 @@ export default function UniformPreview() {
             <h2 className="text-3xl font-bold text-gray-900">School Uniforms</h2>
           </div>
           <p className="text-gray-600 max-w-2xl mx-auto">
-            Smart, modest, and comfortable uniforms that reflect our school's values and identity.
+            Smart, modest, and comfortable uniforms that reflect our school&apos;s values and identity.
           </p>
         </div>
 
         {/* Uniform Preview Grid */}
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 mb-10">
-          {uniformPreview.map((item, index) => (
-            <div
-              key={index}
-              className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300"
-            >
-              <div className="relative w-full h-48">
-                <Image
-                  src={item.src}
-                  alt={item.alt}
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                />
+          {loading ? (
+            // Loading skeleton
+            Array.from({ length: 2 }).map((_, index) => (
+              <div
+                key={index}
+                className="bg-white rounded-xl shadow-md overflow-hidden animate-pulse"
+              >
+                <div className="w-full h-48 bg-gray-200"></div>
+                <div className="p-4">
+                  <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                  <div className="h-3 bg-gray-200 rounded w-3/4"></div>
+                </div>
               </div>
-              <div className="p-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                  {item.title}
-                </h3>
-                <p className="text-gray-600 text-sm">
-                  {item.description}
-                </p>
+            ))
+          ) : (
+            uniforms.map((item) => (
+              <div
+                key={item.id}
+                className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300"
+              >
+                <div className="relative w-full h-48">
+                  <Image
+                    src={item.image_url}
+                    alt={item.alt || item.title}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                  />
+                </div>
+                <div className="p-4">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                    {item.title}
+                  </h3>
+                  <p className="text-gray-600 text-sm">
+                    {item.description}
+                  </p>
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
 
         {/* Call to Action */}

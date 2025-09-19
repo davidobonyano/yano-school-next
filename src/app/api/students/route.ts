@@ -14,8 +14,9 @@ export async function GET() {
     }
 
     return NextResponse.json({ students: students || [] });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Unexpected error fetching students:', err);
-    return NextResponse.json({ error: err?.message || 'Unexpected error' }, { status: 500 });
+    const errorMessage = err instanceof Error ? err.message : 'Unexpected error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
